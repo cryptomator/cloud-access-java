@@ -9,9 +9,9 @@ public class CloudItemMetadata {
 	private final Path path;
 	private final CloudItemType itemType;
 	private final Optional<Date> lastModifiedDate;
-	private final Optional<Integer> size;
+	private final Optional<Long> size;
 
-	public CloudItemMetadata(final String name, final Path path, final CloudItemType itemType, final Optional<Date> lastModifiedDate, final Optional<Integer> size) {
+	public CloudItemMetadata(final String name, final Path path, final CloudItemType itemType, final Optional<Date> lastModifiedDate, final Optional<Long> size) {
 		this.name = name;
 		this.path = path;
 		this.itemType = itemType;
@@ -43,7 +43,7 @@ public class CloudItemMetadata {
 		return lastModifiedDate;
 	}
 
-	public Optional<Integer> getSize() {
+	public Optional<Long> getSize() {
 		return size;
 	}
 }
