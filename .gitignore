@@ -1,0 +1,23 @@
+*.class
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# Eclipse Settings Files #
+.settings
+.project
+.classpath
+target/
+test-output/
+
+# Maven #
+pom.xml.versionsBackup
+
+# IntelliJ Settings Files #
+.idea/
+out/
+.idea_modules/
+*.iws
+*.iml
