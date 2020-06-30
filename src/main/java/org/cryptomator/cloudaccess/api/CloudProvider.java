@@ -39,7 +39,7 @@ public interface CloudProvider {
 	}
 	
 	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, Path folder, CloudItemList itemList) {
-		return provider.list(folder, Optional.empty()).thenCompose(nextItems -> {
+		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
 			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
 			if (nextItems.getNextPageToken().isPresent()) {
 				return listExhaustively(provider, folder, combined);
