@@ -3,10 +3,9 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <groupId>org.cryptomator</groupId>
     <artifactId>cloud-access-java</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
 
     <name>Cryptomator CloudAccess in Java</name>
     <description>CloudAccess is used in e.g. Cryptomator for Android to access different cloud providers.</description>
@@ -14,7 +13,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+        
+        <cryptolib.version>1.4.0-beta1</cryptolib.version>
         <junit.jupiter.version>5.6.2</junit.jupiter.version>
         <mockito.version>3.3.3</mockito.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -28,7 +28,21 @@
         </license>
     </licenses>
 
+    <repositories>
+        <repository>
+            <id>bintray</id>
+            <name>bintray</name>
+            <url>https://jcenter.bintray.com</url>
+        </repository>
+    </repositories>
+
     <dependencies>
+        <dependency>
+            <groupId>org.cryptomator</groupId>
+            <artifactId>cryptolib</artifactId>
+            <version>${cryptolib.version}</version>
+        </dependency>
+        
         <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
