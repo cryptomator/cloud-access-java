@@ -1,9 +1,9 @@
-package org.cryptomator.CloudAccess;
+package org.cryptomator.cloudaccess;
 
-import org.cryptomator.CloudAccess.Core.CloudItemList;
-import org.cryptomator.CloudAccess.Core.CloudItemMetadata;
-import org.cryptomator.CloudAccess.Core.CloudProvider;
-import org.cryptomator.CloudAccess.Core.ProgressListener;
+import org.cryptomator.cloudaccess.api.CloudItemList;
+import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudProvider;
+import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import static org.cryptomator.CloudAccess.Core.CloudItemType.FILE;
+import static org.cryptomator.cloudaccess.api.CloudItemType.FILE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;

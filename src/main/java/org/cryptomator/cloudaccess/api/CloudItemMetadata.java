@@ -1,4 +1,4 @@
-package org.cryptomator.CloudAccess.Core;
+package org.cryptomator.cloudaccess.api;
 
 import java.nio.file.Path;
 import java.util.Date;
