@@ -58,7 +58,7 @@ class Playground {
         }
 
         @Override
-        public CompletionStage<OutputStream> read(Path file, ProgressListener progressListener) {
+        public CompletionStage<InputStream> read(Path file, ProgressListener progressListener) {
             progressListener.onProgress(12);
             progressListener.onProgress(52);
             return null;

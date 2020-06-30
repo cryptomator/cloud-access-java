@@ -1,6 +1,6 @@
 package org.cryptomator.cloudaccess.api;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,8 +17,7 @@ public class CloudItemList {
 	}
 
 	public CloudItemList(final List<CloudItemMetadata> items) {
-		this.items = items;
-		nextPageToken = Optional.empty();
+		this(items, Optional.empty());
 	}
 
 	public List<CloudItemMetadata> getItems() {
@@ -30,9 +29,11 @@ public class CloudItemList {
 	}
 
 	public CloudItemList add(final List<CloudItemMetadata> items, final Optional<String> nextPageToken) {
-		final List<CloudItemMetadata> union = Stream.of(this.items, items)
-				.flatMap(Collection::stream)
-				.collect(Collectors.toList());
+		final List<CloudItemMetadata> union = Stream.concat(this.items.stream(), items.stream()).collect(Collectors.toList());
 		return new CloudItemList(union, nextPageToken);
+	}
+	
+	public static CloudItemList empty() {
+		return new CloudItemList(Collections.emptyList());
 	}
 }
