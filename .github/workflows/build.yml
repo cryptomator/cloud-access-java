@@ -42,7 +42,7 @@ jobs:
           name: cloud-access-${{ env.BUILD_VERSION }}.jar
           path: target/cloud-access-*.jar
       - name: Deploy to jcenter
-        run: mvn -B deploy -Prelease
+        run: mvn -B deploy
         if: startsWith(github.ref, 'refs/tags/')
         env:
           BINTRAY_USERNAME: cryptobot
