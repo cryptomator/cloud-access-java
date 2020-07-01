@@ -10,6 +10,7 @@ import org.mockito.Mockito;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -25,11 +26,11 @@ class Playground {
 
     @Test
     public void test() {
-        final var cloudItemMetadata = new CloudItemMetadata("name", Path.of("/path"), FILE, Optional.empty(), Optional.empty());
+        CloudItemMetadata cloudItemMetadata = new CloudItemMetadata("name", Paths.get("/path"), FILE, Optional.empty(), Optional.empty());
 
         when(cloudProvider.createFolder(any())).thenAnswer(folder -> CompletableFuture.supplyAsync(() -> folder));
 
-        final var result = cloudProvider.createFolder(Path.of("/foo/bar"))
+        String result = cloudProvider.createFolder(Paths.get("/foo/bar"))
                 .thenCompose(cloudProvider::delete)
                 .thenCompose((node) -> {
                     throw new RuntimeException("e");
@@ -40,7 +41,7 @@ class Playground {
 
         assertEquals(result, "Foo");
 
-        final var demoCloudProvider = new DemoCloudProvider();
+        DemoCloudProvider demoCloudProvider = new DemoCloudProvider();
         demoCloudProvider.read(cloudItemMetadata.getPath(), System.out::println);
     }
 
