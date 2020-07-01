@@ -20,11 +20,7 @@ public class CloudItemMetadata {
 	}
 
 	public CloudItemMetadata(final String name, final Path path, final CloudItemType itemType) {
-		this.name = name;
-		this.path = path;
-		this.itemType = itemType;
-		this.lastModifiedDate = Optional.empty();
-		this.size = Optional.empty();
+		this(name, path, itemType, Optional.empty(), Optional.empty());
 	}
 
 	public String getName() {
