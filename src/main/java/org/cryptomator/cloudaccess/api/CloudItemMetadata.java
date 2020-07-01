@@ -1,17 +1,17 @@
 package org.cryptomator.cloudaccess.api;
 
 import java.nio.file.Path;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 public class CloudItemMetadata {
 	private final String name;
 	private final Path path;
 	private final CloudItemType itemType;
-	private final Optional<Date> lastModifiedDate;
+	private final Optional<Instant> lastModifiedDate;
 	private final Optional<Long> size;
 
-	public CloudItemMetadata(final String name, final Path path, final CloudItemType itemType, final Optional<Date> lastModifiedDate, final Optional<Long> size) {
+	public CloudItemMetadata(String name, Path path, CloudItemType itemType, Optional<Instant> lastModifiedDate, Optional<Long> size) {
 		this.name = name;
 		this.path = path;
 		this.itemType = itemType;
@@ -19,7 +19,7 @@ public class CloudItemMetadata {
 		this.size = size;
 	}
 
-	public CloudItemMetadata(final String name, final Path path, final CloudItemType itemType) {
+	public CloudItemMetadata(String name, Path path, CloudItemType itemType) {
 		this(name, path, itemType, Optional.empty(), Optional.empty());
 	}
 
@@ -35,7 +35,7 @@ public class CloudItemMetadata {
 		return itemType;
 	}
 
-	public Optional<Date> getLastModifiedDate() {
+	public Optional<Instant> getLastModifiedDate() {
 		return lastModifiedDate;
 	}
 
