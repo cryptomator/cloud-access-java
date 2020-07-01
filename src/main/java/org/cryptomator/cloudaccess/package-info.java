@@ -1,4 +1,1 @@
-/**
- * 
- */
 package org.cryptomator.cloudaccess;

@@ -128,6 +128,10 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <quiet>true</quiet>
+                    <release>8</release>
+                </configuration>
             </plugin>
         </plugins>
     </build>
