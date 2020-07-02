@@ -100,7 +100,7 @@
                 </executions>
                 <configuration>
                     <quiet>true</quiet>
-                    <release>8</release>
+                    <release>11</release>
                 </configuration>
             </plugin>
         </plugins>
