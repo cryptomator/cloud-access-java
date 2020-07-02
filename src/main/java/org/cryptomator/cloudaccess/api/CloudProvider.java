@@ -35,7 +35,18 @@ public interface CloudProvider {
 	 * @return CompletionStage with a complete list of items.
 	 */
 	default CompletionStage<CloudItemList> listExhaustively(Path folder) {
-		return CloudProviderHelper.listExhaustively(this, folder, CloudItemList.empty());
+		return listExhaustively(this, folder, CloudItemList.empty());
+	}
+	
+	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, Path folder, CloudItemList itemList) {
+		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
+			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
+			if (nextItems.getNextPageToken().isPresent()) {
+				return listExhaustively(provider, folder, combined);
+			} else {
+				return CompletableFuture.completedStage(combined);
+			}
+		});
 	}
 
 	/**
