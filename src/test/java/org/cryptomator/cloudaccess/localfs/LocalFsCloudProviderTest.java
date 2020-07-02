@@ -87,4 +87,25 @@ public class LocalFsCloudProviderTest {
 		Assertions.assertEquals(Path.of("/folder"), folder);
 		Assertions.assertTrue(Files.isDirectory(root.resolve("folder")));
 	}
+
+	@Test
+	public void testDeleteFile() throws IOException {
+		Files.createFile(root.resolve("file"));
+		
+		var result = provider.delete(Path.of("/file"));
+		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+
+		Assertions.assertTrue(Files.notExists(root.resolve("file")));
+	}
+
+	@Test
+	public void testDeleteFolder() throws IOException {
+		Files.createDirectory(root.resolve("folder"));
+		Files.createFile(root.resolve("folder/file"));
+
+		var result = provider.delete(Path.of("/folder"));
+		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+
+		Assertions.assertTrue(Files.notExists(root.resolve("folder")));
+	}
 }

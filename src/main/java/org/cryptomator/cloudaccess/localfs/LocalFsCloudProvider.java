@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
@@ -109,7 +111,13 @@ public class LocalFsCloudProvider implements CloudProvider {
 
 	@Override
 	public CompletionStage<Void> delete(Path node) {
-		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
+		Path path = resolve(node);
+		try {
+			MoreFiles.deleteRecursively(path, RecursiveDeleteOption.ALLOW_INSECURE);
+			return CompletableFuture.completedFuture(null);
+		} catch (IOException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 
 	@Override
