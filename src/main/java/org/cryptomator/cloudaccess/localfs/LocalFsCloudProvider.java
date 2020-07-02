@@ -2,9 +2,7 @@ package org.cryptomator.cloudaccess.localfs;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.ByteChannel;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -100,7 +98,13 @@ public class LocalFsCloudProvider implements CloudProvider {
 
 	@Override
 	public CompletionStage<Path> createFolder(Path folder) {
-		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
+		Path folderPath = resolve(folder);
+		try {
+			Files.createDirectory(folderPath);
+			return CompletableFuture.completedFuture(folder);
+		} catch (IOException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 
 	@Override

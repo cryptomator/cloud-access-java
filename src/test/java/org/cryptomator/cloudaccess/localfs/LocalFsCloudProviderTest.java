@@ -78,4 +78,13 @@ public class LocalFsCloudProviderTest {
 			Assertions.assertArrayEquals("o w".getBytes(), allBytes);
 		}
 	}
+	
+	@Test
+	public void testCreateFolder() {
+		var result = provider.createFolder(Path.of("/folder"));
+		var folder = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+		
+		Assertions.assertEquals(Path.of("/folder"), folder);
+		Assertions.assertTrue(Files.isDirectory(root.resolve("folder")));
+	}
 }
