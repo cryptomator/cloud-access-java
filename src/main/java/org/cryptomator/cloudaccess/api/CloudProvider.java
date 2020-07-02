@@ -1,9 +1,7 @@
 package org.cryptomator.cloudaccess.api;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -31,16 +29,29 @@ public interface CloudProvider {
 
 	/**
 	 * Convenience wrapper for {@link #list(Path, Optional)} that fetches all items.
+	 *
 	 * @param folder The remote path of the folder to list.
 	 * @return CompletionStage with a complete list of items.
 	 */
 	default CompletionStage<CloudItemList> listExhaustively(Path folder) {
-		return CloudProviderHelper.listExhaustively(this, folder, CloudItemList.empty());
+		return listExhaustively(this, folder, CloudItemList.empty());
+	}
+
+	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, Path folder, CloudItemList itemList) {
+		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
+			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
+			if (nextItems.getNextPageToken().isPresent()) {
+				return listExhaustively(provider, folder, combined);
+			} else {
+				return CompletableFuture.completedStage(combined);
+			}
+		});
 	}
 
 	/**
 	 * Reads from the given file.
-	 * @param file A remote path referencing a file 
+	 *
+	 * @param file A remote path referencing a file
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
 	 */
@@ -50,7 +61,8 @@ public interface CloudProvider {
 
 	/**
 	 * Reads part of a given file.
-	 * @param file A remote path referencing a file 
+	 *
+	 * @param file A remote path referencing a file
 	 * @param offset The first byte (inclusive) to read.
 	 * @param count The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
 	 * @param progressListener TODO Future use
@@ -59,8 +71,9 @@ public interface CloudProvider {
 	CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener);
 
 	/**
-	 * Writes to a given file.
-	 * @param file A remote path referencing a file 
+	 * Writes to a given file, creating it if it doesn't exist yet.
+	 *
+	 * @param file A remote path referencing a file
 	 * @param replace Flag indicating whether to overwrite the file if it already exists.
 	 * @param data A data source from which to copy contents to the remote file
 	 * @param progressListener TODO Future use
@@ -69,8 +82,8 @@ public interface CloudProvider {
 	CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener);
 
 	/**
-	 * Create a folder.
-	 * 
+	 * Create a folder. Does not create any potentially missing parent directories.
+	 *
 	 * @param folder The remote path of the folder to create.
 	 * @return CompletionStage with the same path as <code>folder</code> if created successfully.
 	 */
@@ -78,7 +91,7 @@ public interface CloudProvider {
 
 	/**
 	 * Recursively delete a file or folder.
-	 * 
+	 *
 	 * @param node The remote path of the file or folder to delete.
 	 * @return CompletionStage completing successfully if node was deleted.
 	 */
@@ -86,7 +99,7 @@ public interface CloudProvider {
 
 	/**
 	 * Move a file or folder to a different location.
-	 * 
+	 *
 	 * @param source The remote path of the file or folder to be moved.
 	 * @param target The remote path of the desired destination.
 	 * @param replace Flag indicating whether to overwrite <code>target</code> if it already exists.
