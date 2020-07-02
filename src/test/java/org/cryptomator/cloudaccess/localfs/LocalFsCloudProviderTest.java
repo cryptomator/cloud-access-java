@@ -108,4 +108,42 @@ public class LocalFsCloudProviderTest {
 
 		Assertions.assertTrue(Files.notExists(root.resolve("folder")));
 	}
+
+	@Test
+	public void testMoveToNonExisting() throws IOException {
+		Files.createFile(root.resolve("foo"));
+
+		var result = provider.move(Path.of("/foo"), Path.of("/bar"), false);
+		var moved = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+
+		Assertions.assertEquals(Path.of("/bar"), moved);
+		Assertions.assertTrue(Files.notExists(root.resolve("foo")));
+		Assertions.assertTrue(Files.exists(root.resolve("bar")));
+	}
+
+	@Test
+	public void testMoveToExisting() throws IOException {
+		Files.createFile(root.resolve("foo"));
+		Files.createFile(root.resolve("bar"));
+
+		var result = provider.move(Path.of("/foo"), Path.of("/bar"), false);
+		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
+			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+		});
+		
+		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(FileAlreadyExistsException.class));
+	}
+
+	@Test
+	public void testMoveToAndReplaceExisting() throws IOException {
+		Files.createFile(root.resolve("foo"));
+		Files.createFile(root.resolve("bar"));
+
+		var result = provider.move(Path.of("/foo"), Path.of("/bar"), true);
+		var moved = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
+
+		Assertions.assertEquals(Path.of("/bar"), moved);
+		Assertions.assertTrue(Files.notExists(root.resolve("foo")));
+		Assertions.assertTrue(Files.exists(root.resolve("bar")));
+	}
 }

@@ -3,18 +3,22 @@ package org.cryptomator.cloudaccess.localfs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
+import java.nio.file.CopyOption;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -122,6 +126,14 @@ public class LocalFsCloudProvider implements CloudProvider {
 
 	@Override
 	public CompletionStage<Path> move(Path source, Path target, boolean replace) {
-		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
+		Path src = resolve(source);
+		Path dst = resolve(target);
+		try {
+			var options = replace ? EnumSet.of(StandardCopyOption.REPLACE_EXISTING) : EnumSet.noneOf(StandardCopyOption.class);
+			Files.move(src, dst, options.toArray(CopyOption[]::new));
+			return CompletableFuture.completedFuture(target);
+		} catch (IOException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 }
