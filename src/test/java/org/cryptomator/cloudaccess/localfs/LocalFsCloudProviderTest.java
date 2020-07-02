@@ -1,9 +1,11 @@
 package org.cryptomator.cloudaccess.localfs;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
@@ -14,6 +16,7 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,6 +32,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("get metadata of /file")
 	public void testItemMetadata() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 
@@ -46,6 +50,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("list /")
 	public void testListExhaustively() throws IOException {
 		Files.createDirectory(root.resolve("dir"));
 		Files.createFile(root.resolve("file"));
@@ -58,6 +63,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("read /file (complete)")
 	public void testRead() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 
@@ -69,6 +75,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("read /file (bytes 4-6)")
 	public void testRandomAccessRead() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 
@@ -80,6 +87,7 @@ public class LocalFsCloudProviderTest {
 	}
 	
 	@Test
+	@DisplayName("create /folder")
 	public void testCreateFolder() {
 		var result = provider.createFolder(Path.of("/folder"));
 		var folder = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () ->  result.toCompletableFuture().get());
@@ -89,6 +97,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("delete /file")
 	public void testDeleteFile() throws IOException {
 		Files.createFile(root.resolve("file"));
 		
@@ -99,6 +108,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("delete /folder (recursively)")
 	public void testDeleteFolder() throws IOException {
 		Files.createDirectory(root.resolve("folder"));
 		Files.createFile(root.resolve("folder/file"));
@@ -110,6 +120,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("move /foo -> /bar")
 	public void testMoveToNonExisting() throws IOException {
 		Files.createFile(root.resolve("foo"));
 
@@ -122,6 +133,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("move /foo -> /bar (which already exists)")
 	public void testMoveToExisting() throws IOException {
 		Files.createFile(root.resolve("foo"));
 		Files.createFile(root.resolve("bar"));
@@ -135,6 +147,7 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("move /foo -> /bar (replace existing)")
 	public void testMoveToAndReplaceExisting() throws IOException {
 		Files.createFile(root.resolve("foo"));
 		Files.createFile(root.resolve("bar"));
