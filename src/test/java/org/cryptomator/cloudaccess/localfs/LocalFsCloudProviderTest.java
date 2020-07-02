@@ -89,9 +89,8 @@ public class LocalFsCloudProviderTest {
 	@Test
 	@DisplayName("write to /file (non-existing)")
 	public void testWriteToNewFile() throws IOException {
-		//Files.write(root.resolve("file"), "hello world".getBytes());
-
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
+		
 		var result = provider.write(Path.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
@@ -108,8 +107,8 @@ public class LocalFsCloudProviderTest {
 	@DisplayName("write to /file (already existing)")
 	public void testWriteToExistingFile() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
-
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
+		
 		var result = provider.write(Path.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
 
 		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
@@ -123,8 +122,8 @@ public class LocalFsCloudProviderTest {
 	@DisplayName("write to /file (replace existing)")
 	public void testWriteToAndReplaceExistingFile() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
-
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
+		
 		var result = provider.write(Path.of("/file"), true, in, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
