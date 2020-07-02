@@ -44,7 +44,19 @@ public interface CloudProvider {
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
 	 */
-	CompletionStage<InputStream> read(Path file, ProgressListener progressListener);
+	default CompletionStage<InputStream> read(Path file, ProgressListener progressListener) {
+		return read(file, 0, Long.MAX_VALUE, progressListener);
+	}
+
+	/**
+	 * Reads part of a given file.
+	 * @param file A remote path referencing a file 
+	 * @param offset The first byte (inclusive) to read.
+	 * @param count The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
+	 * @param progressListener TODO Future use
+	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
+	 */
+	CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener);
 
 	/**
 	 * Writes to a given file.
