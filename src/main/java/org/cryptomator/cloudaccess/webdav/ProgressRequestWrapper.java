@@ -2,7 +2,11 @@ package org.cryptomator.cloudaccess.webdav;
 
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
-import okio.*;
+import okio.Buffer;
+import okio.BufferedSink;
+import okio.ForwardingSink;
+import okio.Okio;
+import okio.Sink;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 
 import java.io.IOException;

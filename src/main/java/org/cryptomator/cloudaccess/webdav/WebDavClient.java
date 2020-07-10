@@ -1,21 +1,27 @@
 package org.cryptomator.cloudaccess.webdav;
 
-import okhttp3.*;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
-import org.cryptomator.cloudaccess.api.exceptions.*;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.BackendException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudNodeAlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.ForbiddenException;
+import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.UnauthorizedException;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-
-import static java.lang.String.format;
-import static java.net.HttpURLConnection.*;
 
 public class WebDavClient {
 
@@ -144,7 +150,7 @@ public class WebDavClient {
         }
 
         try (final var response = httpClient.execute(builder)) {
-            if (response.code() == HTTP_PRECON_FAILED) {
+            if (response.code() == HttpURLConnection.HTTP_PRECON_FAILED) {
                 throw new CloudNodeAlreadyExistsException(absolutePathFrom(to));
             }
 
@@ -165,7 +171,7 @@ public class WebDavClient {
 
     InputStream read(final Path path, final long offset, final long count, final ProgressListener progressListener) throws BackendException {
         final var getRequest = new Request.Builder() //
-                .header("Range", format("bytes=%d-%d", offset, offset + count - 1))
+                .header("Range", String.format("bytes=%d-%d", offset, offset + count - 1))
                 .get() //
                 .url(absolutePathFrom(path));
         return read(getRequest, progressListener);
@@ -261,12 +267,12 @@ public class WebDavClient {
 
     private void checkExecutionSucceeded(final int status) throws BackendException {
         switch (status) {
-            case HTTP_UNAUTHORIZED:
+            case HttpURLConnection.HTTP_UNAUTHORIZED:
                 throw new UnauthorizedException();
-            case HTTP_FORBIDDEN:
+            case HttpURLConnection.HTTP_FORBIDDEN:
                 throw new ForbiddenException();
-            case HTTP_NOT_FOUND: // fall through
-            case HTTP_CONFLICT: //
+            case HttpURLConnection.HTTP_NOT_FOUND: // fall through
+            case HttpURLConnection.HTTP_CONFLICT: //
                 throw new NotFoundException();
             case HTTP_INSUFFICIENT_STORAGE:
                 throw new InsufficientStorageException();

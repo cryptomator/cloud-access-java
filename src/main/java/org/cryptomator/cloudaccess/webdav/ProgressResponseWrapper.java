@@ -2,7 +2,11 @@ package org.cryptomator.cloudaccess.webdav;
 
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
-import okio.*;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ForwardingSource;
+import okio.Okio;
+import okio.Source;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 
 import java.io.IOException;
@@ -39,7 +43,7 @@ class ProgressResponseWrapper extends ResponseBody {
             long totalBytesRead = 0L;
 
             @Override public long read(final Buffer sink, final long byteCount) throws IOException {
-                long bytesRead = super.read(sink, byteCount);
+                final var bytesRead = super.read(sink, byteCount);
                 totalBytesRead += bytesRead != EOF ? bytesRead : 0;
                 if(bytesRead != EOF) {
                     progressListener.onProgress(totalBytesRead);

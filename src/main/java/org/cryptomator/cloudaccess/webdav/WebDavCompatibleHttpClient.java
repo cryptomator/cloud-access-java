@@ -7,15 +7,17 @@ import com.burgstaller.okhttp.basic.BasicAuthenticator;
 import com.burgstaller.okhttp.digest.CachingAuthenticator;
 import com.burgstaller.okhttp.digest.Credentials;
 import com.burgstaller.okhttp.digest.DigestAuthenticator;
-import okhttp3.*;
+import okhttp3.Authenticator;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.cryptomator.cloudaccess.api.NetworkTimeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static org.cryptomator.cloudaccess.api.NetworkTimeout.*;
 
 class WebDavCompatibleHttpClient {
 
@@ -40,9 +42,9 @@ class WebDavCompatibleHttpClient {
 
         final var builder = new OkHttpClient()
                 .newBuilder()
-                .connectTimeout(CONNECTION.getTimeout(), CONNECTION.getUnit())
-                .readTimeout(READ.getTimeout(), READ.getUnit())
-                .writeTimeout(WRITE.getTimeout(), WRITE.getUnit())
+                .connectTimeout(NetworkTimeout.CONNECTION.getTimeout(), NetworkTimeout.CONNECTION.getUnit())
+                .readTimeout(NetworkTimeout.READ.getTimeout(), NetworkTimeout.READ.getUnit())
+                .writeTimeout(NetworkTimeout.WRITE.getTimeout(), NetworkTimeout.WRITE.getUnit())
                 .followRedirects(false)
                 .addInterceptor(new HttpLoggingInterceptor(LOG::info))
                 .authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
