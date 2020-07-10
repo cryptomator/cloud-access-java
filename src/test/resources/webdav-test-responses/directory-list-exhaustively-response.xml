@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns"
+               xmlns:nc="http://nextcloud.org/ns">
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype>
+                    <d:collection/>
+                </d:resourcetype>
+                <d:getlastmodified>Mon, 06 Jul 2020 14:00:23 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+        <d:propstat>
+            <d:prop>
+                <d:getcontentlength/>
+            </d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Documents/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype>
+                    <d:collection/>
+                </d:resourcetype>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+        <d:propstat>
+            <d:prop>
+                <d:getcontentlength/>
+            </d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Documents/About.odt</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>77422</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Documents/About.txt</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>1074</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Documents/Nextcloud%20Flyer.pdf</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>2529331</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Nextcloud%20Manual.pdf</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>6837751</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Nextcloud%20intro.mp4</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>462413</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Nextcloud.png</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>37042</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Photos/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype>
+                    <d:collection/>
+                </d:resourcetype>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+        <d:propstat>
+            <d:prop>
+                <d:getcontentlength/>
+            </d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Photos/Coast.jpg</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>819766</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Photos/Hummingbird.jpg</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>585219</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Photos/Nextcloud%20Community.jpg</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>797325</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/cloud/remote.php/webdav/Photos/Nut.jpg</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype/>
+                <d:getcontentlength>955026</d:getcontentlength>
+                <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
