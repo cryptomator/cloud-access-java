@@ -1,5 +1,7 @@
 package org.cryptomator.cloudaccess.api;
 
+import com.google.common.base.Objects;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
@@ -47,23 +49,16 @@ public class CloudItemMetadata {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-
 		CloudItemMetadata that = (CloudItemMetadata) o;
-
-		if (!name.equals(that.name)) return false;
-		if (!path.equals(that.path)) return false;
-		if (itemType != that.itemType) return false;
-		if (!lastModifiedDate.equals(that.lastModifiedDate)) return false;
-		return size.equals(that.size);
+		return Objects.equal(this.name, that.name) &&
+				Objects.equal(this.path, that.path) &&
+				this.itemType == that.itemType &&
+				Objects.equal(this.lastModifiedDate, that.lastModifiedDate) &&
+				Objects.equal(this.size, that.size);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = name.hashCode();
-		result = 31 * result + path.hashCode();
-		result = 31 * result + itemType.hashCode();
-		result = 31 * result + lastModifiedDate.hashCode();
-		result = 31 * result + size.hashCode();
-		return result;
+		return Objects.hashCode(name, path, itemType, lastModifiedDate, size);
 	}
 }
