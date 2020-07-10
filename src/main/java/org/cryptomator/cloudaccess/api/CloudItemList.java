@@ -32,13 +32,13 @@ public class CloudItemList {
 		final List<CloudItemMetadata> union = Stream.concat(this.items.stream(), items.stream()).collect(Collectors.toList());
 		return new CloudItemList(union, nextPageToken);
 	}
-	
-	public static CloudItemList empty() {
-		return new CloudItemList(Collections.emptyList());
-	}
 
 	public CloudItemList add(final List<CloudItemMetadata> items) {
 		return add(items, Optional.empty());
+	}
+	
+	public static CloudItemList empty() {
+		return new CloudItemList(Collections.emptyList());
 	}
 
 }
