@@ -36,4 +36,9 @@ public class CloudItemList {
 	public static CloudItemList empty() {
 		return new CloudItemList(Collections.emptyList());
 	}
+
+	public CloudItemList add(final List<CloudItemMetadata> items) {
+		return add(items, Optional.empty());
+	}
+
 }

@@ -42,4 +42,28 @@ public class CloudItemMetadata {
 	public Optional<Long> getSize() {
 		return size;
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+
+		CloudItemMetadata that = (CloudItemMetadata) o;
+
+		if (!name.equals(that.name)) return false;
+		if (!path.equals(that.path)) return false;
+		if (itemType != that.itemType) return false;
+		if (!lastModifiedDate.equals(that.lastModifiedDate)) return false;
+		return size.equals(that.size);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = name.hashCode();
+		result = 31 * result + path.hashCode();
+		result = 31 * result + itemType.hashCode();
+		result = 31 * result + lastModifiedDate.hashCode();
+		result = 31 * result + size.hashCode();
+		return result;
+	}
 }
