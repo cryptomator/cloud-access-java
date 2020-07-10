@@ -1,6 +1,6 @@
-package org.cryptomator.cloudaccess.api;
+package org.cryptomator.cloudaccess.api.exceptions;
 
-public class InvalidPageTokenException extends IllegalArgumentException {
+public class InvalidPageTokenException extends CloudProviderException {
     public InvalidPageTokenException(String message) {
         super(message);
     }

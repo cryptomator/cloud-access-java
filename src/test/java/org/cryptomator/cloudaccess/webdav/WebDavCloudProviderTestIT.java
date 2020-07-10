@@ -7,7 +7,9 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.CloudNodeAlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 class WebDavCloudProviderTestIT {
@@ -196,10 +199,11 @@ class WebDavCloudProviderTestIT {
 
         final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
-        Assertions.assertThrows(CloudNodeAlreadyExistsException.class, () -> {
+        var thrown = Assertions.assertThrows(CompletionException.class, () -> {
             final var cloudItemMetadataUsingReplaceFalse = provider.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
             Assert.assertNull(cloudItemMetadataUsingReplaceFalse);
         });
+        MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
         RecordedRequest rq = server.takeRequest();
         Assert.assertEquals("PROPFIND", rq.getMethod());
@@ -299,10 +303,11 @@ class WebDavCloudProviderTestIT {
     public void testMoveToExisting() throws InterruptedException {
         server.enqueue(getInterceptedResponse(412, "item-move-exists-no-replace.xml"));
 
-        Assertions.assertThrows(CloudNodeAlreadyExistsException.class, () -> {
+        var thrown = Assertions.assertThrows(CompletionException.class, () -> {
             final var targetPath = provider.move(Path.of("/foo"), Path.of("/bar"), false).toCompletableFuture().join();
             Assert.assertNull(targetPath);
         });
+        MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
         RecordedRequest rq = server.takeRequest();
         Assert.assertEquals("MOVE", rq.getMethod());

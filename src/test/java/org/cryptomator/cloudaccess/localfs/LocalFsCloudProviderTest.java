@@ -7,12 +7,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
@@ -105,7 +107,7 @@ public class LocalFsCloudProviderTest {
 
 	@Test
 	@DisplayName("write to /file (already existing)")
-	public void testWriteToExistingFile() throws IOException {
+	public void testWriteToExistingFile() throws IOException, ExecutionException, InterruptedException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 		
@@ -115,7 +117,7 @@ public class LocalFsCloudProviderTest {
 			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 		});
 
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(FileAlreadyExistsException.class));
+		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 	}
 
 	@Test
@@ -193,7 +195,7 @@ public class LocalFsCloudProviderTest {
 			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 		});
 
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(FileAlreadyExistsException.class));
+		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 	}
 
 	@Test

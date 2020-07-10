@@ -1,5 +1,7 @@
 package org.cryptomator.cloudaccess.api;
 
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -21,8 +23,8 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If no item exists for the given path</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param node The remote path of the file or folder, whose metadata to fetch.
@@ -37,10 +39,10 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If no item exists for the given path</li>
-     *     <li>{@link java.nio.file.NotDirectoryException} If the path doesn't represent a folder</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
-     *     <li>{@link InvalidPageTokenException} if <code>pageToekn</code> is invalid</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException} If the path doesn't represent a folder</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.InvalidPageTokenException} if <code>pageToken</code> is invalid</li>
      * </ul>
      *
      * @param folder    The remote path of the folder to list.
@@ -90,8 +92,8 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If no item exists for the given path</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param file             A remote path referencing a file
@@ -107,9 +109,10 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If the parent directory of this file doesn't exist</li>
-     *     <li>{@link java.nio.file.FileAlreadyExistsException} If a node with the given path already exists and <code>replace</code> is false</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If the parent directory of this file doesn't exist</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException} If the path points to a node that isn't a file</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given path already exists and <code>replace</code> is false</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param file             A remote path referencing a file
@@ -126,7 +129,7 @@ public interface CloudProvider {
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
      *     <li>{@link java.nio.file.FileAlreadyExistsException} If a node with the given path already exists</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param folder The remote path of the folder to create.
@@ -139,8 +142,8 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If no item exists for the given path</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param node The remote path of the file or folder to delete.
@@ -153,9 +156,9 @@ public interface CloudProvider {
      * <p>
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
-     *     <li>{@link java.nio.file.NoSuchFileException} If no item exists for the given source path</li>
-     *     <li>{@link java.nio.file.FileAlreadyExistsException} If a node with the given target path already exists and <code>replace</code> is false</li>
-     *     <li>{@link java.io.IOException} in case of generic I/O errors</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given source path</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given target path already exists and <code>replace</code> is false</li>
+     *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *
      * @param source  The remote path of the file or folder to be moved.

@@ -1,4 +1,4 @@
 package org.cryptomator.cloudaccess.api.exceptions;
 
-public class InsufficientStorageException extends BackendException {
+public class InsufficientStorageException extends CloudProviderException {
 }

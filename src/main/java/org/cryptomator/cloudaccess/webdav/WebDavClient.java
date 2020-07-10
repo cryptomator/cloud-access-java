@@ -7,12 +7,10 @@ import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.BackendException;
-import org.cryptomator.cloudaccess.api.exceptions.CloudNodeAlreadyExistsException;
-import org.cryptomator.cloudaccess.api.exceptions.ForbiddenException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
-import org.cryptomator.cloudaccess.api.exceptions.UnauthorizedException;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
@@ -57,15 +55,15 @@ public class WebDavClient {
         this.baseUrl = webDavCredential.getBaseUrl();
     }
 
-    CloudItemList list(final Path folder) throws BackendException {
+    CloudItemList list(final Path folder) throws CloudProviderException {
         return list(folder, PROPFIND_DEPTH.ONE);
     }
 
-    CloudItemList listExhaustively(Path folder) throws BackendException {
+    CloudItemList listExhaustively(Path folder) throws CloudProviderException {
         return list(folder, PROPFIND_DEPTH.INFINITY);
     }
 
-    private CloudItemList list(final Path folder, final PROPFIND_DEPTH propfind_depth) throws BackendException {
+    private CloudItemList list(final Path folder, final PROPFIND_DEPTH propfind_depth) throws CloudProviderException {
         try (final var response = executePropfindRequest(folder, propfind_depth)) {
             checkExecutionSucceeded(response.code());
 
@@ -73,11 +71,11 @@ public class WebDavClient {
 
             return processDirList(nodes);
         } catch (IOException | XmlPullParserException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
-    CloudItemMetadata itemMetadata(final Path path) throws BackendException {
+    CloudItemMetadata itemMetadata(final Path path) throws CloudProviderException {
         try (final var response = executePropfindRequest(path, PROPFIND_DEPTH.ZERO)) {
             checkExecutionSucceeded(response.code());
 
@@ -85,7 +83,7 @@ public class WebDavClient {
 
             return processGet(nodes);
         } catch (IOException | XmlPullParserException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
@@ -137,7 +135,7 @@ public class WebDavClient {
         return result;
     }
 
-    Path move(final Path from, final Path to, boolean replace) throws BackendException {
+    Path move(final Path from, final Path to, boolean replace) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .method("MOVE", null) //
                 .url(absolutePathFrom(from)) //
@@ -151,25 +149,25 @@ public class WebDavClient {
 
         try (final var response = httpClient.execute(builder)) {
             if (response.code() == HttpURLConnection.HTTP_PRECON_FAILED) {
-                throw new CloudNodeAlreadyExistsException(absolutePathFrom(to));
+                throw new AlreadyExistsException(absolutePathFrom(to));
             }
 
             checkExecutionSucceeded(response.code());
 
             return to;
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
-    InputStream read(final Path path, final ProgressListener progressListener) throws BackendException {
+    InputStream read(final Path path, final ProgressListener progressListener) throws CloudProviderException {
         final var getRequest = new Request.Builder() //
                 .get() //
                 .url(absolutePathFrom(path));
         return read(getRequest, progressListener);
     }
 
-    InputStream read(final Path path, final long offset, final long count, final ProgressListener progressListener) throws BackendException {
+    InputStream read(final Path path, final long offset, final long count, final ProgressListener progressListener) throws CloudProviderException {
         final var getRequest = new Request.Builder() //
                 .header("Range", String.format("bytes=%d-%d", offset, offset + count - 1))
                 .get() //
@@ -177,20 +175,20 @@ public class WebDavClient {
         return read(getRequest, progressListener);
     }
 
-    private InputStream read(final Request.Builder getRequest, final ProgressListener progressListener) throws BackendException {
+    private InputStream read(final Request.Builder getRequest, final ProgressListener progressListener) throws CloudProviderException {
         try {
             final var response = httpClient.execute(getRequest);
             final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
             checkExecutionSucceeded(response.code());
             return countingBody.byteStream();
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
-    CloudItemMetadata write(final Path file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws BackendException {
+    CloudItemMetadata write(final Path file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
         if (exists(file) && !replace) {
-            throw new CloudNodeAlreadyExistsException("CloudNode already exists and replace is false");
+            throw new AlreadyExistsException("CloudNode already exists and replace is false");
         }
 
         final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data), progressListener);
@@ -202,11 +200,11 @@ public class WebDavClient {
             checkExecutionSucceeded(response.code());
             return itemMetadata(file);
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
-    private boolean exists(Path path) throws BackendException {
+    private boolean exists(Path path) throws CloudProviderException {
         try {
             return itemMetadata(path) != null;
         } catch (NotFoundException e) {
@@ -214,7 +212,7 @@ public class WebDavClient {
         }
     }
 
-    Path createFolder(final Path path) throws BackendException {
+    Path createFolder(final Path path) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .method("MKCOL", null) //
                 .url(absolutePathFrom(path));
@@ -223,11 +221,11 @@ public class WebDavClient {
             checkExecutionSucceeded(response.code());
             return path;
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
-    void delete(final Path path) throws BackendException {
+    void delete(final Path path) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .delete() //
                 .url(absolutePathFrom(path));
@@ -235,7 +233,7 @@ public class WebDavClient {
         try (final var response = httpClient.execute(builder)) {
             checkExecutionSucceeded(response.code());
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
@@ -251,7 +249,7 @@ public class WebDavClient {
                 throw new ServerNotWebdavCompatibleException();
             }
         } catch (IOException e) {
-            throw new BackendException(e);
+            throw new CloudProviderException(e);
         }
     }
 
@@ -265,7 +263,7 @@ public class WebDavClient {
         }
     }
 
-    private void checkExecutionSucceeded(final int status) throws BackendException {
+    private void checkExecutionSucceeded(final int status) throws CloudProviderException {
         switch (status) {
             case HttpURLConnection.HTTP_UNAUTHORIZED:
                 throw new UnauthorizedException();
@@ -279,7 +277,7 @@ public class WebDavClient {
         }
 
         if (status < 199 || status > 300) {
-            throw new BackendException("Response code isn't between 200 and 300: " + status);
+            throw new CloudProviderException("Response code isn't between 200 and 300: " + status);
         }
     }
 

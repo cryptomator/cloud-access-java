@@ -8,8 +8,7 @@ import okhttp3.ResponseBody;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.CloudNodeAlreadyExistsException;
-import org.cryptomator.cloudaccess.api.exceptions.UnauthorizedException;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -147,7 +146,7 @@ class WebDavClientTest {
 
         InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
-        Assertions.assertThrows(CloudNodeAlreadyExistsException.class, () -> {
+        Assertions.assertThrows(AlreadyExistsException.class, () -> {
             final var cloudItemMetadataUsingReplaceFalse = webDavClient.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE);
             Assert.assertNull(cloudItemMetadataUsingReplaceFalse);
         });
@@ -214,7 +213,7 @@ class WebDavClientTest {
         Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
                 .thenReturn(getInterceptedResponse(baseUrl, 412, "item-move-exists-no-replace.xml"));
 
-        Assertions.assertThrows(CloudNodeAlreadyExistsException.class, () -> {
+        Assertions.assertThrows(AlreadyExistsException.class, () -> {
             final var targetPath = webDavClient.move(Path.of("/foo"), Path.of("/bar"), false);
             Assert.assertNull(targetPath);
         });
