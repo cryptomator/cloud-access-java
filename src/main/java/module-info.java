@@ -1,4 +1,4 @@
-open module org.cryptomator.cloudaccess {
+module org.cryptomator.cloudaccess {
 	exports org.cryptomator.cloudaccess;
 	exports org.cryptomator.cloudaccess.api;
 	exports org.cryptomator.cloudaccess.api.exceptions;

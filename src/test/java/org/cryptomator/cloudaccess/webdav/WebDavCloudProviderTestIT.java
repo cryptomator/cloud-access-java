@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
-class WebDavCloudProviderTestIT {
+public class WebDavCloudProviderTestIT {
 
     private final MockWebServer server;
     private final CloudProvider provider;

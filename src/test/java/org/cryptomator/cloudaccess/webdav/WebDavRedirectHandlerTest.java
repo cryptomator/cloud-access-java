@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.net.ProtocolException;
 import java.nio.file.Path;
 
-class WebDavRedirectHandlerTest {
+public class WebDavRedirectHandlerTest {
 
     private final OkHttpClient mockedOkHttpClient = Mockito.mock(OkHttpClient.class);
     private final Call remoteCall = Mockito.mock(Call.class);

@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
-class ProgressResponseWrapperTest {
+public class ProgressResponseWrapperTest {
 
     @Test
     public void updateProgressWhenReadFromProgressResponseWrapper() {
