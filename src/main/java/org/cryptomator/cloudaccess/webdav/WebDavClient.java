@@ -16,6 +16,8 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,7 +26,7 @@ import java.util.List;
 public class WebDavClient {
 
     private final WebDavCompatibleHttpClient httpClient;
-    private final Path baseUrl;
+    private final URL baseUrl;
     private final int HTTP_INSUFFICIENT_STORAGE = 507;
 
     private enum PROPFIND_DEPTH {
@@ -98,7 +100,7 @@ public class WebDavClient {
 
         final var builder = new Request.Builder() //
                 .method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
-                .url(absolutePathFrom(path)) //
+                .url(absoluteURLFrom(path)) //
                 .header("DEPTH", propfind_depth.value) //
                 .header("Content-Type", "text/xml");
 
@@ -138,8 +140,8 @@ public class WebDavClient {
     Path move(final Path from, final Path to, boolean replace) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .method("MOVE", null) //
-                .url(absolutePathFrom(from)) //
-                .header("Destination", absolutePathFrom(to)) //
+                .url(absoluteURLFrom(from)) //
+                .header("Destination", absoluteURLFrom(to).toExternalForm()) //
                 .header("Content-Type", "text/xml") //
                 .header("Depth", "infinity");
 
@@ -149,7 +151,7 @@ public class WebDavClient {
 
         try (final var response = httpClient.execute(builder)) {
             if (response.code() == HttpURLConnection.HTTP_PRECON_FAILED) {
-                throw new AlreadyExistsException(absolutePathFrom(to));
+                throw new AlreadyExistsException(absoluteURLFrom(to).toExternalForm());
             }
 
             checkExecutionSucceeded(response.code());
@@ -163,7 +165,7 @@ public class WebDavClient {
     InputStream read(final Path path, final ProgressListener progressListener) throws CloudProviderException {
         final var getRequest = new Request.Builder() //
                 .get() //
-                .url(absolutePathFrom(path));
+                .url(absoluteURLFrom(path));
         return read(getRequest, progressListener);
     }
 
@@ -171,7 +173,7 @@ public class WebDavClient {
         final var getRequest = new Request.Builder() //
                 .header("Range", String.format("bytes=%d-%d", offset, offset + count - 1))
                 .get() //
-                .url(absolutePathFrom(path));
+                .url(absoluteURLFrom(path));
         return read(getRequest, progressListener);
     }
 
@@ -193,7 +195,7 @@ public class WebDavClient {
 
         final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data), progressListener);
         final var requestBuilder = new Request.Builder()
-                .url(absolutePathFrom(file))
+                .url(absoluteURLFrom(file))
                 .put(countingBody);
 
         try (final var response = httpClient.execute(requestBuilder)) {
@@ -215,7 +217,7 @@ public class WebDavClient {
     Path createFolder(final Path path) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .method("MKCOL", null) //
-                .url(absolutePathFrom(path));
+                .url(absoluteURLFrom(path));
 
         try (final var response = httpClient.execute(builder)) {
             checkExecutionSucceeded(response.code());
@@ -228,7 +230,7 @@ public class WebDavClient {
     void delete(final Path path) throws CloudProviderException {
         final var builder = new Request.Builder() //
                 .delete() //
-                .url(absolutePathFrom(path));
+                .url(absoluteURLFrom(path));
 
         try (final var response = httpClient.execute(builder)) {
             checkExecutionSucceeded(response.code());
@@ -240,7 +242,7 @@ public class WebDavClient {
     void checkServerCompatibility() throws ServerNotWebdavCompatibleException  {
         final var optionsRequest = new Request.Builder()
                 .method("OPTIONS", null)
-                .url(baseUrl.toString());
+                .url(baseUrl);
 
         try (final var response = httpClient.execute(optionsRequest)) {
             checkExecutionSucceeded(response.code());
@@ -281,9 +283,13 @@ public class WebDavClient {
         }
     }
 
-    private String absolutePathFrom(final Path relativePath) {
+    private URL absoluteURLFrom(final Path relativePath) {
         // TODO improve path appending
-        return baseUrl.toString() + relativePath.toString();
+        try {
+            return new URL(baseUrl, relativePath.toString());
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("The relative path contains invalid URL elements.");
+        }
     }
 
 }

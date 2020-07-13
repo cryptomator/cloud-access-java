@@ -21,6 +21,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -32,7 +34,7 @@ class WebDavClientTest {
     private final WebDavCompatibleHttpClient webDavCompatibleHttpClient = Mockito.mock(WebDavCompatibleHttpClient.class);
     private WebDavClient webDavClient;
 
-    private final Path baseUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav");
+    private URL baseUrl;
 
     private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", Path.of("/cloud/remote.php/webdav/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
     private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", Path.of("/cloud/remote.php/webdav/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
@@ -41,7 +43,8 @@ class WebDavClientTest {
     private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", Path.of("/cloud/remote.php/webdav/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
     @BeforeEach
-    public void setup() {
+    public void setup() throws MalformedURLException {
+    	 baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
         final var webDavCredential = WebDavCredential.from(baseUrl, "foo", "bar");
         webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential);
     }
@@ -264,18 +267,18 @@ class WebDavClientTest {
         Assertions.assertThrows(UnauthorizedException.class, () -> webDavClient.tryAuthenticatedRequest());
     }
 
-    private Response getInterceptedResponse(final Path path, final String testResource) {
-        return getInterceptedResponse(path, 200, load(testResource));
+    private Response getInterceptedResponse(final URL url, final String testResource) {
+        return getInterceptedResponse(url, 200, load(testResource));
     }
 
-    private Response getInterceptedResponse(final Path path) {
-        return getInterceptedResponse(path, 201, "");
+    private Response getInterceptedResponse(final URL url) {
+        return getInterceptedResponse(url, 201, "");
     }
 
-    private Response getInterceptedResponse(final Path path, int httpCode, final String body) {
+    private Response getInterceptedResponse(final URL url, int httpCode, final String body) {
         return new Response.Builder()
                 .request(new Request.Builder()
-                        .url(path.toString())
+                        .url(url)
                         .build())
                 .protocol(Protocol.HTTP_1_1)
                 .code(httpCode)

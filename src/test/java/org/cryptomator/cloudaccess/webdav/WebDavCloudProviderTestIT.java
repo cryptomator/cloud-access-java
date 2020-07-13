@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -29,7 +30,7 @@ class WebDavCloudProviderTestIT {
 
     private final MockWebServer server;
     private final CloudProvider provider;
-    private final Path baseUrl;
+    private final URL baseUrl;
 
     private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", Path.of("/cloud/remote.php/webdav/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
     private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", Path.of("/cloud/remote.php/webdav/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
@@ -43,7 +44,7 @@ class WebDavCloudProviderTestIT {
         server = new MockWebServer();
         server.start();
 
-        baseUrl = Path.of(String.format("http://%s:%s/cloud/remote.php/webdav", server.getHostName(), server.getPort()));
+        baseUrl = new URL("http", server.getHostName(), server.getPort(), "cloud/remote.php/webdav");
 
         final var response = getInterceptedResponse("item-meta-data-response.xml");
         server.enqueue(response);
