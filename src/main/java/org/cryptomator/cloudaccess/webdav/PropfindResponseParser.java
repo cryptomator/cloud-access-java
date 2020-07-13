@@ -37,7 +37,6 @@ class PropfindResponseParser {
 	}
 
 	private final SAXParser parser;
-	private final List<PropfindEntryData> entries = new ArrayList<>();
 
 	PropfindResponseParser() {
 		try {
@@ -48,12 +47,17 @@ class PropfindResponseParser {
 	}
 
 	public List<PropfindEntryData> parse(final InputStream responseBody) throws SAXException, IOException {
-		parser.parse(responseBody, new ParseHandler());
-		return entries;
+		if (responseBody == null) {
+			return List.of();
+		}
+		var parseHandler = new ParseHandler();
+		parser.parse(responseBody, parseHandler);
+		return parseHandler.entries;
 	}
 
 	private class ParseHandler extends DefaultHandler {
 
+		public final List<PropfindEntryData> entries = new ArrayList<>();
 		private StringBuilder textBuffer;
 		private String href;
 		private String lastModified;
