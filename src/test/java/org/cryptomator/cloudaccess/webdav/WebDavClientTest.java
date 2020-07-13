@@ -13,8 +13,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -114,10 +112,9 @@ public class WebDavClientTest {
         Assertions.assertEquals(load("item-partial-read-response.txt"), content);
     }
 
-    @DisplayName("write to /foo.txt (non-existing)")
-    @ParameterizedTest(name = "replace: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testWriteToNewFile(boolean replace) throws IOException {
+    @Test
+    @DisplayName("write to /foo.txt (non-existing, replace)")
+    public void testWriteToAndReplaceNewFile() throws IOException {
         Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
                 .thenReturn(getInterceptedResponse(baseUrl))
                 .thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
@@ -125,7 +122,22 @@ public class WebDavClientTest {
         final var writtenItemMetadata = new CloudItemMetadata("foo.txt", Path.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
         InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-        final var cloudItemMetadata = webDavClient.write(Path.of("/foo.txt"), replace, inputStream, ProgressListener.NO_PROGRESS_AWARE);
+        final var cloudItemMetadata = webDavClient.write(Path.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE);
+
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+    }
+
+    @Test
+    @DisplayName("write to /foo.txt (non-existing)")
+    public void testWriteToNewFile() throws IOException {
+        Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
+                .thenReturn(getInterceptedResponse(baseUrl, 404, ""))
+                .thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
+
+        final var writtenItemMetadata = new CloudItemMetadata("foo.txt", Path.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+
+        InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
+        final var cloudItemMetadata = webDavClient.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE);
 
         Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
     }
