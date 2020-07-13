@@ -110,7 +110,7 @@ class WebDavCloudProviderTestIT {
 
         final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
 
-        Assert.assertEquals(nodeList.getItems(), expectedList);
+        Assert.assertEquals(expectedList, nodeList.getItems());
         Assert.assertTrue(nodeList.getNextPageToken().isEmpty());
 
         RecordedRequest rq = server.takeRequest();

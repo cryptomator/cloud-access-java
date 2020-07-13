@@ -7,7 +7,7 @@ import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.xmlpull.v1.XmlPullParserException;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +44,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testEmptyResponseLeadsToEmptyCloudNodeList() throws XmlPullParserException, IOException {
+	public void testEmptyResponseLeadsToEmptyCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_EMPTY_DIRECTORY));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -53,7 +53,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testFolderWithoutServerPartInHrefResponseLeadsToFolderInCloudNodeListWithCompleteUrl() throws XmlPullParserException, IOException {
+	public void testFolderWithoutServerPartInHrefResponseLeadsToFolderInCloudNodeListWithCompleteUrl() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_NO_SERVER));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -69,7 +69,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testFileResponseLeadsToFileAndFoldersInCloudNodeList() throws XmlPullParserException, IOException {
+	public void testFileResponseLeadsToFileAndFoldersInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_AND_FOLDERS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -78,7 +78,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testFileWithMalFormattedDateResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws XmlPullParserException, IOException {
+	public void testFileWithMalFormattedDateResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_DATE));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -89,7 +89,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testFileMultiStatusLeadsToFolderInCloudNodeList() throws XmlPullParserException, IOException {
+	public void testFileMultiStatusLeadsToFolderInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_MULTI_STATUS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -98,7 +98,7 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testFileNoPathResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws XmlPullParserException, IOException {
+	public void testFileNoPathResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_NO_PATH));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -124,8 +124,8 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testMallFormattedResponseLeadsToXmlPullParserException() {
-		Assertions.assertThrows(XmlPullParserException.class, () -> propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_XMLPULLPARSER_EXCEPTION)));
+	public void testMallFormattedResponseLeadsToSAXException() {
+		Assertions.assertThrows(SAXException.class, () -> propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_XMLPULLPARSER_EXCEPTION)));
 	}
 
 	private InputStream load(String resourceName) {
