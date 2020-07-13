@@ -16,7 +16,7 @@ public class CloudAccess {
 	 * @param folder An existing folder on the (local) default file system.
 	 * @return A cloud access provider that provides access to the given local directory.
 	 */
-	static CloudProvider toLocalFileSystem(Path folder) {
+	public static CloudProvider toLocalFileSystem(Path folder) {
 		return new LocalFsCloudProvider(folder);
 	}
 

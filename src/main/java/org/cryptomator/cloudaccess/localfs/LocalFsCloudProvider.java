@@ -4,15 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.file.CopyOption;
-import java.nio.file.FileVisitOption;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -29,6 +21,10 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException;
 
 public class LocalFsCloudProvider implements CloudProvider {
 
@@ -60,8 +56,10 @@ public class LocalFsCloudProvider implements CloudProvider {
 			var attr = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
 			var metadata = createMetadata(path, attr);
 			return CompletableFuture.completedFuture(metadata);
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -79,8 +77,12 @@ public class LocalFsCloudProvider implements CloudProvider {
 				}
 			});
 			return CompletableFuture.completedFuture(new CloudItemList(items, Optional.empty()));
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
+		} catch (NotDirectoryException e) {
+			return CompletableFuture.failedFuture(new TypeMismatchException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -91,8 +93,10 @@ public class LocalFsCloudProvider implements CloudProvider {
 			var ch = Files.newByteChannel(filePath, StandardOpenOption.READ);
 			ch.position(offset);
 			return CompletableFuture.completedFuture(ByteStreams.limit(Channels.newInputStream(ch), count));
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -108,8 +112,12 @@ public class LocalFsCloudProvider implements CloudProvider {
 			var modifiedDate = Files.getLastModifiedTime(filePath).toInstant();
 			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(size));
 			return CompletableFuture.completedFuture(metadata);
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
+		} catch (FileAlreadyExistsException e) {
+			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -119,8 +127,10 @@ public class LocalFsCloudProvider implements CloudProvider {
 		try {
 			Files.createDirectory(folderPath);
 			return CompletableFuture.completedFuture(folder);
+		} catch (FileAlreadyExistsException e) {
+			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -130,8 +140,10 @@ public class LocalFsCloudProvider implements CloudProvider {
 		try {
 			MoreFiles.deleteRecursively(path, RecursiveDeleteOption.ALLOW_INSECURE);
 			return CompletableFuture.completedFuture(null);
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 
@@ -143,8 +155,12 @@ public class LocalFsCloudProvider implements CloudProvider {
 			var options = replace ? EnumSet.of(StandardCopyOption.REPLACE_EXISTING) : EnumSet.noneOf(StandardCopyOption.class);
 			Files.move(src, dst, options.toArray(CopyOption[]::new));
 			return CompletableFuture.completedFuture(target);
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
+		} catch (FileAlreadyExistsException e) {
+			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
-			return CompletableFuture.failedFuture(e);
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
 		}
 	}
 }
