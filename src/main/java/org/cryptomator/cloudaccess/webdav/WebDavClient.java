@@ -187,7 +187,7 @@ public class WebDavClient {
     }
 
     CloudItemMetadata write(final Path file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
-        if (exists(file) && !replace) {
+        if (!replace && exists(file)) {
             throw new AlreadyExistsException("CloudNode already exists and replace is false");
         }
 
