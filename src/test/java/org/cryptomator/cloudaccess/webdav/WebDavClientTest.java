@@ -9,11 +9,12 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -53,7 +54,7 @@ public class WebDavClientTest {
 
         final var itemMetadata = webDavClient.itemMetadata(Path.of("/Nextcloud Manual.pdf"));
 
-        Assert.assertEquals(testFileManual, itemMetadata);
+        Assertions.assertEquals(testFileManual, itemMetadata);
     }
 
     @Test
@@ -65,9 +66,9 @@ public class WebDavClientTest {
 
         final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
 
-        Assert.assertEquals(expectedList, nodeList.getItems());
+        Assertions.assertEquals(expectedList, nodeList.getItems());
 
-        Assert.assertTrue(nodeList.getNextPageToken().isEmpty());
+        Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
     }
 
     @Test
@@ -87,8 +88,8 @@ public class WebDavClientTest {
 
         final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
 
-        Assert.assertEquals(expectedList, nodeList.getItems());
-        Assert.assertTrue(nodeList.getNextPageToken().isEmpty());
+        Assertions.assertEquals(expectedList, nodeList.getItems());
+        Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
     }
 
     @Test
@@ -99,7 +100,7 @@ public class WebDavClientTest {
         final var inputStream = webDavClient.read(Path.of("/Documents/About.txt"), ProgressListener.NO_PROGRESS_AWARE);
         final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        Assert.assertEquals(load("item-read-response.txt"), content);
+        Assertions.assertEquals(load("item-read-response.txt"), content);
     }
 
     @Test
@@ -110,22 +111,13 @@ public class WebDavClientTest {
         final var inputStream = webDavClient.read(Path.of("/Documents/About.txt"), 4, 2, ProgressListener.NO_PROGRESS_AWARE);
         final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        Assert.assertEquals(load("item-partial-read-response.txt"), content);
+        Assertions.assertEquals(load("item-partial-read-response.txt"), content);
     }
 
-    @Test
     @DisplayName("write to /foo.txt (non-existing)")
-    public void testWriteToNewFile() throws IOException {
-        testWriteToNewFile(true);
-    }
-
-    @Test
-    @DisplayName("write to /foo.txt (non-existing)")
-    public void testWriteToNewFileReplaceIsFalse() throws IOException {
-        testWriteToNewFile(false);
-    }
-
-    private void testWriteToNewFile(boolean replace) throws IOException {
+    @ParameterizedTest(name = "replace: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testWriteToNewFile(boolean replace) throws IOException {
         Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
                 .thenReturn(getInterceptedResponse(baseUrl))
                 .thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
@@ -135,7 +127,7 @@ public class WebDavClientTest {
         InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
         final var cloudItemMetadata = webDavClient.write(Path.of("/foo.txt"), replace, inputStream, ProgressListener.NO_PROGRESS_AWARE);
 
-        Assert.assertEquals(writtenItemMetadata, cloudItemMetadata);
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
     }
 
     @Test
@@ -148,7 +140,7 @@ public class WebDavClientTest {
 
         Assertions.assertThrows(AlreadyExistsException.class, () -> {
             final var cloudItemMetadataUsingReplaceFalse = webDavClient.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE);
-            Assert.assertNull(cloudItemMetadataUsingReplaceFalse);
+            Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
         });
     }
 
@@ -164,7 +156,7 @@ public class WebDavClientTest {
         InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
         final var cloudItemMetadata = webDavClient.write(Path.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE);
 
-        Assert.assertEquals(writtenItemMetadata, cloudItemMetadata);
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
     }
 
     @Test
@@ -175,7 +167,7 @@ public class WebDavClientTest {
 
         final var path = webDavClient.createFolder(Path.of("/foo"));
 
-        Assert.assertEquals(Path.of("/foo"), path);
+        Assertions.assertEquals(Path.of("/foo"), path);
     }
 
     @Test
@@ -204,7 +196,7 @@ public class WebDavClientTest {
 
         final var targetPath = webDavClient.move(Path.of("/foo"), Path.of("/bar"), false);
 
-        Assert.assertEquals(Path.of("/bar"), targetPath);
+        Assertions.assertEquals(Path.of("/bar"), targetPath);
     }
 
     @Test
@@ -215,7 +207,7 @@ public class WebDavClientTest {
 
         Assertions.assertThrows(AlreadyExistsException.class, () -> {
             final var targetPath = webDavClient.move(Path.of("/foo"), Path.of("/bar"), false);
-            Assert.assertNull(targetPath);
+            Assertions.assertNull(targetPath);
         });
     }
 
@@ -227,7 +219,7 @@ public class WebDavClientTest {
 
         final var targetPath = webDavClient.move(Path.of("/foo"), Path.of("/bar"), true);
 
-        Assert.assertEquals(Path.of("/bar"), targetPath);
+        Assertions.assertEquals(Path.of("/bar"), targetPath);
     }
 
     @Test

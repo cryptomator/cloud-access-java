@@ -3,7 +3,6 @@ package org.cryptomator.cloudaccess.webdav;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,8 +47,8 @@ public class PropfindResponseParserTest {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_EMPTY_DIRECTORY));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
-		Assert.assertEquals(Optional.empty(), cloudNodeItemList.getNextPageToken());
+		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
+		Assertions.assertEquals(Optional.empty(), cloudNodeItemList.getNextPageToken());
 	}
 
 	@Test
@@ -64,8 +63,8 @@ public class PropfindResponseParserTest {
 				Optional.empty(),
 				Optional.empty());
 
-		Assert.assertEquals(1, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(resultFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(resultFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
@@ -73,8 +72,8 @@ public class PropfindResponseParserTest {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_AND_FOLDERS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(testFile, testFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(testFile, testFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
@@ -82,8 +81,8 @@ public class PropfindResponseParserTest {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_DATE));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
+		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
 						new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())),
 				cloudNodeItemList.getItems());
 	}
@@ -93,8 +92,8 @@ public class PropfindResponseParserTest {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_MULTI_STATUS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(1, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(testFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(testFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
@@ -102,8 +101,8 @@ public class PropfindResponseParserTest {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_NO_PATH));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(0, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
+		Assertions.assertEquals(0, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
 	}
 
 	private CloudItemList processDirList(final List<PropfindEntryData> entryData) {
