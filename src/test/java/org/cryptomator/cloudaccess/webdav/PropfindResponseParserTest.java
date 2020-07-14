@@ -3,11 +3,10 @@ package org.cryptomator.cloudaccess.webdav;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.xmlpull.v1.XmlPullParserException;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,16 +43,16 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testEmptyResponseLeadsToEmptyCloudNodeList() throws XmlPullParserException, IOException {
+	public void testEmptyResponseLeadsToEmptyCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_EMPTY_DIRECTORY));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
-		Assert.assertEquals(Optional.empty(), cloudNodeItemList.getNextPageToken());
+		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
+		Assertions.assertEquals(Optional.empty(), cloudNodeItemList.getNextPageToken());
 	}
 
 	@Test
-	public void testFolderWithoutServerPartInHrefResponseLeadsToFolderInCloudNodeListWithCompleteUrl() throws XmlPullParserException, IOException {
+	public void testFolderWithoutServerPartInHrefResponseLeadsToFolderInCloudNodeListWithCompleteUrl() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_NO_SERVER));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
@@ -64,46 +63,46 @@ public class PropfindResponseParserTest {
 				Optional.empty(),
 				Optional.empty());
 
-		Assert.assertEquals(1, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(resultFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(resultFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
-	public void testFileResponseLeadsToFileAndFoldersInCloudNodeList() throws XmlPullParserException, IOException {
+	public void testFileResponseLeadsToFileAndFoldersInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_AND_FOLDERS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(testFile, testFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(testFile, testFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
-	public void testFileWithMalFormattedDateResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws XmlPullParserException, IOException {
+	public void testFileWithMalFormattedDateResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_DATE));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
+		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
 						new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())),
 				cloudNodeItemList.getItems());
 	}
 
 	@Test
-	public void testFileMultiStatusLeadsToFolderInCloudNodeList() throws XmlPullParserException, IOException {
+	public void testFileMultiStatusLeadsToFolderInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_MULTI_STATUS));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(1, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(List.of(testFolder), cloudNodeItemList.getItems());
+		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(List.of(testFolder), cloudNodeItemList.getItems());
 	}
 
 	@Test
-	public void testFileNoPathResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws XmlPullParserException, IOException {
+	public void testFileNoPathResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_NO_PATH));
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
-		Assert.assertEquals(0, cloudNodeItemList.getItems().size());
-		Assert.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
+		Assertions.assertEquals(0, cloudNodeItemList.getItems().size());
+		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
 	}
 
 	private CloudItemList processDirList(final List<PropfindEntryData> entryData) {
@@ -124,8 +123,8 @@ public class PropfindResponseParserTest {
 	}
 
 	@Test
-	public void testMallFormattedResponseLeadsToXmlPullParserException() {
-		Assertions.assertThrows(XmlPullParserException.class, () -> propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_XMLPULLPARSER_EXCEPTION)));
+	public void testMallFormattedResponseLeadsToSAXException() {
+		Assertions.assertThrows(SAXException.class, () -> propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_XMLPULLPARSER_EXCEPTION)));
 	}
 
 	private InputStream load(String resourceName) {
