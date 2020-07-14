@@ -7,11 +7,11 @@ import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
-import org.xmlpull.v1.XmlPullParserException;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,7 +70,7 @@ public class WebDavClient {
             final var nodes = getEntriesFromResponse(response);
 
             return processDirList(nodes);
-        } catch (IOException | XmlPullParserException e) {
+        } catch (IOException | SAXException e) {
             throw new CloudProviderException(e);
         }
     }
@@ -82,7 +82,7 @@ public class WebDavClient {
             final var nodes = getEntriesFromResponse(response);
 
             return processGet(nodes);
-        } catch (IOException | XmlPullParserException e) {
+        } catch (IOException | SAXException e) {
             throw new CloudProviderException(e);
         }
     }
@@ -105,7 +105,7 @@ public class WebDavClient {
         return httpClient.execute(builder);
     }
 
-    private List<PropfindEntryData> getEntriesFromResponse(final Response response) throws IOException, XmlPullParserException {
+    private List<PropfindEntryData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
         try(final var responseBody = response.body()) {
             return new PropfindResponseParser().parse(responseBody.byteStream());
         }
@@ -187,7 +187,7 @@ public class WebDavClient {
     }
 
     CloudItemMetadata write(final Path file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
-        if (exists(file) && !replace) {
+        if (!replace && exists(file)) {
             throw new AlreadyExistsException("CloudNode already exists and replace is false");
         }
 

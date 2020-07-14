@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Locale;
 
-public class TestUtil {
+class TestUtil {
 
     public static Instant toInstant(String date) {
         try {
