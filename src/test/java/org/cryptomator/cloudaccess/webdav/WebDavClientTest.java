@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
@@ -46,6 +48,21 @@ public class WebDavClientTest {
     	 baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
         final var webDavCredential = WebDavCredential.from(baseUrl, "foo", "bar");
         webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential);
+    }
+
+    @ParameterizedTest
+    @DisplayName("getPath()")
+    @CsvSource(value = {
+            "'',/cloud/remote.php/webdav",
+            "/,/cloud/remote.php/webdav",
+            "/foo,/cloud/remote.php/webdav/foo",
+            "foo/bar,/cloud/remote.php/webdav/foo/bar",
+            "//foo///bar/baz,/cloud/remote.php/webdav/foo/bar/baz",
+    })
+    public void testAbsoluteURLFrom(String absPath, String expectedResult) {
+        var result = webDavClient.absoluteURLFrom(Path.of(absPath));
+
+        Assertions.assertEquals(expectedResult, result.getPath());
     }
 
     @Test

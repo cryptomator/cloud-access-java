@@ -43,7 +43,7 @@ public class WebDavCloudProviderTestIT {
         server = new MockWebServer();
         server.start();
 
-        baseUrl = new URL("http", server.getHostName(), server.getPort(), "cloud/remote.php/webdav");
+        baseUrl = new URL("http", server.getHostName(), server.getPort(), "/cloud/remote.php/webdav");
 
         final var response = getInterceptedResponse("item-meta-data-response.xml");
         server.enqueue(response);
@@ -89,7 +89,7 @@ public class WebDavCloudProviderTestIT {
         RecordedRequest rq = server.takeRequest();
         Assertions.assertEquals("PROPFIND", rq.getMethod());
         Assertions.assertEquals("1", rq.getHeader("DEPTH"));
-        Assertions.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
+        Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
         Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
@@ -116,7 +116,7 @@ public class WebDavCloudProviderTestIT {
         RecordedRequest rq = server.takeRequest();
         Assertions.assertEquals("PROPFIND", rq.getMethod());
         Assertions.assertEquals("infinity", rq.getHeader("DEPTH"));
-        Assertions.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
+        Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
         Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 

@@ -22,6 +22,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class WebDavClient {
 
@@ -283,10 +285,12 @@ public class WebDavClient {
         }
     }
 
-    private URL absoluteURLFrom(final Path relativePath) {
-        // TODO improve path appending
+    // visible for testing
+    URL absoluteURLFrom(final Path relativePath) {
+        var basePath = Path.of(baseUrl.getPath());
+        var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(i -> relativePath.getName(i)).reduce(basePath, Path::resolve);
         try {
-            return new URL(baseUrl, relativePath.toString());
+            return new URL(baseUrl, fullPath.toString());
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("The relative path contains invalid URL elements.");
         }
