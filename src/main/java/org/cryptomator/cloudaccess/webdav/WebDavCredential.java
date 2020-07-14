@@ -1,24 +1,24 @@
 package org.cryptomator.cloudaccess.webdav;
 
-import java.nio.file.Path;
+import java.net.URL;
 
 public class WebDavCredential {
 
-    private final Path baseUrl;
+    private final URL baseUrl;
     private final String username;
     private final String password;
 
-    public static WebDavCredential from(final Path baseUrl, final String username, final String password) {
+    public static WebDavCredential from(final URL baseUrl, final String username, final String password) {
         return new WebDavCredential(baseUrl, username, password);
     }
 
-    private WebDavCredential(final Path baseUrl, final String username, final String password) {
+    private WebDavCredential(final URL baseUrl, final String username, final String password) {
         this.baseUrl = baseUrl;
         this.username = username;
         this.password = password;
     }
 
-    public Path getBaseUrl() {
+    public URL getBaseUrl() {
         return baseUrl;
     }
 
