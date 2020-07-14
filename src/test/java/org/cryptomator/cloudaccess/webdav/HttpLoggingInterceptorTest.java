@@ -13,7 +13,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.nio.file.Path;
 
-class HttpLoggingInterceptorTest {
+public class HttpLoggingInterceptorTest {
 
     private final HttpLoggingInterceptor.Logger logger = Mockito.mock(HttpLoggingInterceptor.Logger.class);
     private final HttpLoggingInterceptor.Logger spyLogger = Mockito.spy(logger);

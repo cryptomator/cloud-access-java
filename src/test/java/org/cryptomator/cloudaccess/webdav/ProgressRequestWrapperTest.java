@@ -3,7 +3,7 @@ package org.cryptomator.cloudaccess.webdav;
 import okhttp3.MediaType;
 import okio.Buffer;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -14,7 +14,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
-class ProgressRequestWrapperTest {
+public class ProgressRequestWrapperTest {
 
     @Test
     public void updateProgressWhenWriteToProgressRequestWrapper() throws IOException {
@@ -27,13 +27,13 @@ class ProgressRequestWrapperTest {
 
         final var progressRequestWrapper = new ProgressRequestWrapper(InputStreamRequestBody.from(load()), spyProgressListener);
 
-        Assert.assertEquals(8193, progressRequestWrapper.contentLength());
-        Assert.assertEquals(MediaType.parse("application/octet-stream"), progressRequestWrapper.contentType());
+        Assertions.assertEquals(8193, progressRequestWrapper.contentLength());
+        Assertions.assertEquals(MediaType.parse("application/octet-stream"), progressRequestWrapper.contentType());
 
         progressRequestWrapper.writeTo(buffer);
         buffer.flush();
 
-        Assert.assertEquals(content, buffer.readString(StandardCharsets.UTF_8));
+        Assertions.assertEquals(content, buffer.readString(StandardCharsets.UTF_8));
 
         Mockito.verify(spyProgressListener).onProgress(8192);
         Mockito.verify(spyProgressListener).onProgress(8193);

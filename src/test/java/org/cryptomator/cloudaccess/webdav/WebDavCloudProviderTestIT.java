@@ -10,7 +10,6 @@ import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
-class WebDavCloudProviderTestIT {
+public class WebDavCloudProviderTestIT {
 
     private final MockWebServer server;
     private final CloudProvider provider;
@@ -66,13 +65,13 @@ class WebDavCloudProviderTestIT {
         server.enqueue(getInterceptedResponse("item-meta-data-response.xml"));
 
         final var itemMetadata = provider.itemMetadata(Path.of("/Nextcloud Manual.pdf")).toCompletableFuture().join();
-        Assert.assertEquals(itemMetadata, testFileManual);
+        Assertions.assertEquals(itemMetadata, testFileManual);
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/Nextcloud%20Manual.pdf", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/Nextcloud%20Manual.pdf", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
@@ -84,14 +83,14 @@ class WebDavCloudProviderTestIT {
 
         final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
 
-        Assert.assertEquals(nodeList.getItems(), expectedList);
-        Assert.assertTrue(nodeList.getNextPageToken().isEmpty());
+        Assertions.assertEquals(nodeList.getItems(), expectedList);
+        Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("1", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
@@ -111,14 +110,14 @@ class WebDavCloudProviderTestIT {
 
         final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
 
-        Assert.assertEquals(nodeList.getItems(), expectedList);
-        Assert.assertTrue(nodeList.getNextPageToken().isEmpty());
+        Assertions.assertEquals(expectedList, nodeList.getItems());
+        Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("infinity", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("infinity", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
@@ -129,12 +128,12 @@ class WebDavCloudProviderTestIT {
         final var inputStream = provider.read(Path.of("/Documents/About.txt"), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
         final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        Assert.assertEquals(content, load("item-read-response.txt"));
+        Assertions.assertEquals(content, load("item-read-response.txt"));
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("GET", rq.getMethod());
-        Assert.assertNull(rq.getHeader("Range"));
-        Assert.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
+        Assertions.assertEquals("GET", rq.getMethod());
+        Assertions.assertNull(rq.getHeader("Range"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
     }
 
     @Test
@@ -145,52 +144,66 @@ class WebDavCloudProviderTestIT {
         final var inputStream = provider.read(Path.of("/Documents/About.txt"), 4, 2, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
         final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        Assert.assertEquals(content, load("item-partial-read-response.txt"));
+        Assertions.assertEquals(content, load("item-partial-read-response.txt"));
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("GET", rq.getMethod());
-        Assert.assertEquals("bytes=4-5", rq.getHeader("Range"));
-        Assert.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
+        Assertions.assertEquals("GET", rq.getMethod());
+        Assertions.assertEquals("bytes=4-5", rq.getHeader("Range"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
     }
 
     @Test
     @DisplayName("write to /foo.txt (non-existing)")
     public void testWriteToNewFile() throws InterruptedException {
-        testWriteToNewFile(true);
-    }
-
-    @Test
-    @DisplayName("write to /foo.txt (non-existing)")
-    public void testWriteToNewFileReplaceIsFalse() throws InterruptedException {
-        testWriteToNewFile(false);
-    }
-
-    private void testWriteToNewFile(boolean replace) throws InterruptedException {
-        server.enqueue(getInterceptedResponse(201, ""));
+        server.enqueue(getInterceptedResponse(404, ""));
         server.enqueue(getInterceptedResponse(201, ""));
         server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
         final var writtenItemMetadata = new CloudItemMetadata("foo.txt", Path.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
         final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-        final var cloudItemMetadata = provider.write(Path.of("/foo.txt"), replace, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+        final var cloudItemMetadata = provider.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
-        Assert.assertEquals(writtenItemMetadata, cloudItemMetadata);
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 
         rq = server.takeRequest();
-        Assert.assertEquals("PUT", rq.getMethod());
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals("PUT", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 
         rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+    }
+
+    @Test
+    @DisplayName("write to /foo.txt (non-existing, replace)")
+    public void testWriteToAndReplaceNewFile() throws InterruptedException {
+        server.enqueue(getInterceptedResponse(201, ""));
+        server.enqueue(getInterceptedResponse("item-write-response.xml"));
+
+        final var writtenItemMetadata = new CloudItemMetadata("foo.txt", Path.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+
+        final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
+        final var cloudItemMetadata = provider.write(Path.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+
+        RecordedRequest rq = server.takeRequest();
+        Assertions.assertEquals("PUT", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+
+        rq = server.takeRequest();
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
@@ -202,22 +215,21 @@ class WebDavCloudProviderTestIT {
 
         var thrown = Assertions.assertThrows(CompletionException.class, () -> {
             final var cloudItemMetadataUsingReplaceFalse = provider.write(Path.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
-            Assert.assertNull(cloudItemMetadataUsingReplaceFalse);
+            Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
         });
         MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
     @DisplayName("write to /foo.txt (replace existing)")
     public void testWriteToAndReplaceExistingFile() throws InterruptedException {
         server.enqueue(getInterceptedResponse("item-write-response.xml"));
-        server.enqueue(getInterceptedResponse(200, ""));
         server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
         final var writtenItemMetadata = new CloudItemMetadata("foo.txt", Path.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
@@ -225,23 +237,17 @@ class WebDavCloudProviderTestIT {
         final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
         final var cloudItemMetadata = provider.write(Path.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
-        Assert.assertEquals(writtenItemMetadata, cloudItemMetadata);
+        Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PUT", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 
         rq = server.takeRequest();
-        Assert.assertEquals("PUT", rq.getMethod());
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-
-        rq = server.takeRequest();
-        Assert.assertEquals("PROPFIND", rq.getMethod());
-        Assert.assertEquals("0", rq.getHeader("DEPTH"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
-        Assert.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+        Assertions.assertEquals("PROPFIND", rq.getMethod());
+        Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
     }
 
     @Test
@@ -251,11 +257,11 @@ class WebDavCloudProviderTestIT {
 
         final var path = provider.createFolder(Path.of("/foo")).toCompletableFuture().join();
 
-        Assert.assertEquals(path, Path.of("/foo"));
+        Assertions.assertEquals(path, Path.of("/foo"));
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("MKCOL", rq.getMethod());
-        Assert.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+        Assertions.assertEquals("MKCOL", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
     }
 
     @Test
@@ -266,8 +272,8 @@ class WebDavCloudProviderTestIT {
         provider.delete(Path.of("/foo.txt")).toCompletableFuture().join();
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("DELETE", rq.getMethod());
-        Assert.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+        Assertions.assertEquals("DELETE", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
     }
 
     @Test
@@ -278,8 +284,8 @@ class WebDavCloudProviderTestIT {
         provider.delete(Path.of("/foo")).toCompletableFuture().join();
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("DELETE", rq.getMethod());
-        Assert.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+        Assertions.assertEquals("DELETE", rq.getMethod());
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
     }
 
     @Test
@@ -289,14 +295,14 @@ class WebDavCloudProviderTestIT {
 
         final var targetPath = provider.move(Path.of("/foo"), Path.of("/bar"), false).toCompletableFuture().join();
 
-        Assert.assertEquals(Path.of("/bar"), targetPath);
+        Assertions.assertEquals(Path.of("/bar"), targetPath);
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("MOVE", rq.getMethod());
-        Assert.assertEquals("infinity", rq.getHeader("Depth"));
-        Assert.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
-        Assert.assertEquals("F", rq.getHeader("Overwrite"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+        Assertions.assertEquals("MOVE", rq.getMethod());
+        Assertions.assertEquals("infinity", rq.getHeader("Depth"));
+        Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
+        Assertions.assertEquals("F", rq.getHeader("Overwrite"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
     }
 
     @Test
@@ -306,16 +312,16 @@ class WebDavCloudProviderTestIT {
 
         var thrown = Assertions.assertThrows(CompletionException.class, () -> {
             final var targetPath = provider.move(Path.of("/foo"), Path.of("/bar"), false).toCompletableFuture().join();
-            Assert.assertNull(targetPath);
+            Assertions.assertNull(targetPath);
         });
         MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("MOVE", rq.getMethod());
-        Assert.assertEquals("infinity", rq.getHeader("Depth"));
-        Assert.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
-        Assert.assertEquals("F", rq.getHeader("Overwrite"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+        Assertions.assertEquals("MOVE", rq.getMethod());
+        Assertions.assertEquals("infinity", rq.getHeader("Depth"));
+        Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
+        Assertions.assertEquals("F", rq.getHeader("Overwrite"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
     }
 
     @Test
@@ -324,14 +330,14 @@ class WebDavCloudProviderTestIT {
         server.enqueue(getInterceptedResponse(204, ""));
         final var targetPath = provider.move(Path.of("/foo"), Path.of("/bar"), true).toCompletableFuture().join();
 
-        Assert.assertEquals(Path.of("/bar"), targetPath);
+        Assertions.assertEquals(Path.of("/bar"), targetPath);
 
         RecordedRequest rq = server.takeRequest();
-        Assert.assertEquals("MOVE", rq.getMethod());
-        Assert.assertEquals("infinity", rq.getHeader("Depth"));
-        Assert.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
-        Assert.assertNull(rq.getHeader("Overwrite"));
-        Assert.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+        Assertions.assertEquals("MOVE", rq.getMethod());
+        Assertions.assertEquals("infinity", rq.getHeader("Depth"));
+        Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
+        Assertions.assertNull(rq.getHeader("Overwrite"));
+        Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
     }
 
     private MockResponse getInterceptedResponse(final String testResource) {

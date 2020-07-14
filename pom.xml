@@ -81,11 +81,6 @@
             <artifactId>okhttp-digest</artifactId>
             <version>${okhttp-digest.version}</version>
         </dependency>
-        <dependency>
-            <groupId>net.sf.kxml</groupId>
-            <artifactId>kxml2</artifactId>
-            <version>${kxml2.version}</version>
-        </dependency>
 
         <!-- Test -->
         <dependency>

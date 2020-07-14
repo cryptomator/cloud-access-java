@@ -7,7 +7,6 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,7 @@ import java.io.IOException;
 import java.net.ProtocolException;
 import java.nio.file.Path;
 
-class WebDavRedirectHandlerTest {
+public class WebDavRedirectHandlerTest {
 
     private final OkHttpClient mockedOkHttpClient = Mockito.mock(OkHttpClient.class);
     private final Call remoteCall = Mockito.mock(Call.class);
@@ -50,7 +49,7 @@ class WebDavRedirectHandlerTest {
 
         final var response = webDavRedirectHandler.executeFollowingRedirects(request);
 
-        Assert.assertEquals(mockedRedirectResponse(targetUrl, 200).toString(), response.toString());
+        Assertions.assertEquals(mockedRedirectResponse(targetUrl, 200).toString(), response.toString());
     }
 
     @Test
@@ -67,7 +66,7 @@ class WebDavRedirectHandlerTest {
 
         final var response = webDavRedirectHandler.executeFollowingRedirects(request);
 
-        Assert.assertEquals(mockedRedirectResponse(baseUrl, 302).toString(), response.toString());
+        Assertions.assertEquals(mockedRedirectResponse(baseUrl, 302).toString(), response.toString());
     }
 
     @Test
@@ -103,7 +102,7 @@ class WebDavRedirectHandlerTest {
         Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
 
         final var exception = Assertions.assertThrows(ProtocolException.class, () -> webDavRedirectHandler.executeFollowingRedirects(request));
-        Assert.assertTrue(exception.getMessage().contains("Too many redirects: 21"));
+        Assertions.assertTrue(exception.getMessage().contains("Too many redirects: 21"));
     }
 
     private Response mockedRedirectResponse(final Path url, int httpStatusCode) {

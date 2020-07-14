@@ -3,7 +3,7 @@ package org.cryptomator.cloudaccess.webdav;
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
-class ProgressResponseWrapperTest {
+public class ProgressResponseWrapperTest {
 
     @Test
     public void updateProgressWhenReadFromProgressResponseWrapper() {
@@ -26,12 +26,12 @@ class ProgressResponseWrapperTest {
 
         final var progressResponseWrapper = new ProgressResponseWrapper(responseBody, spyProgressListener);
 
-        Assert.assertEquals(8193, progressResponseWrapper.contentLength());
-        Assert.assertEquals(MediaType.parse("application/octet-stream; charset=utf-8"), progressResponseWrapper.contentType());
+        Assertions.assertEquals(8193, progressResponseWrapper.contentLength());
+        Assertions.assertEquals(MediaType.parse("application/octet-stream; charset=utf-8"), progressResponseWrapper.contentType());
 
         final var thatContent = new BufferedReader(new InputStreamReader(progressResponseWrapper.byteStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        Assert.assertEquals(thatContent, thisContent);
+        Assertions.assertEquals(thatContent, thisContent);
 
         Mockito.verify(spyProgressListener).onProgress(8192);
         Mockito.verify(spyProgressListener).onProgress(8193);
