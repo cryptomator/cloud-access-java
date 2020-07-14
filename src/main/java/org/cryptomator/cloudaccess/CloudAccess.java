@@ -22,8 +22,8 @@ public class CloudAccess {
 	 * @return A cloud access provider that provides access to the given WebDAV URL.
 	 */
 	public static CloudProvider toWebDAV(URL url, String username, CharSequence password) {
-		// TODO adapt types
-		return WebDavCloudProvider.from(WebDavCredential.from(null, username, null));
+		// TODO can we pass though CharSequence to the auth mechanism?
+		return WebDavCloudProvider.from(WebDavCredential.from(url, username, password.toString()));
 	}
 
 	/**
