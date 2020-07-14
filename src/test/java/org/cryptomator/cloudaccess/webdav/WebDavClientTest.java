@@ -50,8 +50,8 @@ public class WebDavClientTest {
         webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential);
     }
 
-    @ParameterizedTest
-    @DisplayName("getPath()")
+    @ParameterizedTest(name = "absoluteURLFrom(\"{0}\") == {1}")
+    @DisplayName("absoluteURLFrom(...)")
     @CsvSource(value = {
             "'',/cloud/remote.php/webdav",
             "/,/cloud/remote.php/webdav",
