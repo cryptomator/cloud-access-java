@@ -10,6 +10,27 @@
     <name>Cryptomator CloudAccess in Java</name>
     <description>CloudAccess is used in e.g. Cryptomator for Android to access different cloud providers.</description>
     <url>https://github.com/cryptomator/cloud-access-java</url>
+    <scm>
+        <connection>scm:git:git@github.com:cryptomator/cloud-access-java.git</connection>
+        <developerConnection>scm:git:git@github.com:cryptomator/cloud-access-java.git</developerConnection>
+        <url>git@github.com:cryptomator/cloud-access-java.git</url>
+    </scm>
+    <developers>
+        <developer>
+            <name>Julian Raufelder</name>
+            <email>julian.raufelder@skymatic.de</email>
+            <timezone>+1</timezone>
+            <organization>Skymatic GmbH</organization>
+            <organizationUrl>http://skymatic.de</organizationUrl>
+        </developer>
+        <developer>
+            <name>Sebastian Stenzel</name>
+            <email>sebastian.stenzel@skymatic.de</email>
+            <timezone>+1</timezone>
+            <organization>Skymatic GmbH</organization>
+            <organizationUrl>http://skymatic.de</organizationUrl>
+        </developer>
+    </developers>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
