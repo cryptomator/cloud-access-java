@@ -61,4 +61,9 @@ public class CloudItemMetadata {
 	public int hashCode() {
 		return Objects.hashCode(name, path, itemType, lastModifiedDate, size);
 	}
+
+	@Override
+	public String toString() {
+		return "CloudItemMetadata{itemType=" + itemType + ", path=" + path + '}';
+	}
 }
