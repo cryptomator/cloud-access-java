@@ -30,7 +30,8 @@ public class CloudAccess {
 		try {
 			var csprng = SecureRandom.getInstanceStrong();
 			var cryptor = Cryptors.version2(csprng).createFromRawKey(rawKey);
-			return new VaultFormat8ProviderDecorator(cloudProvider, pathToVault, cryptor);
+			// TODO validate vaultFormat.jwt before creating decorator
+			return new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		}
