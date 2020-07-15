@@ -5,6 +5,7 @@ module org.cryptomator.cloudaccess {
 
 	requires java.xml;
 	requires com.google.common;
+	requires org.cryptomator.cryptolib;
 	requires org.slf4j;
 	requires okhttp3;
 	requires okhttp.digest;
