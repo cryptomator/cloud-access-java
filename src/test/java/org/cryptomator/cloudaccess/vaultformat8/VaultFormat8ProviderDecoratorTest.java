@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  *  ├─ File 2
  * </code>
  */
-class VaultFormat8ProviderDecoratorTest {
+public class VaultFormat8ProviderDecoratorTest {
 
 	private final Path dataDir = Path.of("path/to/vault/d");
 	private final String dirIdRoot = "";

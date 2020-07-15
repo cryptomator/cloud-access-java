@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 
-class DirectoryIdCacheTest {
+public class DirectoryIdCacheTest {
 
 	private DirectoryIdCache cache;
 
