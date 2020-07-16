@@ -9,11 +9,13 @@ import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.api.AuthenticationFailedException;
 import org.cryptomator.cryptolib.api.Cryptor;
+import org.cryptomator.cryptolib.api.FileHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -32,12 +34,14 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private final Path dataDir;
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
+	private final FileHeaderCache fileHeaderCache;
 
 	public VaultFormat8ProviderDecorator(CloudProvider delegate, Path dataDir, Cryptor cryptor) {
 		this.delegate = delegate;
 		this.dataDir = dataDir;
 		this.cryptor = cryptor;
 		this.dirIdCache = new DirectoryIdCache();
+		this.fileHeaderCache = new FileHeaderCache();
 	}
 
 	@Override
@@ -55,6 +59,19 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener) {
+		// byte range math:
+		long firstChunk = offset / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
+		long lastChunk = (offset + count) / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
+		int headerSize = cryptor.fileHeaderCryptor().headerSize();
+		long firstByte = headerSize + firstChunk * cryptor.fileContentCryptor().ciphertextChunkSize();
+		long numBytes = (lastChunk - firstChunk + 1) * cryptor.fileContentCryptor().ciphertextChunkSize();
+
+		// loading of relevant parts from ciphertext file:
+		var futureCiphertextPath = getCiphertextPath(file);
+		var futureHeader = futureCiphertextPath.thenCompose(ciphertextPath -> fileHeaderCache.get(ciphertextPath, this::readFileHeader));
+		var futureCiphertext = futureCiphertextPath.thenCompose(ciphertextPath -> delegate.read(ciphertextPath, firstByte, numBytes, progressListener));
+		// TODO we need a DecryptingInputStream with offset/num support in cryptolib
+
 		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
 	}
 
@@ -115,6 +132,13 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		});
 	}
 
+	private CompletionStage<FileHeader> readFileHeader(Path ciphertextPath) {
+		var headerCryptor = cryptor.fileHeaderCryptor();
+		return delegate.read(ciphertextPath, 0, headerCryptor.headerSize(), ProgressListener.NO_PROGRESS_AWARE)
+				.thenCompose(this::readAllBytes)
+				.thenApply(bytes -> headerCryptor.decryptHeader(ByteBuffer.wrap(bytes)));
+	}
+
 	private CompletionStage<byte[]> readAllBytes(InputStream inputStream) {
 		try (var in = inputStream) {
 			return CompletableFuture.completedFuture(in.readAllBytes());
@@ -138,9 +162,9 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return getDirPath(parentDirId).resolve(ciphertextName);
 	}
 
-//	private CompletionStage<Path> getCiphertextPath(Path cleartextPath) {
-//		var cleartextParent = cleartextPath.getNameCount() == 1 ? Path.of("") : cleartextPath.getParent();
-//		return getDirId(cleartextParent).thenApply(parentDirId -> getCiphertextPath(cleartextPath, parentDirId));
-//	}
+	private CompletionStage<Path> getCiphertextPath(Path cleartextPath) {
+		var cleartextParent = cleartextPath.getNameCount() == 1 ? Path.of("") : cleartextPath.getParent();
+		return getDirId(cleartextParent).thenApply(parentDirId -> getCiphertextPath(cleartextPath, parentDirId));
+	}
 
 }
