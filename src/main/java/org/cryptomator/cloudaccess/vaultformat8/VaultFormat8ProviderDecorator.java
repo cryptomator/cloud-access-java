@@ -26,6 +26,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(VaultFormat8ProviderDecorator.class);
 	private static final String CIPHERTEXT_FILE_SUFFIX = ".c9r";
+	private static final String DIR_FILE_NAME = "dir.c9r";
 
 	private final CloudProvider delegate;
 	private final Path dataDir;
@@ -41,7 +42,9 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(Path node) {
-		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
+		var futureParentDirId = getDirId(node.getParent());
+		var futureCiphertextMetadata = futureParentDirId.thenApply(parentDirId -> getCiphertextPath(node, parentDirId)).thenCompose(delegate::itemMetadata);
+		return futureCiphertextMetadata.thenCombine(futureParentDirId, (ciphertextMetadata, parentDirId) -> toCleartextMetadata(ciphertextMetadata, node.getParent(), parentDirId));
 	}
 
 	@Override
@@ -107,7 +110,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		Preconditions.checkNotNull(cleartextDir);
 		return dirIdCache.get(cleartextDir, (cleartextPath, parentDirId) -> {
 			var ciphertextPath = getCiphertextPath(cleartextPath, parentDirId);
-			var dirFileUrl = ciphertextPath.resolve("dir.c9r");
+			var dirFileUrl = ciphertextPath.resolve(DIR_FILE_NAME);
 			return delegate.read(dirFileUrl, ProgressListener.NO_PROGRESS_AWARE).thenCompose(this::readAllBytes);
 		});
 	}

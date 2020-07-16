@@ -35,7 +35,6 @@ public class CloudAccess {
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		}
-
 	}
 
 	/**
