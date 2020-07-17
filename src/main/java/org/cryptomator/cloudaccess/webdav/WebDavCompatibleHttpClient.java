@@ -21,50 +21,50 @@ import java.util.concurrent.ConcurrentHashMap;
 
 class WebDavCompatibleHttpClient {
 
-    private static final Logger LOG = LoggerFactory.getLogger(WebDavCompatibleHttpClient.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WebDavCompatibleHttpClient.class);
 
-    private final WebDavRedirectHandler webDavRedirectHandler;
+	private final WebDavRedirectHandler webDavRedirectHandler;
 
-    WebDavCompatibleHttpClient(final WebDavCredential webDavCredential) {
-        this.webDavRedirectHandler = new WebDavRedirectHandler(httpClientFor(webDavCredential));
-    }
+	WebDavCompatibleHttpClient(final WebDavCredential webDavCredential) {
+		this.webDavRedirectHandler = new WebDavRedirectHandler(httpClientFor(webDavCredential));
+	}
 
-    Response execute(final Request.Builder requestBuilder) throws IOException {
-        return execute(requestBuilder.build());
-    }
+	private static OkHttpClient httpClientFor(final WebDavCredential webDavCredential) {
+		final Map<String, CachingAuthenticator> authCache = new ConcurrentHashMap<>();
 
-    private Response execute(final Request request) throws IOException {
-        return webDavRedirectHandler.executeFollowingRedirects(request);
-    }
+		final var builder = new OkHttpClient()
+				.newBuilder()
+				.connectTimeout(NetworkTimeout.CONNECTION.getTimeout(), NetworkTimeout.CONNECTION.getUnit())
+				.readTimeout(NetworkTimeout.READ.getTimeout(), NetworkTimeout.READ.getUnit())
+				.writeTimeout(NetworkTimeout.WRITE.getTimeout(), NetworkTimeout.WRITE.getUnit())
+				.followRedirects(false)
+				.addInterceptor(new HttpLoggingInterceptor(LOG::info))
+				.authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
+				.addInterceptor(new AuthenticationCacheInterceptor(authCache));
 
-    private static OkHttpClient httpClientFor(final WebDavCredential webDavCredential) {
-        final Map<String, CachingAuthenticator> authCache = new ConcurrentHashMap<>();
+		return builder.build();
+	}
 
-        final var builder = new OkHttpClient()
-                .newBuilder()
-                .connectTimeout(NetworkTimeout.CONNECTION.getTimeout(), NetworkTimeout.CONNECTION.getUnit())
-                .readTimeout(NetworkTimeout.READ.getTimeout(), NetworkTimeout.READ.getUnit())
-                .writeTimeout(NetworkTimeout.WRITE.getTimeout(), NetworkTimeout.WRITE.getUnit())
-                .followRedirects(false)
-                .addInterceptor(new HttpLoggingInterceptor(LOG::info))
-                .authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
-                .addInterceptor(new AuthenticationCacheInterceptor(authCache));
+	private static Authenticator httpAuthenticator(final String username, final String password, final Map<String, CachingAuthenticator> authCache) {
+		final var credentials = new Credentials(username, password);
+		final var digestAuthenticator = new DigestAuthenticator(credentials);
+		final var basicAuthenticator = new BasicAuthenticator(credentials);
 
-        return builder.build();
-    }
+		final var dispatchingAuthenticator = new DispatchingAuthenticator
+				.Builder()
+				.with("digest", digestAuthenticator)
+				.with("basic", basicAuthenticator)
+				.build();
 
-    private static Authenticator httpAuthenticator(final String username, final String password, final Map<String, CachingAuthenticator> authCache) {
-        final var credentials = new Credentials(username, password);
-        final var digestAuthenticator = new DigestAuthenticator(credentials);
-        final var basicAuthenticator = new BasicAuthenticator(credentials);
+		return new CachingAuthenticatorDecorator(dispatchingAuthenticator, authCache);
+	}
 
-        final var dispatchingAuthenticator = new DispatchingAuthenticator
-                .Builder()
-                .with("digest", digestAuthenticator)
-                .with("basic", basicAuthenticator)
-                .build();
+	Response execute(final Request.Builder requestBuilder) throws IOException {
+		return execute(requestBuilder.build());
+	}
 
-        return new CachingAuthenticatorDecorator(dispatchingAuthenticator, authCache);
-    }
+	private Response execute(final Request request) throws IOException {
+		return webDavRedirectHandler.executeFollowingRedirects(request);
+	}
 
 }

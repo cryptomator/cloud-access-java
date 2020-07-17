@@ -34,7 +34,7 @@ public class PropfindResponseParserTest {
 			CloudItemType.FILE,
 			Optional.of(TestUtil.toInstant("Thu, 18 May 2017 9:49:41 GMT")),
 			Optional.of(54175L));
-
+	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
 	private PropfindResponseParser propfindResponseParser;
 
 	@BeforeEach
@@ -83,7 +83,7 @@ public class PropfindResponseParserTest {
 
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
-						new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())),
+				new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())),
 				cloudNodeItemList.getItems());
 	}
 
@@ -108,7 +108,7 @@ public class PropfindResponseParserTest {
 	private CloudItemList processDirList(final List<PropfindEntryData> entryData) {
 		var result = new CloudItemList(new ArrayList<>());
 
-		if(entryData.isEmpty()) {
+		if (entryData.isEmpty()) {
 			return result;
 		}
 
@@ -130,6 +130,4 @@ public class PropfindResponseParserTest {
 	private InputStream load(String resourceName) {
 		return getClass().getResourceAsStream("/propfind-test-requests/" + resourceName + ".xml");
 	}
-
-	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
 }
