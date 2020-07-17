@@ -2,11 +2,13 @@ package org.cryptomator.cloudaccess.vaultformat8;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
+import com.google.common.io.ByteStreams;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.Cryptors;
+import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
 import org.cryptomator.cryptolib.api.AuthenticationFailedException;
 import org.cryptomator.cryptolib.api.Cryptor;
 import org.cryptomator.cryptolib.api.FileHeader;
@@ -16,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -70,9 +73,20 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		var futureCiphertextPath = getCiphertextPath(file);
 		var futureHeader = futureCiphertextPath.thenCompose(ciphertextPath -> fileHeaderCache.get(ciphertextPath, this::readFileHeader));
 		var futureCiphertext = futureCiphertextPath.thenCompose(ciphertextPath -> delegate.read(ciphertextPath, firstByte, numBytes, progressListener));
-		// TODO we need a DecryptingInputStream with offset/num support in cryptolib
+		var futureCleartextStream = futureHeader.thenCombine(futureCiphertext, (header, ciphertext) -> {
+			var ciphertextChannel = Channels.newChannel(ciphertext);
+			var cleartextChannel = new DecryptingReadableByteChannel(ciphertextChannel, cryptor, true, header, firstChunk);
+			return Channels.newInputStream(cleartextChannel);
+		});
 
-		return CompletableFuture.failedFuture(new UnsupportedOperationException("not implemented"));
+		// adjust range:
+		long skip = offset % cryptor.fileContentCryptor().cleartextChunkSize();
+		assert skip + count < (lastChunk + 1) * cryptor.fileContentCryptor().cleartextChunkSize();
+		return futureCleartextStream.thenApply(in -> {
+			var offsetIn = new OffsetInputStream(in, skip);
+			var limitedIn = ByteStreams.limit(offsetIn, count);
+			return limitedIn;
+		});
 	}
 
 	@Override

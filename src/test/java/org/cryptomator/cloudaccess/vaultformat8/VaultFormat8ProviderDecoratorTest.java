@@ -7,6 +7,9 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.api.Cryptor;
+import org.cryptomator.cryptolib.api.FileContentCryptor;
+import org.cryptomator.cryptolib.api.FileHeader;
+import org.cryptomator.cryptolib.api.FileHeaderCryptor;
 import org.cryptomator.cryptolib.api.FileNameCryptor;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
@@ -17,12 +20,17 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 
 /**
@@ -50,6 +58,8 @@ public class VaultFormat8ProviderDecoratorTest {
 	private CloudProvider cloudProvider;
 	private Cryptor cryptor;
 	private FileNameCryptor fileNameCryptor;
+	private FileContentCryptor fileContentCryptor;
+	private FileHeaderCryptor fileHeaderCryptor;
 	private VaultFormat8ProviderDecorator decorator;
 
 	@BeforeEach
@@ -57,9 +67,13 @@ public class VaultFormat8ProviderDecoratorTest {
 		cloudProvider = Mockito.mock(CloudProvider.class);
 		cryptor = Mockito.mock(Cryptor.class);
 		fileNameCryptor = Mockito.mock(FileNameCryptor.class);
+		fileContentCryptor = Mockito.mock(FileContentCryptor.class);
+		fileHeaderCryptor = Mockito.mock(FileHeaderCryptor.class);
 		decorator = new VaultFormat8ProviderDecorator(cloudProvider, dataDir, cryptor);
 
 		Mockito.when(cryptor.fileNameCryptor()).thenReturn(fileNameCryptor);
+		Mockito.when(cryptor.fileContentCryptor()).thenReturn(fileContentCryptor);
+		Mockito.when(cryptor.fileHeaderCryptor()).thenReturn(fileHeaderCryptor);
 		Mockito.when(fileNameCryptor.hashDirectoryId(dirIdRoot)).thenReturn("00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 		Mockito.when(fileNameCryptor.hashDirectoryId(dirId1)).thenReturn("11BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "dir1", dirIdRoot.getBytes())).thenReturn("Directory 1");
@@ -116,6 +130,35 @@ public class VaultFormat8ProviderDecoratorTest {
 		var names = result.getItems().stream().map(CloudItemMetadata::getName).collect(Collectors.toSet());
 		MatcherAssert.assertThat(names, CoreMatchers.hasItem("Directory 2"));
 		MatcherAssert.assertThat(names, CoreMatchers.hasItem("File 3"));
+	}
+
+	@Test
+	@DisplayName("read(\"/File 1\" 12, 10, NO_PROGRESS_AWARE)")
+	public void testRead() throws IOException {
+		var file1Content = "hhhhhTOPSECRET!TOPSECRET!TOPSECRET!TOPSECRET!".getBytes();
+		var header = Mockito.mock(FileHeader.class);
+		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(8);
+		Mockito.when(fileContentCryptor.ciphertextChunkSize()).thenReturn(10);
+		Mockito.when(fileHeaderCryptor.headerSize()).thenReturn(5);
+		Mockito.when(cloudProvider.read(Mockito.eq(file1Metadata.getPath()), Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenAnswer(invocation -> {
+			long offset = invocation.getArgument(1);
+			long length = invocation.getArgument(2);
+			return CompletableFuture.completedFuture(new ByteArrayInputStream(file1Content, (int) offset, (int) length));
+		});
+		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 1", dirIdRoot.getBytes())).thenReturn("file1");
+		Mockito.when(fileHeaderCryptor.decryptHeader(UTF_8.encode("hhhhh"))).thenReturn(header);
+		Mockito.when(fileContentCryptor.decryptChunk(Mockito.eq(UTF_8.encode("TOPSECRET!")), Mockito.anyLong(), Mockito.eq(header), Mockito.anyBoolean())).then(invocation -> UTF_8.encode("geheim!!"));
+
+		var futureResult = decorator.read(Path.of("/File 1"), 12, 10, ProgressListener.NO_PROGRESS_AWARE);
+		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
+
+		byte[] buf = new byte[100];
+		try (var in = result) {
+			int read = in.read(buf);
+			Assertions.assertEquals(10, read);
+		}
+		// geheim!!geheim!!geheim!!.substr(12, 10)
+		Assertions.assertArrayEquals("im!!geheim".getBytes(), Arrays.copyOf(buf, 10));
 	}
 
 }
