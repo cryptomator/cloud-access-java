@@ -5,6 +5,7 @@ import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteStreams;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.Cryptors;
@@ -49,9 +50,15 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(Path node) {
-		var futureParentDirId = getDirId(node.getParent());
-		var futureCiphertextMetadata = futureParentDirId.thenApply(parentDirId -> getCiphertextPath(node, parentDirId)).thenCompose(delegate::itemMetadata);
-		return futureCiphertextMetadata.thenCombine(futureParentDirId, (ciphertextMetadata, parentDirId) -> toCleartextMetadata(ciphertextMetadata, node.getParent(), parentDirId));
+		if (node.getNameCount() == 0) {
+			// ROOT
+			return CompletableFuture.completedFuture(new CloudItemMetadata("", node, CloudItemType.FOLDER, Optional.empty(), Optional.empty()));
+		} else {
+			var futureParentDirId = getDirId(node.getParent());
+			var cleartextName = node.getFileName().toString();
+			var futureCiphertextMetadata = futureParentDirId.thenApply(parentDirId -> getC9rPath(parentDirId, cleartextName)).thenCompose(delegate::itemMetadata);
+			return futureCiphertextMetadata.thenCombine(futureParentDirId, (ciphertextMetadata, parentDirId) -> toCleartextMetadata(ciphertextMetadata, node.getParent(), parentDirId));
+		}
 	}
 
 	@Override
@@ -70,7 +77,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		long numBytes = (lastChunk - firstChunk + 1) * cryptor.fileContentCryptor().ciphertextChunkSize();
 
 		// loading of relevant parts from ciphertext file:
-		var futureCiphertextPath = getCiphertextPath(file);
+		var futureCiphertextPath = getC9rPath(file);
 		var futureHeader = futureCiphertextPath.thenCompose(ciphertextPath -> fileHeaderCache.get(ciphertextPath, this::readFileHeader));
 		var futureCiphertext = futureCiphertextPath.thenCompose(ciphertextPath -> delegate.read(ciphertextPath, firstByte, numBytes, progressListener));
 		var futureCleartextStream = futureHeader.thenCombine(futureCiphertext, (header, ciphertext) -> {
@@ -140,7 +147,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private CompletionStage<byte[]> getDirId(Path cleartextDir) {
 		Preconditions.checkNotNull(cleartextDir);
 		return dirIdCache.get(cleartextDir, (cleartextPath, parentDirId) -> {
-			var ciphertextPath = getCiphertextPath(cleartextPath, parentDirId);
+			var cleartextName = cleartextPath.getFileName().toString();
+			var ciphertextPath = getC9rPath(parentDirId, cleartextName);
 			var dirFileUrl = ciphertextPath.resolve(DIR_FILE_NAME);
 			return delegate.read(dirFileUrl, ProgressListener.NO_PROGRESS_AWARE).thenCompose(this::readAllBytes);
 		});
@@ -170,15 +178,17 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return dataDir.resolve(digest.substring(0, 2)).resolve(digest.substring(2));
 	}
 
-	private Path getCiphertextPath(Path cleartextPath, byte[] parentDirId) {
-		var ciphertextBaseName = cryptor.fileNameCryptor().encryptFilename(BaseEncoding.base64Url(), cleartextPath.getFileName().toString(), parentDirId);
+	private Path getC9rPath(byte[] parentDirId, String cleartextName) {
+		var ciphertextBaseName = cryptor.fileNameCryptor().encryptFilename(BaseEncoding.base64Url(), cleartextName, parentDirId);
 		var ciphertextName = ciphertextBaseName + CIPHERTEXT_FILE_SUFFIX;
 		return getDirPath(parentDirId).resolve(ciphertextName);
 	}
 
-	private CompletionStage<Path> getCiphertextPath(Path cleartextPath) {
+	private CompletionStage<Path> getC9rPath(Path cleartextPath) {
+		Preconditions.checkArgument(cleartextPath.getNameCount() > 0, "No c9r path for root.");
 		var cleartextParent = cleartextPath.getNameCount() == 1 ? Path.of("") : cleartextPath.getParent();
-		return getDirId(cleartextParent).thenApply(parentDirId -> getCiphertextPath(cleartextPath, parentDirId));
+		var cleartextName = cleartextPath.getFileName().toString();
+		return getDirId(cleartextParent).thenApply(parentDirId -> getC9rPath(parentDirId, cleartextName));
 	}
 
 }

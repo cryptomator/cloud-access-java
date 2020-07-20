@@ -84,8 +84,19 @@ public class VaultFormat8ProviderDecoratorTest {
 	}
 
 	@Test
-	@DisplayName("itemMetadata(\"Directory 1/File 3\")")
-	public void testItemMetadata() {
+	@DisplayName("itemMetadata(\"/\")")
+	public void testItemMetadataOfRoot() {
+		var futureResult = decorator.itemMetadata(Path.of("/"));
+		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
+
+		Assertions.assertEquals("", result.getName());
+		Assertions.assertEquals(CloudItemType.FOLDER, result.getItemType());
+		Assertions.assertEquals(Path.of("/"), result.getPath());
+	}
+
+	@Test
+	@DisplayName("itemMetadata(\"/Directory 1/File 3\")")
+	public void testItemMetadataOfFile3() {
 		Mockito.when(cloudProvider.read(dir1Metadata.getPath().resolve("dir.c9r"), ProgressListener.NO_PROGRESS_AWARE)).thenReturn(CompletableFuture.completedFuture(new ByteArrayInputStream(dirId1.getBytes())));
 		Mockito.when(cloudProvider.itemMetadata(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file3.c9r"))).thenReturn(CompletableFuture.completedFuture(file3Metadata));
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "Directory 1", dirIdRoot.getBytes())).thenReturn("dir1");
