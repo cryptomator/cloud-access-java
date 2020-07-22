@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
@@ -264,8 +265,9 @@ public class WebDavClient {
 	URL absoluteURLFrom(final Path relativePath) {
 		var basePath = Path.of(baseUrl.getPath());
 		var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(i -> relativePath.getName(i)).reduce(basePath, Path::resolve);
+		var stringRepersentation = IntStream.range(0, fullPath.getNameCount()).mapToObj(i -> fullPath.getName(i).toString()).collect(Collectors.joining("/"));
 		try {
-			return new URL(baseUrl, fullPath.toString());
+			return new URL(baseUrl, "/" + stringRepersentation);
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("The relative path contains invalid URL elements.");
 		}

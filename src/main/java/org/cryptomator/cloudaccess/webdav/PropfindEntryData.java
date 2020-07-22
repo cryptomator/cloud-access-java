@@ -16,7 +16,6 @@ class PropfindEntryData {
 	private static final Pattern URI_PATTERN = Pattern.compile("^[a-z]+://[^/]+/(.*)$");
 
 	private Path path;
-	private String[] pathSegments;
 
 	private boolean file = true;
 	private Optional<Instant> lastModified = Optional.empty();
@@ -43,7 +42,6 @@ class PropfindEntryData {
 
 	public void setPath(final String pathOrUri) {
 		this.path = Path.of(extractPath(pathOrUri));
-		this.pathSegments = path.toString().split("/");
 	}
 
 	public Optional<Long> getSize() {
@@ -75,11 +73,11 @@ class PropfindEntryData {
 	}
 
 	int getDepth() {
-		return pathSegments.length;
+		return path.getNameCount();
 	}
 
 	private String getName() {
-		return pathSegments[pathSegments.length - 1];
+		return path.getFileName().toString();
 	}
 
 }

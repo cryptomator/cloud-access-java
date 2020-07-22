@@ -55,7 +55,7 @@ public class WebDavClientTest {
 			"/,/cloud/remote.php/webdav",
 			"/foo,/cloud/remote.php/webdav/foo",
 			"foo/bar,/cloud/remote.php/webdav/foo/bar",
-			"//foo///bar/baz,/cloud/remote.php/webdav/foo/bar/baz",
+			"/foo///bar/baz,/cloud/remote.php/webdav/foo/bar/baz",
 	})
 	public void testAbsoluteURLFrom(String absPath, String expectedResult) {
 		var result = webDavClient.absoluteURLFrom(Path.of(absPath));
