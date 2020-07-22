@@ -6,11 +6,14 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 
 public class HttpLoggingInterceptorTest {
@@ -20,7 +23,12 @@ public class HttpLoggingInterceptorTest {
 
 	private final Interceptor.Chain chain = Mockito.mock(Interceptor.Chain.class);
 
-	private final Path baseUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav");
+	private URL baseUrl;
+
+	@BeforeEach
+	public void setup() throws MalformedURLException {
+		baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
+	}
 
 	@Test
 	public void testLogging() throws IOException {
@@ -28,7 +36,7 @@ public class HttpLoggingInterceptorTest {
 		final var httpLoggingInterceptor = new HttpLoggingInterceptor(spyLogger);
 
 		final var request = new Request.Builder()
-				.url(baseUrl.toString())
+				.url(baseUrl)
 				.build();
 
 		final var response = new Response.Builder()
