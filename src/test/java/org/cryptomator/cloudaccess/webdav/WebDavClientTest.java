@@ -9,6 +9,8 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +57,7 @@ public class WebDavClientTest {
 			"/,/cloud/remote.php/webdav",
 			"/foo,/cloud/remote.php/webdav/foo",
 			"foo/bar,/cloud/remote.php/webdav/foo/bar",
-			"//foo///bar/baz,/cloud/remote.php/webdav/foo/bar/baz",
+			"/foo///bar/baz,/cloud/remote.php/webdav/foo/bar/baz",
 	})
 	public void testAbsoluteURLFrom(String absPath, String expectedResult) {
 		var result = webDavClient.absoluteURLFrom(Path.of(absPath));
@@ -104,7 +106,7 @@ public class WebDavClientTest {
 
 		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
 
-		Assertions.assertEquals(expectedList, nodeList.getItems());
+		MatcherAssert.assertThat(nodeList.getItems(), CoreMatchers.hasItems(expectedList.toArray(new CloudItemMetadata[] {})));
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 	}
 

@@ -14,27 +14,33 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.ProtocolException;
+import java.net.URL;
 import java.nio.file.Path;
 
 public class WebDavRedirectHandlerTest {
 
 	private final OkHttpClient mockedOkHttpClient = Mockito.mock(OkHttpClient.class);
 	private final Call remoteCall = Mockito.mock(Call.class);
-	private final Path baseUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav");
-	private final Path redirectUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav/redirected");
-	private final Path targetUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav/target");
 	private WebDavRedirectHandler webDavRedirectHandler;
 
+	private URL baseUrl;
+	private URL redirectUrl;
+	private URL targetUrl;
+
 	@BeforeEach
-	public void setUp() {
+	public void setUp() throws MalformedURLException {
 		webDavRedirectHandler = new WebDavRedirectHandler(mockedOkHttpClient);
+		baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
+		redirectUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav/redirected");
+		targetUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav/target");
 	}
 
 	@Test
 	public void testRedirect() throws IOException {
 		final var request = new Request.Builder()
-				.url(baseUrl.toString())
+				.url(baseUrl)
 				.build();
 
 		Mockito.when(remoteCall.execute())
@@ -52,7 +58,7 @@ public class WebDavRedirectHandlerTest {
 	@Test
 	public void testRedirectWithoutLocationInHeaderLeadsToNoRedirect() throws IOException {
 		final var request = new Request.Builder()
-				.url(baseUrl.toString())
+				.url(baseUrl)
 				.build();
 
 		Mockito.when(remoteCall.execute())
@@ -69,7 +75,7 @@ public class WebDavRedirectHandlerTest {
 	@Test
 	public void testTooManyRedirectsThrowsProtocolException() throws IOException {
 		final var request = new Request.Builder()
-				.url(baseUrl.toString())
+				.url(baseUrl)
 				.build();
 
 		Mockito.when(remoteCall.execute())
@@ -102,14 +108,14 @@ public class WebDavRedirectHandlerTest {
 		Assertions.assertTrue(exception.getMessage().contains("Too many redirects: 21"));
 	}
 
-	private Response mockedRedirectResponse(final Path url, int httpStatusCode) {
+	private Response mockedRedirectResponse(final URL url, int httpStatusCode) {
 		return mockedRedirectResponse(url, httpStatusCode, true);
 	}
 
-	private Response mockedRedirectResponse(final Path url, int httpStatusCode, boolean locationHeader) {
+	private Response mockedRedirectResponse(final URL url, int httpStatusCode, boolean locationHeader) {
 		var responseBuilder = new Response.Builder()
 				.request(new Request.Builder()
-						.url(url.toString())
+						.url(url)
 						.build())
 				.protocol(Protocol.HTTP_1_1)
 				.code(httpStatusCode)

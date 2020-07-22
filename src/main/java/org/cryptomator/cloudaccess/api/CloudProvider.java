@@ -93,6 +93,7 @@ public interface CloudProvider {
      * The returned CompletionStage might complete exceptionally with one of the following exceptions:
      * <ul>
      *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+     *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException} If the path points to a node that isn't a file</li>
      *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
      * </ul>
      *

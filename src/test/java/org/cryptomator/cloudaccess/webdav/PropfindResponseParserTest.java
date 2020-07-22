@@ -82,9 +82,13 @@ public class PropfindResponseParserTest {
 		final var cloudNodeItemList = processDirList(propfindEntryList);
 
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assertions.assertEquals(List.of(new CloudItemMetadata("0.txt", Path.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
-				new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())),
-				cloudNodeItemList.getItems());
+		Assertions.assertEquals(
+				List.of(
+					new CloudItemMetadata("0.txt", Path.of("/0.txt"),CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
+					new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
+				),
+				cloudNodeItemList.getItems()
+		);
 	}
 
 	@Test

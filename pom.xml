@@ -17,6 +17,13 @@
     </scm>
     <developers>
         <developer>
+            <name>Armin Schrenk</name>
+            <email>armin.schrenk@skymatic.de</email>
+            <timezone>+1</timezone>
+            <organization>Skymatic GmbH</organization>
+            <organizationUrl>http://skymatic.de</organizationUrl>
+        </developer>
+        <developer>
             <name>Julian Raufelder</name>
             <email>julian.raufelder@skymatic.de</email>
             <timezone>+1</timezone>

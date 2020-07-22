@@ -64,6 +64,6 @@ public class CloudItemMetadata {
 
 	@Override
 	public String toString() {
-		return "CloudItemMetadata{itemType=" + itemType + ", path=" + path + '}';
+		return "CloudItemMetadata{itemType=" + itemType + ", path=" + path + ", name=" + name + '}';
 	}
 }
