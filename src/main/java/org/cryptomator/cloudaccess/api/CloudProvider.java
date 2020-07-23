@@ -165,7 +165,7 @@ public interface CloudProvider {
      * @param source  The remote path of the file or folder to be moved.
      * @param target  The remote path of the desired destination.
      * @param replace Flag indicating whether to overwrite <code>target</code> if it already exists.
-     * @return CompletionStage completing successfully if node was moved.
+     * @return CompletionStage with the same path as {@code target} if node was moved successfully.
      */
     CompletionStage<Path> move(Path source, Path target, boolean replace);
 
