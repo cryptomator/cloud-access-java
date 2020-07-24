@@ -8,7 +8,7 @@ jobs:
     name: Build and Test
     runs-on: ${{ matrix.os }}
     strategy:
-      failfast: true
+      fail-fast: true
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     outputs:
