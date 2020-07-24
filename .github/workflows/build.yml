@@ -6,7 +6,9 @@ on:
 jobs:
   build:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    matrix:
+      os: [ubuntu-latest, windows-latest, macOS-latest]
     outputs:
       artifact-version: ${{ steps.setversion.outputs.version }}
     env:
@@ -41,9 +43,15 @@ jobs:
         with:
           name: cloud-access-${{ env.BUILD_VERSION }}.jar
           path: target/cloud-access-*.jar
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Ensure to use tagged version
+        run: mvn versions:set --file ./pom.xml -DnewVersion=${GITHUB_REF##*/}
       - name: Deploy to jcenter
         run: mvn -B deploy
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           BINTRAY_USERNAME: cryptobot
           BINTRAY_API_KEY: ${{ secrets.BINTRAY_API_KEY }}
