@@ -44,7 +44,7 @@
         <guava.version>29.0-jre</guava.version>
 
         <okhttp.version>4.7.2</okhttp.version>
-        <okhttp-digest.version>2.3</okhttp-digest.version>
+        <okhttp-digest.version>2.4</okhttp-digest.version>
         <okhttp.mockwebserver.version>4.7.2</okhttp.mockwebserver.version>
         <kxml2.version>2.3.0</kxml2.version>
 
