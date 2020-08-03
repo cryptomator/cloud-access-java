@@ -1,5 +1,6 @@
 package org.cryptomator.cloudaccess.vaultformat8;
 
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,10 +27,9 @@ public class DirectoryIdCacheTest {
 
 	@ParameterizedTest(name = "get(\"{0}\")")
 	@ValueSource(strings = {"", "/", "//"})
-	@DisabledOnOs(OS.WINDOWS) //TODO: On windows strings starting with // will be converted to UNC paths, hence the test fails
 	public void testContainsRoot(String path) {
 		var onMiss = Mockito.mock(BiFunction.class);
-		CompletionStage<byte[]> future = cache.get(Path.of(path), onMiss);
+		CompletionStage<byte[]> future = cache.get(CloudPath.of(path), onMiss);
 
 		var cached = Assertions.assertTimeoutPreemptively(Duration.ofMillis(1000), () -> future.toCompletableFuture().get());
 
@@ -40,18 +40,18 @@ public class DirectoryIdCacheTest {
 	@Test
 	public void testRecursiveGet() {
 		var onMiss = Mockito.mock(BiFunction.class);
-		Mockito.when(onMiss.apply(Path.of("/one"), new byte[0])).thenReturn(CompletableFuture.completedFuture(new byte[1]));
-		Mockito.when(onMiss.apply(Path.of("/one/two"), new byte[1])).thenReturn(CompletableFuture.completedFuture(new byte[2]));
-		Mockito.when(onMiss.apply(Path.of("/one/two/three"), new byte[2])).thenReturn(CompletableFuture.completedFuture(new byte[3]));
+		Mockito.when(onMiss.apply(CloudPath.of("/one"), new byte[0])).thenReturn(CompletableFuture.completedFuture(new byte[1]));
+		Mockito.when(onMiss.apply(CloudPath.of("/one/two"), new byte[1])).thenReturn(CompletableFuture.completedFuture(new byte[2]));
+		Mockito.when(onMiss.apply(CloudPath.of("/one/two/three"), new byte[2])).thenReturn(CompletableFuture.completedFuture(new byte[3]));
 
-		CompletionStage<byte[]> future = cache.get(Path.of("/one/two/three"), onMiss);
+		CompletionStage<byte[]> future = cache.get(CloudPath.of("/one/two/three"), onMiss);
 
 		var cached = Assertions.assertTimeoutPreemptively(Duration.ofMillis(1000), () -> future.toCompletableFuture().get());
 
 		Assertions.assertArrayEquals(new byte[3], cached);
-		Mockito.verify(onMiss).apply(Path.of("/one"), new byte[0]);
-		Mockito.verify(onMiss).apply(Path.of("/one/two"), new byte[1]);
-		Mockito.verify(onMiss).apply(Path.of("/one/two/three"), new byte[2]);
+		Mockito.verify(onMiss).apply(CloudPath.of("/one"), new byte[0]);
+		Mockito.verify(onMiss).apply(CloudPath.of("/one/two"), new byte[1]);
+		Mockito.verify(onMiss).apply(CloudPath.of("/one/two/three"), new byte[2]);
 	}
 
 }

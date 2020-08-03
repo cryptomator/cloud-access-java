@@ -1,5 +1,6 @@
 package org.cryptomator.cloudaccess;
 
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.localfs.LocalFsCloudProvider;
 import org.cryptomator.cloudaccess.vaultformat8.VaultFormat8ProviderDecorator;
@@ -31,7 +32,7 @@ public class CloudAccess {
 			var csprng = SecureRandom.getInstanceStrong();
 			var cryptor = Cryptors.version2(csprng).createFromRawKey(rawKey);
 			// TODO validate vaultFormat.jwt before creating decorator
-			return new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
+			return new VaultFormat8ProviderDecorator(cloudProvider, CloudPath.of(pathToVault.resolve("d")), cryptor);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		}

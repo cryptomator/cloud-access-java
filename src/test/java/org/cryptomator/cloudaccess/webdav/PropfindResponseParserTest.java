@@ -3,6 +3,7 @@ package org.cryptomator.cloudaccess.webdav;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,10 +28,10 @@ public class PropfindResponseParserTest {
 	private static final String RESPONSE_MAL_FORMATTED_NO_PATH = "directory-and-file-no-path";
 	private static final String RESPONSE_ONE_FILE_MULTI_STATUS = "file-multi-status";
 
-	private static final CloudItemMetadata testFolder = new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private static final CloudItemMetadata testFolder = new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 	private static final CloudItemMetadata testFile = new CloudItemMetadata(
 			"0.txt",
-			Path.of("/0.txt"),
+			CloudPath.of("/0.txt"),
 			CloudItemType.FILE,
 			Optional.of(TestUtil.toInstant("Thu, 18 May 2017 9:49:41 GMT")),
 			Optional.of(54175L));
@@ -58,7 +59,7 @@ public class PropfindResponseParserTest {
 
 		final var resultFolder = new CloudItemMetadata(
 				"DYNTZMMHWLW25RZHWYEDHLFWIUZZG2",
-				Path.of("/User7de989b/asdasdasd/d/OC/DYNTZMMHWLW25RZHWYEDHLFWIUZZG2"),
+				CloudPath.of("/User7de989b/asdasdasd/d/OC/DYNTZMMHWLW25RZHWYEDHLFWIUZZG2"),
 				CloudItemType.FOLDER,
 				Optional.empty(),
 				Optional.empty());
@@ -84,8 +85,8 @@ public class PropfindResponseParserTest {
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(
 				List.of(
-					new CloudItemMetadata("0.txt", Path.of("/0.txt"),CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
-					new CloudItemMetadata("Gelöschte Dateien", Path.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
+					new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"),CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
+					new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
 				),
 				cloudNodeItemList.getItems()
 		);
