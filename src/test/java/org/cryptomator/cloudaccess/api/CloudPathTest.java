@@ -14,22 +14,6 @@ import java.util.List;
 
 public class CloudPathTest {
 
-	@Test
-	@DisplayName("test static factory method with a path only containing the root (Linux, Mac)")
-	@DisabledOnOs(OS.WINDOWS)
-	public void testContstructFromPathOnlyContainingRoot1() {
-		Path root = Path.of("/");
-		CloudPath.of(root);
-	}
-
-	@Test
-	@DisplayName("test static factory method with a path only containing the root (Windows)")
-	@DisabledOnOs({OS.LINUX, OS.MAC})
-	public void testConstructFromPathOnlyContainingRoot2() {
-		Path root = Path.of("C:\\");
-		CloudPath.of(root);
-	}
-
 	@ParameterizedTest
 	@MethodSource("provideTestStringsToParse")
 	public void testStaticFactoryMethodTakingString(String s, List<String> elements) {

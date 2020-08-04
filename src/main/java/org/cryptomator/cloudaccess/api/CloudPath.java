@@ -8,23 +8,20 @@
  *******************************************************************************/
 package org.cryptomator.cloudaccess.api;
 
-import java.nio.file.FileSystem;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
+import com.google.common.base.Splitter;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 
 /**
- * TODO: Add method to convert to a local filesystem path
+ * TODO: add java doc
  */
 public class CloudPath {
 
@@ -35,36 +32,14 @@ public class CloudPath {
 	private final List<String> elements;
 	private final boolean absolute;
 
-	CloudPath(Path origin) {
-		this.absolute = Objects.requireNonNull(origin.isAbsolute());
-		this.elements = IntStream.range(0, origin.getNameCount()).mapToObj(i -> origin.getName(i).toString()).collect(Collectors.toList());
-	}
-
-	CloudPath(boolean absolute, String... elements) {
-		this.absolute = absolute;
-		if (elements == null || elements.length == 0 || (elements.length == 1 && elements[0].equals(SEPARATOR))) {
-			this.elements = List.of();
-		} else {
-			this.elements = this.splitStreamAndCollect("", elements);
-		}
-	}
-
-	CloudPath(boolean absolute, List<String> elements) {
+	private CloudPath(boolean absolute, List<String> elements) {
 		this.absolute = absolute;
 		this.elements = List.copyOf(elements);
 	}
 
-	public static CloudPath of(Path origin) {
-		if (origin instanceof CloudPath) {
-			return (CloudPath) origin;
-		} else {
-			return new CloudPath(origin);
-		}
-	}
-
 	public static CloudPath of(String first, String... more) {
-		if (more == null || more.length == 0) {
-			return new CloudPath(first.startsWith(SEPARATOR), first);
+		if (more == null) {
+			return new CloudPath(first.startsWith(SEPARATOR), splitStreamAndCollect(first, new String[] {}));
 		} else {
 			return new CloudPath(first.startsWith(SEPARATOR), splitStreamAndCollect(first, more));
 		}
@@ -80,7 +55,7 @@ public class CloudPath {
 	}
 
 	public CloudPath getRoot() {
-		return absolute ? new CloudPath(true) : null;
+		return absolute ? CloudPath.of(SEPARATOR) : null;
 	}
 
 	public CloudPath getFileName() {
@@ -126,7 +101,7 @@ public class CloudPath {
 	}
 
 	public boolean startsWith(String other) {
-		return startsWith(new CloudPath(other.startsWith(SEPARATOR), other));
+		return startsWith(CloudPath.of(other));
 	}
 
 	public boolean endsWith(CloudPath path) {
@@ -137,7 +112,7 @@ public class CloudPath {
 	}
 
 	public boolean endsWith(String other) {
-		return endsWith(new CloudPath(other.startsWith(SEPARATOR), other));
+		return endsWith(CloudPath.of(other));
 	}
 
 	public CloudPath normalize() {
@@ -167,7 +142,7 @@ public class CloudPath {
 	}
 
 	public CloudPath resolve(String other) {
-		return resolve(new CloudPath(other.startsWith(SEPARATOR), other));
+		return resolve(CloudPath.of(other));
 	}
 
 	public CloudPath resolveSibling(CloudPath path) {
@@ -180,7 +155,7 @@ public class CloudPath {
 	}
 
 	public CloudPath resolveSibling(String other) {
-		return resolveSibling(new CloudPath(other.startsWith(SEPARATOR), other));
+		return resolveSibling(CloudPath.of(other));
 	}
 
 	public CloudPath relativize(CloudPath path) {
@@ -216,10 +191,6 @@ public class CloudPath {
 		}
 	}
 
-	public Path toLocalPath(FileSystem fs, String root, LinkOption... options) {
-		return fs.getPath(root, this.normalize().toAbsolutePath().toString().substring(1));
-	}
-
 	public Iterator<CloudPath> iterator() {
 		return new Iterator<CloudPath>() {
 
@@ -250,11 +221,9 @@ public class CloudPath {
 		return this.getNameCount() - path.getNameCount();
 	}
 
-	//TODO: still correct?
 	@Override
 	public int hashCode() {
 		int hash = 0;
-		//hash = 31 * hash + provider.hashCode();
 		hash = 31 * hash + elements.hashCode();
 		hash = 31 * hash + (absolute ? 1 : 0);
 		return hash;
@@ -288,11 +257,10 @@ public class CloudPath {
 		return new CloudPath(absolute, elements);
 	}
 
-	private static List<String> splitStreamAndCollect(String first, String... ss) {
+	private static List<String> splitStreamAndCollect(String first, String... more) {
 		return Stream.concat(
-					Arrays.stream(first.split(SEPARATOR)),
-					Arrays.stream(ss).flatMap(s -> Arrays.stream(s.split(SEPARATOR)))
-				)
+					Splitter.on(SEPARATOR).splitToStream(first),
+					Arrays.stream(more).flatMap(Splitter.on(SEPARATOR)::splitToStream))
 				.filter(s -> !s.isEmpty())
 				.collect(Collectors.toUnmodifiableList());
 	}

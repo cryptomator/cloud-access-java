@@ -12,6 +12,8 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class CloudAccess {
 
@@ -32,10 +34,15 @@ public class CloudAccess {
 			var csprng = SecureRandom.getInstanceStrong();
 			var cryptor = Cryptors.version2(csprng).createFromRawKey(rawKey);
 			// TODO validate vaultFormat.jwt before creating decorator
-			return new VaultFormat8ProviderDecorator(cloudProvider, CloudPath.of(pathToVault.resolve("d")), cryptor);
+			return new VaultFormat8ProviderDecorator(cloudProvider, localPathToCloudPath(pathToVault.resolve("d")), cryptor);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		}
+	}
+
+	private static CloudPath localPathToCloudPath(Path local){
+		var elements = IntStream.range(0, local.getNameCount()).mapToObj(i -> local.getName(i).toString()).collect(Collectors.toList());
+		return CloudPath.of(String.join("/",elements));
 	}
 
 	/**
