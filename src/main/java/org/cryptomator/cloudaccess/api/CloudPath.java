@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 /**
  * TODO: add java doc
  */
-public class CloudPath {
+public class CloudPath implements Comparable<CloudPath>, Iterable<CloudPath> {
 
 	private static final String SEPARATOR = "/";
 	private static final String CURRENT_DIR = ".";
