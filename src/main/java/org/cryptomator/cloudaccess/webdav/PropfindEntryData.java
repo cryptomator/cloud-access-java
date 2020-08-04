@@ -5,7 +5,6 @@ import org.cryptomator.cloudaccess.api.CloudPath;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.regex.Pattern;

@@ -1,13 +1,5 @@
 package org.cryptomator.cloudaccess.localfs;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
@@ -21,6 +13,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 public class LocalFsCloudProviderTest {
 
@@ -56,7 +56,7 @@ public class LocalFsCloudProviderTest {
 		Files.createDirectory(root.resolve("dir"));
 		Files.createFile(root.resolve("file"));
 
-		var result = provider.listExhaustively(CloudPath.of( "/"));
+		var result = provider.listExhaustively(CloudPath.of("/"));
 		var itemList = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertFalse(itemList.getNextPageToken().isPresent());
@@ -80,7 +80,7 @@ public class LocalFsCloudProviderTest {
 	public void testRandomAccessRead() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 
-		var result = provider.read(CloudPath.of( "/file"), 4, 3, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.read(CloudPath.of("/file"), 4, 3, ProgressListener.NO_PROGRESS_AWARE);
 		try (var in = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get())) {
 			var allBytes = in.readAllBytes();
 			Assertions.assertArrayEquals("o w".getBytes(), allBytes);
@@ -91,7 +91,7 @@ public class LocalFsCloudProviderTest {
 	@DisplayName("write to /file (non-existing)")
 	public void testWriteToNewFile() throws IOException {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
-		
+
 		var result = provider.write(CloudPath.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
@@ -109,7 +109,7 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToExistingFile() throws IOException, ExecutionException, InterruptedException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
-		
+
 		var result = provider.write(CloudPath.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
 
 		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
@@ -124,8 +124,8 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToAndReplaceExistingFile() throws IOException {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
-		
-		var result = provider.write(CloudPath.of( "/file"), true, in, ProgressListener.NO_PROGRESS_AWARE);
+
+		var result = provider.write(CloudPath.of("/file"), true, in, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals("file", metaData.getName());
@@ -140,7 +140,7 @@ public class LocalFsCloudProviderTest {
 	@Test
 	@DisplayName("create /folder")
 	public void testCreateFolder() {
-		var result = provider.createFolder(CloudPath.of( "/folder"));
+		var result = provider.createFolder(CloudPath.of("/folder"));
 		var folder = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals(CloudPath.of("/folder"), folder);
@@ -152,7 +152,7 @@ public class LocalFsCloudProviderTest {
 	public void testDeleteFile() throws IOException {
 		Files.createFile(root.resolve("file"));
 
-		var result = provider.delete(CloudPath.of( "/file"));
+		var result = provider.delete(CloudPath.of("/file"));
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertTrue(Files.notExists(root.resolve("file")));
@@ -164,7 +164,7 @@ public class LocalFsCloudProviderTest {
 		Files.createDirectory(root.resolve("folder"));
 		Files.createFile(root.resolve("folder/file"));
 
-		var result = provider.delete(CloudPath.of( "/folder"));
+		var result = provider.delete(CloudPath.of("/folder"));
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertTrue(Files.notExists(root.resolve("folder")));
@@ -175,7 +175,7 @@ public class LocalFsCloudProviderTest {
 	public void testMoveToNonExisting() throws IOException {
 		Files.createFile(root.resolve("foo"));
 
-		var result = provider.move(CloudPath.of( "/foo"), CloudPath.of( "/bar"), false);
+		var result = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false);
 		var moved = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals(CloudPath.of("/bar"), moved);
@@ -189,7 +189,7 @@ public class LocalFsCloudProviderTest {
 		Files.createFile(root.resolve("foo"));
 		Files.createFile(root.resolve("bar"));
 
-		var result = provider.move(CloudPath.of( "/foo"), CloudPath.of( "/bar"), false);
+		var result = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false);
 		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
 			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 		});
@@ -203,7 +203,7 @@ public class LocalFsCloudProviderTest {
 		Files.createFile(root.resolve("foo"));
 		Files.createFile(root.resolve("bar"));
 
-		var result = provider.move(CloudPath.of( "/foo"), CloudPath.of( "/bar"), true);
+		var result = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), true);
 		var moved = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals(CloudPath.of("/bar"), moved);

@@ -2,7 +2,6 @@ package org.cryptomator.cloudaccess.vaultformat8;
 
 import org.cryptomator.cloudaccess.api.CloudPath;
 
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -33,7 +32,7 @@ class DirectoryIdCache {
 		}
 	}
 
-	Optional<byte[]> getCached(Path cleartextPath) {
+	Optional<byte[]> getCached(CloudPath cleartextPath) {
 		return Optional.ofNullable(cache.get(cleartextPath));
 	}
 

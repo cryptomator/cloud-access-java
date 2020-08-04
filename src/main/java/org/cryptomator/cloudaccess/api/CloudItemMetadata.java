@@ -2,7 +2,6 @@ package org.cryptomator.cloudaccess.api;
 
 import com.google.common.base.Objects;
 
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 

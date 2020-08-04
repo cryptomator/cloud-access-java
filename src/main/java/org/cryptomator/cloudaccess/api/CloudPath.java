@@ -1,10 +1,11 @@
 /*******************************************************************************
- * Copyright (c) 2016 Sebastian Stenzel and others.
+ * Copyright (c) 2020 Sebastian Stenzel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the accompanying LICENSE.txt.
  *
  * Contributors:
- *     Sebastian Stenzel - initial API and implementation
+ *     Sebastian Stenzel - orignal API and implementation
+ *     Armin Schrenk - Refactoring and adjusting to this project
  *******************************************************************************/
 package org.cryptomator.cloudaccess.api;
 
@@ -21,7 +22,11 @@ import java.util.stream.Stream;
 
 
 /**
- * TODO: add java doc
+ * An objects that may be used to locate resource in a remote file system independet from the actual filesystem/ cloud provider.
+ * <p>
+ * This class mimicks the behaviour of the Path interface from the JDK, but does not implement it and has a reduced set of methods. For example, a CloudPath is not bound to a certain cloud provider or filesystem and the same path can be used for different providers.
+ * <p>
+ * A CloudPath is created via the static factory method {@link CloudPath#of(String, String...)}, and can afterwards used in the most cases like a path object. For the documentation of the single instance methods, please consider the Path interface of the JDK for the time being.
  */
 public class CloudPath implements Comparable<CloudPath>, Iterable<CloudPath> {
 
@@ -259,8 +264,8 @@ public class CloudPath implements Comparable<CloudPath>, Iterable<CloudPath> {
 
 	private static List<String> splitStreamAndCollect(String first, String... more) {
 		return Stream.concat(
-					Splitter.on(SEPARATOR).splitToStream(first),
-					Arrays.stream(more).flatMap(Splitter.on(SEPARATOR)::splitToStream))
+				Splitter.on(SEPARATOR).splitToStream(first),
+				Arrays.stream(more).flatMap(Splitter.on(SEPARATOR)::splitToStream))
 				.filter(s -> !s.isEmpty())
 				.collect(Collectors.toUnmodifiableList());
 	}

@@ -3,7 +3,6 @@ package org.cryptomator.cloudaccess.api;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

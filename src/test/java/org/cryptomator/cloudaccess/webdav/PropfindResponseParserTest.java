@@ -11,7 +11,6 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -85,8 +84,8 @@ public class PropfindResponseParserTest {
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(
 				List.of(
-					new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"),CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
-					new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
+						new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
+						new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
 				),
 				cloudNodeItemList.getItems()
 		);
