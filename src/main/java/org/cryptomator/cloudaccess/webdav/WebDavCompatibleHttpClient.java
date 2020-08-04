@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -48,7 +49,7 @@ class WebDavCompatibleHttpClient {
 	private static Authenticator httpAuthenticator(final String username, final String password, final Map<String, CachingAuthenticator> authCache) {
 		final var credentials = new Credentials(username, password);
 		final var digestAuthenticator = new DigestAuthenticator(credentials);
-		final var basicAuthenticator = new BasicAuthenticator(credentials);
+		final var basicAuthenticator = new BasicAuthenticator(credentials, StandardCharsets.UTF_8);
 
 		final var dispatchingAuthenticator = new DispatchingAuthenticator
 				.Builder()
