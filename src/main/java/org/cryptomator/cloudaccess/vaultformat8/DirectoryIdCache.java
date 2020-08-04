@@ -31,6 +31,10 @@ class DirectoryIdCache {
 		}
 	}
 
+	public void evict(Path cleartextPath) {
+		cache.remove(cleartextPath);
+	}
+
 	Optional<byte[]> getCached(Path cleartextPath) {
 		return Optional.ofNullable(cache.get(cleartextPath));
 	}
