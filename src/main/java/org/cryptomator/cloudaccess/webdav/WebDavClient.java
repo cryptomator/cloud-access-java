@@ -6,6 +6,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
@@ -18,11 +19,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
@@ -37,15 +36,15 @@ public class WebDavClient {
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
-	CloudItemList list(final Path folder) throws CloudProviderException {
+	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		return list(folder, PROPFIND_DEPTH.ONE);
 	}
 
-	CloudItemList listExhaustively(Path folder) throws CloudProviderException {
+	CloudItemList listExhaustively(CloudPath folder) throws CloudProviderException {
 		return list(folder, PROPFIND_DEPTH.INFINITY);
 	}
 
-	private CloudItemList list(final Path folder, final PROPFIND_DEPTH propfind_depth) throws CloudProviderException {
+	private CloudItemList list(final CloudPath folder, final PROPFIND_DEPTH propfind_depth) throws CloudProviderException {
 		try (final var response = executePropfindRequest(folder, propfind_depth)) {
 			checkExecutionSucceeded(response.code());
 
@@ -57,7 +56,7 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata itemMetadata(final Path path) throws CloudProviderException {
+	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
 		try (final var response = executePropfindRequest(path, PROPFIND_DEPTH.ZERO)) {
 			checkExecutionSucceeded(response.code());
 
@@ -69,7 +68,7 @@ public class WebDavClient {
 		}
 	}
 
-	private Response executePropfindRequest(final Path path, final PROPFIND_DEPTH propfind_depth) throws IOException {
+	private Response executePropfindRequest(final CloudPath path, final PROPFIND_DEPTH propfind_depth) throws IOException {
 		final var body = "<d:propfind xmlns:d=\"DAV:\">\n" //
 				+ "<d:prop>\n" //
 				+ "<d:resourcetype />\n" //
@@ -115,7 +114,7 @@ public class WebDavClient {
 		return result;
 	}
 
-	Path move(final Path from, final Path to, boolean replace) throws CloudProviderException {
+	CloudPath move(final CloudPath from, final CloudPath to, boolean replace) throws CloudProviderException {
 		final var builder = new Request.Builder() //
 				.method("MOVE", null) //
 				.url(absoluteURLFrom(from)) //
@@ -140,14 +139,14 @@ public class WebDavClient {
 		}
 	}
 
-	InputStream read(final Path path, final ProgressListener progressListener) throws CloudProviderException {
+	InputStream read(final CloudPath path, final ProgressListener progressListener) throws CloudProviderException {
 		final var getRequest = new Request.Builder() //
 				.get() //
 				.url(absoluteURLFrom(path));
 		return read(getRequest, progressListener);
 	}
 
-	InputStream read(final Path path, final long offset, final long count, final ProgressListener progressListener) throws CloudProviderException {
+	InputStream read(final CloudPath path, final long offset, final long count, final ProgressListener progressListener) throws CloudProviderException {
 		final var getRequest = new Request.Builder() //
 				.header("Range", String.format("bytes=%d-%d", offset, offset + count - 1))
 				.get() //
@@ -166,7 +165,7 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata write(final Path file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
+	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
@@ -184,7 +183,7 @@ public class WebDavClient {
 		}
 	}
 
-	private boolean exists(Path path) throws CloudProviderException {
+	private boolean exists(CloudPath path) throws CloudProviderException {
 		try {
 			return itemMetadata(path) != null;
 		} catch (NotFoundException e) {
@@ -192,7 +191,7 @@ public class WebDavClient {
 		}
 	}
 
-	Path createFolder(final Path path) throws CloudProviderException {
+	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
 		final var builder = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
@@ -205,7 +204,7 @@ public class WebDavClient {
 		}
 	}
 
-	void delete(final Path path) throws CloudProviderException {
+	void delete(final CloudPath path) throws CloudProviderException {
 		final var builder = new Request.Builder() //
 				.delete() //
 				.url(absoluteURLFrom(path));
@@ -235,7 +234,7 @@ public class WebDavClient {
 
 	void tryAuthenticatedRequest() throws UnauthorizedException {
 		try {
-			itemMetadata(Path.of("/"));
+			itemMetadata(CloudPath.of("/"));
 		} catch (Exception e) {
 			if (e instanceof UnauthorizedException) {
 				throw e;
@@ -262,12 +261,11 @@ public class WebDavClient {
 	}
 
 	// visible for testing
-	URL absoluteURLFrom(final Path relativePath) {
-		var basePath = Path.of(baseUrl.getPath());
-		var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(i -> relativePath.getName(i)).reduce(basePath, Path::resolve);
-		var stringRepersentation = IntStream.range(0, fullPath.getNameCount()).mapToObj(i -> fullPath.getName(i).toString()).collect(Collectors.joining("/"));
+	URL absoluteURLFrom(final CloudPath relativePath) {
+		var basePath = CloudPath.of(baseUrl.getPath()).toAbsolutePath();
+		var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(i -> relativePath.getName(i)).reduce(basePath, CloudPath::resolve);
 		try {
-			return new URL(baseUrl, "/" + stringRepersentation);
+			return new URL(baseUrl, fullPath.toString());
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("The relative path contains invalid URL elements.");
 		}

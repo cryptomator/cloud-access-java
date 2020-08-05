@@ -3,7 +3,6 @@ package org.cryptomator.cloudaccess.api;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -30,7 +29,7 @@ public interface CloudProvider {
 	 * @param node The remote path of the file or folder, whose metadata to fetch.
 	 * @return CompletionStage with the metadata for a file or folder. If the fetch fails, it completes exceptionally.
 	 */
-	CompletionStage<CloudItemMetadata> itemMetadata(Path node);
+	CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node);
 
 	/**
 	 * Starts fetching the contents of a folder.
@@ -49,20 +48,20 @@ public interface CloudProvider {
 	 * @param pageToken An optional {@link CloudItemList#getNextPageToken() nextPageToken} to continue a previous listing
 	 * @return CompletionStage with a potentially incomplete list of items.
 	 */
-	CompletionStage<CloudItemList> list(Path folder, Optional<String> pageToken);
+	CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken);
 
 	/**
-	 * Convenience wrapper for {@link #list(Path, Optional)} that fetches all items.
+	 * Convenience wrapper for {@link #list(CloudPath, Optional)} that fetches all items.
 	 *
 	 * @param folder The remote path of the folder to list.
 	 * @return CompletionStage with a complete list of items.
-	 * @see #list(Path, Optional)
+	 * @see #list(CloudPath, Optional)
 	 */
-	default CompletionStage<CloudItemList> listExhaustively(Path folder) {
+	default CompletionStage<CloudItemList> listExhaustively(CloudPath folder) {
 		return listExhaustively(this, folder, CloudItemList.empty());
 	}
 
-	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, Path folder, CloudItemList itemList) {
+	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, CloudPath folder, CloudItemList itemList) {
 		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
 			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
 			if (nextItems.getNextPageToken().isPresent()) {
@@ -76,14 +75,14 @@ public interface CloudProvider {
 	/**
 	 * Reads from the given file.
 	 * <p>
-	 * The returned CompletionStage might complete exceptionally with the same exceptions as specified in {@link #read(Path, long, long, ProgressListener)}.
+	 * The returned CompletionStage might complete exceptionally with the same exceptions as specified in {@link #read(CloudPath, long, long, ProgressListener)}.
 	 *
 	 * @param file             A remote path referencing a file
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
-	 * @see #read(Path, long, long, ProgressListener)
+	 * @see #read(CloudPath, long, long, ProgressListener)
 	 */
-	default CompletionStage<InputStream> read(Path file, ProgressListener progressListener) {
+	default CompletionStage<InputStream> read(CloudPath file, ProgressListener progressListener) {
 		return read(file, 0, Long.MAX_VALUE, progressListener);
 	}
 
@@ -103,7 +102,7 @@ public interface CloudProvider {
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
 	 */
-	CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener);
+	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
 
 	/**
 	 * Writes to a given file, creating it if it doesn't exist yet.
@@ -122,7 +121,7 @@ public interface CloudProvider {
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage that will be completed after writing all <code>data</code> and holds the new metadata of the item referenced by <code>file</code>.
 	 */
-	CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener);
+	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener);
 
 	/**
 	 * Create a folder. Does not create any potentially missing parent directories.
@@ -136,7 +135,7 @@ public interface CloudProvider {
 	 * @param folder The remote path of the folder to create.
 	 * @return CompletionStage with the same path as <code>folder</code> if created successfully.
 	 */
-	CompletionStage<Path> createFolder(Path folder);
+	CompletionStage<CloudPath> createFolder(CloudPath folder);
 
 	/**
 	 * Recursively delete a file or folder.
@@ -150,7 +149,7 @@ public interface CloudProvider {
 	 * @param node The remote path of the file or folder to delete.
 	 * @return CompletionStage completing successfully if node was deleted.
 	 */
-	CompletionStage<Void> delete(Path node);
+	CompletionStage<Void> delete(CloudPath node);
 
 	/**
 	 * Move a file or folder to a different location.
@@ -167,7 +166,7 @@ public interface CloudProvider {
 	 * @param replace Flag indicating whether to overwrite <code>target</code> if it already exists.
 	 * @return CompletionStage with the same path as {@code target} if node was moved successfully.
 	 */
-	CompletionStage<Path> move(Path source, Path target, boolean replace);
+	CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace);
 
 }
 

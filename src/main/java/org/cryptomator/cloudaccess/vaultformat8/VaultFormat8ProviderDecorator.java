@@ -6,6 +6,7 @@ import com.google.common.io.ByteStreams;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.Cryptors;
@@ -40,12 +41,12 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private static final String DIR_FILE_NAME = "dir.c9r";
 
 	private final CloudProvider delegate;
-	private final Path dataDir;
+	private final CloudPath dataDir;
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
 	private final FileHeaderCache fileHeaderCache;
 
-	public VaultFormat8ProviderDecorator(CloudProvider delegate, Path dataDir, Cryptor cryptor) {
+	public VaultFormat8ProviderDecorator(CloudProvider delegate, CloudPath dataDir, Cryptor cryptor) {
 		this.delegate = delegate;
 		this.dataDir = dataDir;
 		this.cryptor = cryptor;
@@ -54,7 +55,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> itemMetadata(Path node) {
+	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		if (node.getNameCount() == 0) {
 			// ROOT
 			return CompletableFuture.completedFuture(new CloudItemMetadata("", node, CloudItemType.FOLDER, Optional.empty(), Optional.empty()));
@@ -67,13 +68,13 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemList> list(Path folder, Optional<String> pageToken) {
+	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		var ciphertextItemList = getDirPathFromClearTextDir(folder).thenCompose(ciphertextPath -> delegate.list(ciphertextPath, pageToken));
 		return getDirId(folder).thenCombine(ciphertextItemList, (dirId, itemList) -> toCleartextItemList(itemList, folder, dirId));
 	}
 
 	@Override
-	public CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener) {
+	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
 		// byte range math:
 		long firstChunk = offset / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
 		long lastChunk = (offset + count) / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
@@ -102,7 +103,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(filePath -> {
 			try (var src = Channels.newChannel(data);
 				 var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
@@ -115,8 +116,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Path> createFolder(Path folder) {
-		BiFunction<Path, Throwable, CompletableFuture<Path>> handler = (result, exception) -> {
+	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
+		BiFunction<CloudPath, Throwable, CompletableFuture<CloudPath>> handler = (result, exception) -> {
 			if (exception == null) {
 				return CompletableFuture.completedFuture(result);
 			} else if (exception instanceof FileAlreadyExistsException) {
@@ -138,7 +139,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(Path node) {
+	public CompletionStage<Void> delete(CloudPath node) {
 		return itemMetadata(node).thenCompose(cloudNode -> {
 			if(cloudNode.getItemType() == CloudItemType.FILE) {
 				return getC9rPath(node).thenCompose(delegate::delete);
@@ -148,7 +149,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		});
 	}
 
-	private CompletionStage<Void> deleteCiphertextDir(CompletionStage<Path> dirPath) {
+	private CompletionStage<Void> deleteCiphertextDir(CompletionStage<CloudPath> dirPath) {
 		// TODO evict dir from cache (but first decrypt)
 
 		return dirPath
@@ -164,7 +165,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Path> move(Path source, Path target, boolean replace) {
+	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		return getC9rPath(source).thenCompose(sourcec9rPath -> getC9rPath(target).thenCompose(targetc9rPath -> delegate.move(sourcec9rPath, targetc9rPath, replace)))
 				.thenApply(unused -> {
 					dirIdCache.evict(source);
@@ -172,7 +173,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 				});
 	}
 
-	private CloudItemList toCleartextItemList(CloudItemList ciphertextItemList, Path cleartextParent, byte[] parentDirId) {
+	private CloudItemList toCleartextItemList(CloudItemList ciphertextItemList, CloudPath cleartextParent, byte[] parentDirId) {
 		var items = ciphertextItemList.getItems().stream().flatMap(ciphertextMetadata -> {
 			try {
 				var cleartextMetadata = toCleartextMetadata(ciphertextMetadata, cleartextParent, parentDirId);
@@ -188,7 +189,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return new CloudItemList(items, ciphertextItemList.getNextPageToken());
 	}
 
-	private CloudItemMetadata toCleartextMetadata(CloudItemMetadata ciphertextMetadata, Path cleartextParent, byte[] parentDirId) throws AuthenticationFailedException, IllegalArgumentException {
+	private CloudItemMetadata toCleartextMetadata(CloudItemMetadata ciphertextMetadata, CloudPath cleartextParent, byte[] parentDirId) throws AuthenticationFailedException, IllegalArgumentException {
 		var ciphertextName = ciphertextMetadata.getName();
 		Preconditions.checkArgument(ciphertextName.endsWith(CIPHERTEXT_FILE_SUFFIX), "Unrecognized file type");
 		var ciphertextBaseName = ciphertextName.substring(0, ciphertextName.length() - CIPHERTEXT_FILE_SUFFIX.length());
@@ -198,7 +199,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return new CloudItemMetadata(cleartextName, cleartextPath, ciphertextMetadata.getItemType(), ciphertextMetadata.getLastModifiedDate(), cleartextSize);
 	}
 
-	private CompletionStage<byte[]> getDirId(Path cleartextDir) {
+	private CompletionStage<byte[]> getDirId(CloudPath cleartextDir) {
 		Preconditions.checkNotNull(cleartextDir);
 		return dirIdCache.get(cleartextDir, (cleartextPath, parentDirId) -> {
 			var cleartextName = cleartextPath.getFileName().toString();
@@ -208,7 +209,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		});
 	}
 
-	private CompletionStage<FileHeader> readFileHeader(Path ciphertextPath) {
+	private CompletionStage<FileHeader> readFileHeader(CloudPath ciphertextPath) {
 		var headerCryptor = cryptor.fileHeaderCryptor();
 		return delegate.read(ciphertextPath, 0, headerCryptor.headerSize(), ProgressListener.NO_PROGRESS_AWARE)
 				.thenCompose(this::readAllBytes)
@@ -223,30 +224,30 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		}
 	}
 
-	private CompletionStage<Path> getDirPathFromClearTextDir(Path cleartextDir) {
+	private CompletionStage<CloudPath> getDirPathFromClearTextDir(CloudPath cleartextDir) {
 		return getDirId(cleartextDir).thenApply(this::getDirPathFromClearTextDir);
 	}
 
-	private CompletionStage<Path> getDirPathFromC9rDir(Path dirC9rPath) {
+	private CompletionStage<CloudPath> getDirPathFromC9rDir(CloudPath dirC9rPath) {
 		return delegate.read(dirC9rPath.resolve(DIR_FILE_NAME), ProgressListener.NO_PROGRESS_AWARE)
 				.thenCompose(this::readAllBytes)
 				.thenApply(this::getDirPathFromClearTextDir);
 	}
 
-	private Path getDirPathFromClearTextDir(byte[] dirId) {
+	private CloudPath getDirPathFromClearTextDir(byte[] dirId) {
 		var digest = cryptor.fileNameCryptor().hashDirectoryId(new String(dirId, StandardCharsets.UTF_8));
 		return dataDir.resolve(digest.substring(0, 2)).resolve(digest.substring(2));
 	}
 
-	private Path getC9rPath(byte[] parentDirId, String cleartextName) {
+	private CloudPath getC9rPath(byte[] parentDirId, String cleartextName) {
 		var ciphertextBaseName = cryptor.fileNameCryptor().encryptFilename(BaseEncoding.base64Url(), cleartextName, parentDirId);
 		var ciphertextName = ciphertextBaseName + CIPHERTEXT_FILE_SUFFIX;
 		return getDirPathFromClearTextDir(parentDirId).resolve(ciphertextName);
 	}
 
-	private CompletionStage<Path> getC9rPath(Path cleartextPath) {
+	private CompletionStage<CloudPath> getC9rPath(CloudPath cleartextPath) {
 		Preconditions.checkArgument(cleartextPath.getNameCount() > 0, "No c9r path for root.");
-		var cleartextParent = cleartextPath.getNameCount() == 1 ? Path.of("") : cleartextPath.getParent();
+		var cleartextParent = cleartextPath.getNameCount() == 1 ? CloudPath.of("") : cleartextPath.getParent();
 		var cleartextName = cleartextPath.getFileName().toString();
 		return getDirId(cleartextParent).thenApply(parentDirId -> getC9rPath(parentDirId, cleartextName));
 	}

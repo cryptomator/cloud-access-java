@@ -4,6 +4,7 @@ import com.google.common.io.BaseEncoding;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.api.Cryptor;
@@ -52,7 +53,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class VaultFormat8ProviderDecoratorTest {
 
-	private final Path dataDir = Path.of("path/to/vault/d");
+	private final CloudPath dataDir = CloudPath.of("path/to/vault/d");
 	private final String dirIdRoot = "";
 	private final String dirId1 = "dir1-id";
 	private final String dirId2 = "dir2-id";
@@ -105,12 +106,12 @@ public class VaultFormat8ProviderDecoratorTest {
 	@Test
 	@DisplayName("itemMetadata(\"/\")")
 	public void testItemMetadataOfRoot() {
-		var futureResult = decorator.itemMetadata(Path.of("/"));
+		var futureResult = decorator.itemMetadata(CloudPath.of("/"));
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals("", result.getName());
 		Assertions.assertEquals(CloudItemType.FOLDER, result.getItemType());
-		Assertions.assertEquals(Path.of("/"), result.getPath());
+		Assertions.assertEquals(CloudPath.of("/"), result.getPath());
 	}
 
 	@Test
@@ -121,12 +122,12 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "Directory 1", dirIdRoot.getBytes())).thenReturn("dir1");
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 3", dirId1.getBytes())).thenReturn("file3");
 
-		var futureResult = decorator.itemMetadata(Path.of("/Directory 1/File 3"));
+		var futureResult = decorator.itemMetadata(CloudPath.of("/Directory 1/File 3"));
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals("File 3", result.getName());
 		Assertions.assertEquals(CloudItemType.FILE, result.getItemType());
-		Assertions.assertEquals(Path.of("/Directory 1/File 3"), result.getPath());
+		Assertions.assertEquals(CloudPath.of("/Directory 1/File 3"), result.getPath());
 	}
 
 	@Test
@@ -135,7 +136,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		var rootItemList = new CloudItemList(List.of(dir1Metadata, file1Metadata, file2Metadata, file4Metadata, other1Metadata), Optional.empty());
 		Mockito.when(cloudProvider.list(dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), Optional.empty())).thenReturn(CompletableFuture.completedFuture(rootItemList));
 
-		var futureResult = decorator.list(Path.of("/"), Optional.empty());
+		var futureResult = decorator.list(CloudPath.of("/"), Optional.empty());
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(4, result.getItems().size());
@@ -154,7 +155,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.read(dir1Metadata.getPath().resolve("dir.c9r"), ProgressListener.NO_PROGRESS_AWARE)).thenReturn(CompletableFuture.completedFuture(new ByteArrayInputStream(dirId1.getBytes())));
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "Directory 1", dirIdRoot.getBytes())).thenReturn("dir1");
 
-		var futureResult = decorator.list(Path.of("/Directory 1"), Optional.empty());
+		var futureResult = decorator.list(CloudPath.of("/Directory 1"), Optional.empty());
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(2, result.getItems().size());
@@ -180,7 +181,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileHeaderCryptor.decryptHeader(UTF_8.encode("hhhhh"))).thenReturn(header);
 		Mockito.when(fileContentCryptor.decryptChunk(Mockito.eq(UTF_8.encode("TOPSECRET!")), Mockito.anyLong(), Mockito.eq(header), Mockito.anyBoolean())).then(invocation -> UTF_8.encode("geheim!!"));
 
-		var futureResult = decorator.read(Path.of("/File 1"), 12, 10, ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.read(CloudPath.of("/File 1"), 12, 10, ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		byte[] buf = new byte[100];
@@ -201,16 +202,16 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.itemMetadata(dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(file4Metadata));
 		Mockito.when(cloudProvider.itemMetadata(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(movedFile4Metadata));
 
-		Mockito.when(cloudProvider.move(Path.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"), Path.of("path/to/vault/d/11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file4.c9r"), false)).thenReturn(CompletableFuture.completedFuture(Path.of("/Directory 1/File 4")));
+		Mockito.when(cloudProvider.move(CloudPath.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"), CloudPath.of("path/to/vault/d/11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file4.c9r"), false)).thenReturn(CompletableFuture.completedFuture(CloudPath.of("/Directory 1/File 4")));
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "Directory 1", dirIdRoot.getBytes())).thenReturn("dir1");
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 4", dirId1.getBytes())).thenReturn("file4");
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 4", dirIdRoot.getBytes())).thenReturn("file4");
 
-		var futureResult = decorator.move(Path.of("/File 4"), Path.of("/Directory 1/File 4"), false);
+		var futureResult = decorator.move(CloudPath.of("/File 4"), CloudPath.of("/Directory 1/File 4"), false);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals("File 4", result.getFileName().toString());
-		Assertions.assertEquals(Path.of("/Directory 1/File 4"), result);
+		Assertions.assertEquals(CloudPath.of("/Directory 1/File 4"), result);
 	}
 
 	@Test
@@ -219,9 +220,9 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 4", dirIdRoot.getBytes())).thenReturn("file4");
 
 		Mockito.when(cloudProvider.itemMetadata(dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(file4Metadata));
-		Mockito.when(cloudProvider.delete(Path.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.delete(CloudPath.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(Path.of("/File 4"));
+		var futureResult = decorator.delete(CloudPath.of("/File 4"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 	}
 
@@ -239,7 +240,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.listExhaustively(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(dir2ItemList));
 		Mockito.when(cloudProvider.delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(Path.of("/Directory 1/Directory 2/"));
+		var futureResult = decorator.delete(CloudPath.of("/Directory 1/Directory 2/"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 	}
 
@@ -274,7 +275,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.delete(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"))).thenReturn(CompletableFuture.completedFuture(null));
 		Mockito.when(cloudProvider.delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(Path.of("/"));
+		var futureResult = decorator.delete(CloudPath.of("/"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 	}
 
@@ -308,11 +309,11 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.createFolder(dataDirFolder3.getParent())).thenReturn(CompletableFuture.completedFuture(dataDirFolder3.getParent()));
 		Mockito.when(cloudProvider.createFolder(dataDirFolder3)).thenReturn(CompletableFuture.completedFuture(dataDirFolder3));
 
-		var futureResult = decorator.createFolder(Path.of("/Directory 3/"));
+		var futureResult = decorator.createFolder(CloudPath.of("/Directory 3/"));
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals("Directory 3", result.getFileName().toString());
-		Assertions.assertEquals(Path.of("/Directory 3"), result);
+		Assertions.assertEquals(CloudPath.of("/Directory 3"), result);
 	}
 
 	@Test
@@ -340,7 +341,7 @@ public class VaultFormat8ProviderDecoratorTest {
 					return CompletableFuture.completedFuture(file1Metadata);
 				});
 
-		var futureResult = decorator.write(Path.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.write(CloudPath.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(file1Metadata, result);
