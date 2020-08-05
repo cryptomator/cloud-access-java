@@ -9,7 +9,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 class DirectoryIdCache {
 
@@ -37,12 +36,12 @@ class DirectoryIdCache {
 		cache.remove(cleartextPath);
 	}
 
-	public CompletionStage<Void> evictFolderIncludingChilds(CloudPath cleartextPath) {
-		return CompletableFuture.supplyAsync(() -> {
-			var subPaths = cache.keySet().stream().filter(path -> path.startsWith(cleartextPath)).collect(Collectors.toSet());
-			subPaths.forEach(cache::remove);
-			return null;
-		});
+	public void evictIncludingDescendants(CloudPath cleartextPath) {
+		for(var path : cache.keySet()) {
+			if(path.startsWith(cleartextPath)) {
+				cache.remove(path);
+			}
+		}
 	}
 
 	Optional<byte[]> getCached(CloudPath cleartextPath) {

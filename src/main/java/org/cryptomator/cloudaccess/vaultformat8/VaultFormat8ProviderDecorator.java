@@ -9,6 +9,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
 import org.cryptomator.cryptolib.EncryptingReadableByteChannel;
@@ -24,7 +25,6 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -119,8 +119,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		BiFunction<CloudPath, Throwable, CompletableFuture<CloudPath>> handler = (result, exception) -> {
 			if (exception == null) {
 				return CompletableFuture.completedFuture(result);
-			} else if (exception instanceof FileAlreadyExistsException) {
-				return CompletableFuture.completedFuture(result);
+			} else if (exception instanceof AlreadyExistsException) {
+				return CompletableFuture.completedFuture(folder);
 			} else {
 				return CompletableFuture.failedFuture(exception);
 			}
@@ -144,7 +144,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 				return getC9rPath(node).thenCompose(delegate::delete);
 			} else {
 				return deleteCiphertextDir(getDirPathFromClearTextDir(node))
-						.thenCompose(unused -> dirIdCache.evictFolderIncludingChilds(node));
+						.thenRun(() -> dirIdCache.evictIncludingDescendants(node));
 			}
 		});
 	}
@@ -223,16 +223,16 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	private CompletionStage<CloudPath> getDirPathFromClearTextDir(CloudPath cleartextDir) {
-		return getDirId(cleartextDir).thenApply(this::getDirPathFromClearTextDir);
+		return getDirId(cleartextDir).thenApply(this::getDirPathWithId);
 	}
 
 	private CompletionStage<CloudPath> getDirPathFromC9rDir(CloudPath dirC9rPath) {
 		return delegate.read(dirC9rPath.resolve(DIR_FILE_NAME), ProgressListener.NO_PROGRESS_AWARE)
 				.thenCompose(this::readAllBytes)
-				.thenApply(this::getDirPathFromClearTextDir);
+				.thenApply(this::getDirPathWithId);
 	}
 
-	private CloudPath getDirPathFromClearTextDir(byte[] dirId) {
+	private CloudPath getDirPathWithId(byte[] dirId) {
 		var digest = cryptor.fileNameCryptor().hashDirectoryId(new String(dirId, StandardCharsets.UTF_8));
 		return dataDir.resolve(digest.substring(0, 2)).resolve(digest.substring(2));
 	}
@@ -240,7 +240,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private CloudPath getC9rPath(byte[] parentDirId, String cleartextName) {
 		var ciphertextBaseName = cryptor.fileNameCryptor().encryptFilename(BaseEncoding.base64Url(), cleartextName, parentDirId);
 		var ciphertextName = ciphertextBaseName + CIPHERTEXT_FILE_SUFFIX;
-		return getDirPathFromClearTextDir(parentDirId).resolve(ciphertextName);
+		return getDirPathWithId(parentDirId).resolve(ciphertextName);
 	}
 
 	private CompletionStage<CloudPath> getC9rPath(CloudPath cleartextPath) {
