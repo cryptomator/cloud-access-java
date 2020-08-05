@@ -21,9 +21,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -67,19 +71,17 @@ public class VaultFormat8ProviderDecoratorTest {
 	private FileContentCryptor fileContentCryptor;
 	private FileHeaderCryptor fileHeaderCryptor;
 	private VaultFormat8ProviderDecorator decorator;
-	private Path tempDir;
 
 	@BeforeEach
 	public void setup() throws IOException {
 		tempFolder.create();
-		tempDir = tempFolder.newFolder("tempDir").toPath();
 
 		cloudProvider = Mockito.mock(CloudProvider.class);
 		cryptor = Mockito.mock(Cryptor.class);
 		fileNameCryptor = Mockito.mock(FileNameCryptor.class);
 		fileContentCryptor = Mockito.mock(FileContentCryptor.class);
 		fileHeaderCryptor = Mockito.mock(FileHeaderCryptor.class);
-		decorator = new VaultFormat8ProviderDecorator(cloudProvider, dataDir, tempDir, cryptor);
+		decorator = new VaultFormat8ProviderDecorator(cloudProvider, dataDir, cryptor);
 
 		Mockito.when(cryptor.fileNameCryptor()).thenReturn(fileNameCryptor);
 		Mockito.when(cryptor.fileContentCryptor()).thenReturn(fileContentCryptor);
@@ -316,25 +318,29 @@ public class VaultFormat8ProviderDecoratorTest {
 	@Test
 	@DisplayName("write(\"/File 1\", replace=false, text, NO_PROGRESS_AWARE)")
 	public void testWriteToFile() {
-		var file1Content = "hhhhhTOPSECRET!".getBytes();
-		var file1Header = "hhhhh".getBytes();
-
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 1", dirIdRoot.getBytes())).thenReturn("file1");
 		Mockito.when(cloudProvider.read(dir1Metadata.getPath().resolve("dir.c9r"), ProgressListener.NO_PROGRESS_AWARE)).thenReturn(CompletableFuture.completedFuture(new ByteArrayInputStream(dirId1.getBytes())));
-		Mockito.when(cryptor.fileContentCryptor().cleartextChunkSize()).thenReturn(10);
 
 		var header = Mockito.mock(FileHeader.class);
 		Mockito.when(fileHeaderCryptor.create()).thenReturn(header);
-		Mockito.when(fileHeaderCryptor.encryptHeader(header)).thenReturn(ByteBuffer.wrap(file1Header));
-		//Mockito.when(fileContentCryptor.encryptChunk(Mockito.eq(UTF_8.encode("TOPSECRET!")), Mockito.anyLong(), Mockito.eq(header))).thenReturn(UTF_8.encode("geheim!!"));
-		Mockito.when(fileContentCryptor.encryptChunk(Mockito.any(), Mockito.anyLong(), Mockito.eq(header)))
-				.thenReturn(UTF_8.encode("geheim!!"));
-		/*Mockito.when(cloudProvider.write(file1Metadata.getPath(),false, new ByteArrayInputStream("hhhhhgeheim!!".getBytes()), ProgressListener.NO_PROGRESS_AWARE))
-				.thenReturn(CompletableFuture.completedFuture(file1Metadata));*/
-		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
-				.thenReturn(CompletableFuture.completedFuture(file1Metadata));
+		Mockito.when(fileHeaderCryptor.encryptHeader(header)).thenReturn(ByteBuffer.wrap("hhhhh".getBytes()));
+		Mockito.when(fileHeaderCryptor.headerSize()).thenReturn(5);
+		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(10);
+		Mockito.when(fileContentCryptor.encryptChunk(Mockito.any(ByteBuffer.class), Mockito.anyLong(), Mockito.any(FileHeader.class))).thenAnswer(invocation -> {
+			ByteBuffer input = invocation.getArgument(0);
+			String inStr = UTF_8.decode(input).toString();
+			return ByteBuffer.wrap(inStr.toLowerCase().getBytes(UTF_8));
+		});
 
-		var futureResult = decorator.write(Path.of("/File 1"), false, new ByteArrayInputStream(file1Content), ProgressListener.NO_PROGRESS_AWARE);
+		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
+				.thenAnswer(invocationOnMock -> {
+					InputStream in = invocationOnMock.getArgument(2);
+					var encrypted = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).readLine();
+					Assertions.assertEquals("hhhhhtopsecret!", encrypted);
+					return CompletableFuture.completedFuture(file1Metadata);
+				});
+
+		var futureResult = decorator.write(Path.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(file1Metadata, result);

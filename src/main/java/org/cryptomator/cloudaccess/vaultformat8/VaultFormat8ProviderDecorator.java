@@ -10,7 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
-import org.cryptomator.cryptolib.EncryptingWritableByteChannel;
+import org.cryptomator.cryptolib.EncryptingReadableByteChannel;
 import org.cryptomator.cryptolib.api.AuthenticationFailedException;
 import org.cryptomator.cryptolib.api.Cryptor;
 import org.cryptomator.cryptolib.api.FileHeader;
@@ -18,9 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -44,15 +41,13 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	private final CloudProvider delegate;
 	private final Path dataDir;
-	private final Path tmpDir;
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
 	private final FileHeaderCache fileHeaderCache;
 
-	public VaultFormat8ProviderDecorator(CloudProvider delegate, Path dataDir, Path tmpDir, Cryptor cryptor) {
+	public VaultFormat8ProviderDecorator(CloudProvider delegate, Path dataDir, Cryptor cryptor) {
 		this.delegate = delegate;
 		this.dataDir = dataDir;
-		this.tmpDir = tmpDir;
 		this.cryptor = cryptor;
 		this.dirIdCache = new DirectoryIdCache();
 		this.fileHeaderCache = new FileHeaderCache();
@@ -109,27 +104,10 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(filePath -> {
-			try {
-				final var encryptedTmpFile = File.createTempFile(UUID.randomUUID().toString(), ".crypto", tmpDir.toFile());
-				try (var writableByteChannel = Channels.newChannel(new FileOutputStream(encryptedTmpFile));
-					 var encryptingWritableByteChannel = new EncryptingWritableByteChannel(writableByteChannel, cryptor)){
-					var buff = ByteBuffer.allocate(cryptor.fileContentCryptor().cleartextChunkSize());
-					int read;
-					while ((read = data.read(buff.array())) > 0) {
-						buff.limit(read);
-						encryptingWritableByteChannel.write(buff);
-						buff.flip();
-					}
-					encryptingWritableByteChannel.close();
-					try(var encryptedTmpFileInputStream = new FileInputStream(encryptedTmpFile)) {
-						// TODO handle write conflict (check again replace is false && exists(file) --> append conflict to file name
-						return delegate.write(filePath, replace, encryptedTmpFileInputStream, progressListener);
-					}
-				} catch (Throwable e) {
-					return CompletableFuture.failedFuture(e);
-				} finally {
-					encryptedTmpFile.delete();
-				}
+			try (var src = Channels.newChannel(data);
+				 var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
+				 var encryptedIn= Channels.newInputStream(encryptingChannel)) {
+				return delegate.write(filePath, replace, encryptedIn, progressListener);
 			} catch (IOException e) {
 				return CompletableFuture.failedFuture(e);
 			}
