@@ -25,7 +25,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -144,14 +143,13 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			if(cloudNode.getItemType() == CloudItemType.FILE) {
 				return getC9rPath(node).thenCompose(delegate::delete);
 			} else {
-				return deleteCiphertextDir(getDirPathFromClearTextDir(node));
+				return deleteCiphertextDir(getDirPathFromClearTextDir(node))
+						.thenCompose(unused -> dirIdCache.evictFolderIncludingChilds(node));
 			}
 		});
 	}
 
 	private CompletionStage<Void> deleteCiphertextDir(CompletionStage<CloudPath> dirPath) {
-		// TODO evict dir from cache (but first decrypt)
-
 		return dirPath
 				.thenCompose(delegate::listExhaustively)
 				.thenApply(itemsList -> itemsList.getItems().stream().filter(subdir -> subdir.getItemType() == CloudItemType.FOLDER).map(CloudItemMetadata::getPath))
