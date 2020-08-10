@@ -32,8 +32,19 @@ class DirectoryIdCache {
 		}
 	}
 
+	public void evict(CloudPath cleartextPath) {
+		cache.remove(cleartextPath);
+	}
+
+	public void evictIncludingDescendants(CloudPath cleartextPath) {
+		for(var path : cache.keySet()) {
+			if(path.startsWith(cleartextPath)) {
+				cache.remove(path);
+			}
+		}
+	}
+
 	Optional<byte[]> getCached(CloudPath cleartextPath) {
 		return Optional.ofNullable(cache.get(cleartextPath));
 	}
-
 }
