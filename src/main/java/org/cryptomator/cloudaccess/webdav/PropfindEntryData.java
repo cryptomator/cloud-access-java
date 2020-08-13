@@ -1,10 +1,10 @@
 package org.cryptomator.cloudaccess.webdav;
 
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudPath;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -15,7 +15,7 @@ import static org.cryptomator.cloudaccess.api.CloudItemType.FOLDER;
 class PropfindEntryData {
 	private static final Pattern URI_PATTERN = Pattern.compile("^[a-z]+://[^/]+/(.*)$");
 
-	private Path path;
+	private CloudPath path;
 
 	private boolean file = true;
 	private Optional<Instant> lastModified = Optional.empty();
@@ -36,12 +36,12 @@ class PropfindEntryData {
 		this.lastModified = lastModified;
 	}
 
-	public Path getPath() {
+	public CloudPath getPath() {
 		return path;
 	}
 
 	public void setPath(final String pathOrUri) {
-		this.path = Path.of(extractPath(pathOrUri));
+		this.path = CloudPath.of(extractPath(pathOrUri));
 	}
 
 	public Optional<Long> getSize() {

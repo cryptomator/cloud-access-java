@@ -1,22 +1,21 @@
 package org.cryptomator.cloudaccess.api;
 
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 public class CloudProviderTest {
 	
 	@Test
 	public void testListExhaustively() {
-		Path p = Mockito.mock(Path.class, "path");
+		CloudPath p = Mockito.mock(CloudPath.class, "path");
 		CloudItemMetadata item1 = Mockito.mock(CloudItemMetadata.class, "item1");
 		CloudItemMetadata item2 = Mockito.mock(CloudItemMetadata.class, "item2");
 		CloudItemMetadata item3 = Mockito.mock(CloudItemMetadata.class, "item3");
@@ -42,7 +41,7 @@ public class CloudProviderTest {
 	
 	@Test
 	public void testRead() {
-		Path p = Mockito.mock(Path.class, "path");
+		CloudPath p = Mockito.mock(CloudPath.class, "path");
 		ProgressListener l = Mockito.mock(ProgressListener.class, "listener");
 		CloudProvider provider = Mockito.mock(CloudProvider.class);
 		Mockito.when(provider.read(p, l)).thenCallRealMethod();

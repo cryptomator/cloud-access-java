@@ -44,7 +44,7 @@
         <guava.version>29.0-jre</guava.version>
 
         <okhttp.version>4.7.2</okhttp.version>
-        <okhttp-digest.version>2.3</okhttp-digest.version>
+        <okhttp-digest.version>2.4</okhttp-digest.version>
         <okhttp.mockwebserver.version>4.7.2</okhttp.mockwebserver.version>
         <kxml2.version>2.3.0</kxml2.version>
 
@@ -88,7 +88,7 @@
         <dependency>
             <groupId>org.cryptomator</groupId>
             <artifactId>cryptolib</artifactId>
-            <version>1.4.0-beta2</version>
+            <version>1.4.0-beta3</version>
         </dependency>
 
         <!-- Logging -->

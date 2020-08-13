@@ -1,10 +1,35 @@
 package org.cryptomator.cloudaccess.localfs;
 
+import com.google.common.io.ByteStreams;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
+import org.cryptomator.cloudaccess.api.CloudItemList;
+import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
+import org.cryptomator.cloudaccess.api.CloudPath;
+import org.cryptomator.cloudaccess.api.CloudProvider;
+import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.file.*;
+import java.nio.file.CopyOption;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -13,22 +38,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.io.MoreFiles;
-import com.google.common.io.RecursiveDeleteOption;
-import org.cryptomator.cloudaccess.api.CloudItemList;
-import org.cryptomator.cloudaccess.api.CloudItemMetadata;
-import org.cryptomator.cloudaccess.api.CloudItemType;
-import org.cryptomator.cloudaccess.api.CloudProvider;
-import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
-import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
-import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
-import org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException;
-
 public class LocalFsCloudProvider implements CloudProvider {
 
-	private static final Path ABS_ROOT = Path.of("/");
+	private static final CloudPath ABS_ROOT = CloudPath.of("/");
 
 	private final Path root;
 
@@ -36,8 +48,8 @@ public class LocalFsCloudProvider implements CloudProvider {
 		this.root = root;
 	}
 
-	private Path resolve(Path cloudPath) {
-		Path relPath = ABS_ROOT.relativize(cloudPath);
+	private Path resolve(CloudPath cloudPath) {
+		String relPath = ABS_ROOT.relativize(cloudPath).toString();
 		return root.resolve(relPath);
 	}
 
@@ -46,11 +58,11 @@ public class LocalFsCloudProvider implements CloudProvider {
 		var type = attr.isDirectory() ? CloudItemType.FOLDER : attr.isRegularFile() ? CloudItemType.FILE : CloudItemType.UNKNOWN;
 		var modifiedDate = Optional.of(attr.lastModifiedTime().toInstant());
 		var size = Optional.of(attr.size());
-		return new CloudItemMetadata(relPath.getFileName().toString(), ABS_ROOT.resolve(relPath), type, modifiedDate, size);
+		return new CloudItemMetadata(relPath.getFileName().toString(), ABS_ROOT.resolve(relPath.toString()), type, modifiedDate, size);
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> itemMetadata(Path node) {
+	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		Path path = resolve(node);
 		try {
 			var attr = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
@@ -64,10 +76,11 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemList> list(Path folder, Optional<String> pageToken) {
+	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		Path folderPath = resolve(folder);
 		try {
 			List<CloudItemMetadata> items = new ArrayList<>();
+			var provider = this;
 			Files.walkFileTree(folderPath, EnumSet.noneOf(FileVisitOption.class), 1, new SimpleFileVisitor<>() {
 
 				@Override
@@ -87,7 +100,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener) {
+	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		try {
 			var ch = Files.newByteChannel(filePath, StandardOpenOption.READ);
@@ -101,7 +114,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		var options = replace
 				? EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
@@ -122,7 +135,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Path> createFolder(Path folder) {
+	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
 		Path folderPath = resolve(folder);
 		try {
 			Files.createDirectory(folderPath);
@@ -135,7 +148,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(Path node) {
+	public CompletionStage<Void> delete(CloudPath node) {
 		Path path = resolve(node);
 		try {
 			MoreFiles.deleteRecursively(path, RecursiveDeleteOption.ALLOW_INSECURE);
@@ -148,7 +161,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Path> move(Path source, Path target, boolean replace) {
+	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		Path src = resolve(source);
 		Path dst = resolve(target);
 		try {
