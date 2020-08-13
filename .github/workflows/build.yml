@@ -27,15 +27,9 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Ensure to use tagged version
+      - name: Ensure to use tagged version for release artifacts
         run: mvn versions:set --file ./pom.xml -DnewVersion=${GITHUB_REF##*/}
-        if: startsWith(github.ref, 'refs/tags/')
-      - name: Export the project version to the job environment and fix it as an ouput of this job
-        if: runner.os != 'Windows' #On Windows PowerShell this step would fail, therefore we just skip it there
-        id: setversion
-        run: |
-          v=$(mvn help:evaluate "-Dexpression=project.version" -q -DforceStdout)
-          echo "::set-env name=BUILD_VERSION::${v}"
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
       - name: Build and Test
         run: mvn -B install
       - name: Upload snapshot artifact cloud-access-${{ env.BUILD_VERSION }}.jar build on Linux
