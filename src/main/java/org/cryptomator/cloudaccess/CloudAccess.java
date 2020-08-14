@@ -29,20 +29,15 @@ public class CloudAccess {
 	 * @param rawKey        512 bit key used for cryptographic operations
 	 * @return A cleartext view on the given CloudProvider
 	 */
-	public static CloudProvider vaultFormat8GCMCloudAccess(CloudProvider cloudProvider, Path pathToVault, byte[] rawKey) {
+	public static CloudProvider vaultFormat8GCMCloudAccess(CloudProvider cloudProvider, CloudPath pathToVault, byte[] rawKey) {
 		try {
 			var csprng = SecureRandom.getInstanceStrong();
 			var cryptor = Cryptors.version2(csprng).createFromRawKey(rawKey);
 			// TODO validate vaultFormat.jwt before creating decorator
-			return new VaultFormat8ProviderDecorator(cloudProvider, localPathToCloudPath(pathToVault.resolve("d")), cryptor);
+			return new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		}
-	}
-
-	private static CloudPath localPathToCloudPath(Path local){
-		var elements = IntStream.range(0, local.getNameCount()).mapToObj(i -> local.getName(i).toString()).collect(Collectors.toList());
-		return CloudPath.of(String.join("/",elements));
 	}
 
 	/**
