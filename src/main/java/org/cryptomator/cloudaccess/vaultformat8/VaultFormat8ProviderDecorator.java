@@ -151,6 +151,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 				return getC9rPath(node).thenCompose(delegate::delete);
 			} else {
 				return deleteCiphertextDir(getDirPathFromClearTextDir(node))
+						.thenCompose(ignored -> getC9rPath(node))
+						.thenCompose(delegate::delete)
 						.thenRun(() -> dirIdCache.evictIncludingDescendants(node));
 			}
 		});
