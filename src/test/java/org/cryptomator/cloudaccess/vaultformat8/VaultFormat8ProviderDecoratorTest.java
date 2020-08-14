@@ -191,8 +191,37 @@ public class VaultFormat8ProviderDecoratorTest {
 			int read = in.read(buf);
 			Assertions.assertEquals(10, read);
 		}
-		// geheim!!geheim!!geheim!!.substr(12, 10)
+		// geheim!!geheim!!geheim!!geheim!!.substr(12, 10)
 		Assertions.assertArrayEquals("im!!geheim".getBytes(), Arrays.copyOf(buf, 10));
+	}
+
+	@Test
+	@DisplayName("read(\"/File 1\" 6, Long.MAX_VALUE, NO_PROGRESS_AWARE)")
+	public void testReadToEOF() throws IOException {
+		var file1Content = "hhhhhTOPSECRET!TOPSECRET!TOPSECRET!TOPSECRET!".getBytes();
+		var header = Mockito.mock(FileHeader.class);
+		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(8);
+		Mockito.when(fileContentCryptor.ciphertextChunkSize()).thenReturn(10);
+		Mockito.when(fileHeaderCryptor.headerSize()).thenReturn(5);
+		Mockito.when(cloudProvider.read(Mockito.eq(file1Metadata.getPath()), Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenAnswer(invocation -> {
+			int offset = invocation.<Long>getArgument(1).intValue();
+			int length = (int) Math.min(invocation.<Long>getArgument(2).longValue(), file1Content.length - offset);
+			return CompletableFuture.completedFuture(new ByteArrayInputStream(file1Content, offset, length));
+		});
+		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 1", dirIdRoot.getBytes())).thenReturn("file1");
+		Mockito.when(fileHeaderCryptor.decryptHeader(UTF_8.encode("hhhhh"))).thenReturn(header);
+		Mockito.when(fileContentCryptor.decryptChunk(Mockito.eq(UTF_8.encode("TOPSECRET!")), Mockito.anyLong(), Mockito.eq(header), Mockito.anyBoolean())).then(invocation -> UTF_8.encode("geheim!!"));
+
+		var futureResult = decorator.read(CloudPath.of("/File 1"), 6, Long.MAX_VALUE, ProgressListener.NO_PROGRESS_AWARE);
+		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
+
+		byte[] buf = new byte[100];
+		try (var in = result) {
+			int read = in.read(buf);
+			Assertions.assertEquals(26, read);
+		}
+		// geheim!!geheim!!geheim!!geheim!!.substr(6, LONG.MAX_VALUE)
+		Assertions.assertArrayEquals("!!geheim!!geheim!!geheim!!".getBytes(), Arrays.copyOf(buf, 26));
 	}
 
 	@Test

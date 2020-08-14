@@ -74,12 +74,20 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
+		Preconditions.checkArgument(offset >= 0, "offset must not be negative");
+		Preconditions.checkArgument(count >= 0, "count must not be negative");
+
 		// byte range math:
 		long firstChunk = offset / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
-		long lastChunk = (offset + count) / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
 		int headerSize = cryptor.fileHeaderCryptor().headerSize();
 		long firstByte = headerSize + firstChunk * cryptor.fileContentCryptor().ciphertextChunkSize();
-		long numBytes = (lastChunk - firstChunk + 1) * cryptor.fileContentCryptor().ciphertextChunkSize();
+		long numBytes;
+		if (count == Long.MAX_VALUE) {
+			numBytes = Long.MAX_VALUE;
+		} else {
+			long lastChunk = (offset + count) / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
+			numBytes = (lastChunk - firstChunk + 1) * cryptor.fileContentCryptor().ciphertextChunkSize();
+		}
 
 		// loading of relevant parts from ciphertext file:
 		var futureCiphertextPath = getC9rPath(file);
@@ -92,9 +100,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		});
 
 		// adjust range:
-		long skip = offset % cryptor.fileContentCryptor().cleartextChunkSize();
-		assert skip + count < (lastChunk + 1) * cryptor.fileContentCryptor().cleartextChunkSize();
 		return futureCleartextStream.thenApply(in -> {
+			long skip = offset % cryptor.fileContentCryptor().cleartextChunkSize();
 			var offsetIn = new OffsetInputStream(in, skip);
 			var limitedIn = ByteStreams.limit(offsetIn, count);
 			return limitedIn;
