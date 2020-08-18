@@ -202,7 +202,17 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		var ciphertextBaseName = ciphertextName.substring(0, ciphertextName.length() - CIPHERTEXT_FILE_SUFFIX.length());
 		var cleartextName = cryptor.fileNameCryptor().decryptFilename(BaseEncoding.base64Url(), ciphertextBaseName, parentDirId);
 		var cleartextPath = cleartextParent.resolve(cleartextName);
-		var cleartextSize = ciphertextMetadata.getSize().map(n -> Cryptors.cleartextSize(n, cryptor));
+		var cleartextSize = ciphertextMetadata.getSize().map(n -> {
+			switch (ciphertextMetadata.getItemType()) {
+				case FILE:
+					return Cryptors.cleartextSize(n - cryptor.fileHeaderCryptor().headerSize(), cryptor);
+				case FOLDER:
+					return 0L;
+				case UNKNOWN: // Fall through
+				default:
+					throw new IllegalStateException("Unable to retrieve cleartextSize cause of unkown type");
+			}
+		});
 		return new CloudItemMetadata(cleartextName, cleartextPath, ciphertextMetadata.getItemType(), ciphertextMetadata.getLastModifiedDate(), cleartextSize);
 	}
 
