@@ -195,9 +195,10 @@ public class VaultFormat8ProviderDecoratorTest {
 		Assertions.assertArrayEquals("im!!geheim".getBytes(), Arrays.copyOf(buf, 10));
 	}
 
-	@Test
-	@DisplayName("read(\"/File 1\" 6, Long.MAX_VALUE, NO_PROGRESS_AWARE)")
-	public void testReadToEOF() throws IOException {
+	@DisplayName("read(\"/File 1\" 6, EOF, NO_PROGRESS_AWARE)")
+	@ParameterizedTest(name = "read(\"/File 1\" 6, {0}, NO_PROGRESS_AWARE)")
+	@ValueSource(longs = {Long.MAX_VALUE, Long.MAX_VALUE - 1, Long.MAX_VALUE - 6, Long.MAX_VALUE - 1000, 1000})
+	public void testReadToEOF(long count) throws IOException {
 		var file1Content = "hhhhhTOPSECRET!TOPSECRET!TOPSECRET!TOPSECRET!".getBytes();
 		var header = Mockito.mock(FileHeader.class);
 		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(8);
@@ -212,7 +213,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileHeaderCryptor.decryptHeader(UTF_8.encode("hhhhh"))).thenReturn(header);
 		Mockito.when(fileContentCryptor.decryptChunk(Mockito.eq(UTF_8.encode("TOPSECRET!")), Mockito.anyLong(), Mockito.eq(header), Mockito.anyBoolean())).then(invocation -> UTF_8.encode("geheim!!"));
 
-		var futureResult = decorator.read(CloudPath.of("/File 1"), 6, Long.MAX_VALUE, ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.read(CloudPath.of("/File 1"), 6, count, ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		byte[] buf = new byte[100];
@@ -222,6 +223,8 @@ public class VaultFormat8ProviderDecoratorTest {
 		}
 		// geheim!!geheim!!geheim!!geheim!!.substr(6, LONG.MAX_VALUE)
 		Assertions.assertArrayEquals("!!geheim!!geheim!!geheim!!".getBytes(), Arrays.copyOf(buf, 26));
+		Mockito.verify(cloudProvider).read(Mockito.eq(file1Metadata.getPath()), Mockito.eq(0l), Mockito.eq(5l), Mockito.any()); // header
+		Mockito.verify(cloudProvider).read(Mockito.eq(file1Metadata.getPath()), Mockito.eq(5l), Mockito.longThat(l -> l > 0), Mockito.any()); // content
 	}
 
 	@Test

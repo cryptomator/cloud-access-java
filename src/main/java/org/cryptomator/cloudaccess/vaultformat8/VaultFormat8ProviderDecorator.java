@@ -3,6 +3,7 @@ package org.cryptomator.cloudaccess.vaultformat8;
 import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteStreams;
+import com.google.common.math.LongMath;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
@@ -81,13 +82,10 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		long firstChunk = offset / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
 		int headerSize = cryptor.fileHeaderCryptor().headerSize();
 		long firstByte = headerSize + firstChunk * cryptor.fileContentCryptor().ciphertextChunkSize();
-		long numBytes;
-		if (count == Long.MAX_VALUE) {
-			numBytes = Long.MAX_VALUE;
-		} else {
-			long lastChunk = (offset + count) / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
-			numBytes = (lastChunk - firstChunk + 1) * cryptor.fileContentCryptor().ciphertextChunkSize();
-		}
+		long lastByte = checkedAdd(offset, count, Long.MAX_VALUE);
+		long lastChunk = lastByte / cryptor.fileContentCryptor().cleartextChunkSize(); // int-truncate!
+		long numChunks = lastChunk - firstChunk + 1;
+		long numBytes = checkedMultiply(numChunks, cryptor.fileContentCryptor().ciphertextChunkSize(), Long.MAX_VALUE);
 
 		// loading of relevant parts from ciphertext file:
 		var futureCiphertextPath = getC9rPath(file);
@@ -106,6 +104,22 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			var limitedIn = ByteStreams.limit(offsetIn, count);
 			return limitedIn;
 		});
+	}
+
+	private long checkedMultiply(long a, long b, long onOverflow) {
+		try {
+			return LongMath.checkedMultiply(a, b);
+		}  catch (ArithmeticException e) {
+			return onOverflow;
+		}
+	}
+
+	private long checkedAdd(long a, long b, long onOverflow) {
+		try {
+			return LongMath.checkedAdd(a, b);
+		}  catch (ArithmeticException e) {
+			return onOverflow;
+		}
 	}
 
 	@Override
