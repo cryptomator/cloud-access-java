@@ -132,7 +132,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			} catch (IOException e) {
 				return CompletableFuture.failedFuture(e);
 			}
-		});
+		}).thenApply(ciphertextMetadata -> toCleartextMetadata(ciphertextMetadata, file.getParent(), file.getFileName().toString()));
 	}
 
 	@Override
@@ -215,6 +215,10 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		Preconditions.checkArgument(ciphertextName.endsWith(CIPHERTEXT_FILE_SUFFIX), "Unrecognized file type");
 		var ciphertextBaseName = ciphertextName.substring(0, ciphertextName.length() - CIPHERTEXT_FILE_SUFFIX.length());
 		var cleartextName = cryptor.fileNameCryptor().decryptFilename(BaseEncoding.base64Url(), ciphertextBaseName, parentDirId);
+		return toCleartextMetadata(ciphertextMetadata, cleartextParent, cleartextName);
+	}
+
+	private CloudItemMetadata toCleartextMetadata(CloudItemMetadata ciphertextMetadata, CloudPath cleartextParent, String cleartextName) {
 		var cleartextPath = cleartextParent.resolve(cleartextName);
 		var cleartextSize = ciphertextMetadata.getSize().map(n -> {
 			switch (ciphertextMetadata.getItemType()) {

@@ -33,6 +33,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -365,24 +366,28 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileHeaderCryptor.encryptHeader(header)).thenReturn(ByteBuffer.wrap("hhhhh".getBytes()));
 		Mockito.when(fileHeaderCryptor.headerSize()).thenReturn(5);
 		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(10);
+		Mockito.when(fileContentCryptor.ciphertextChunkSize()).thenReturn(10);
 		Mockito.when(fileContentCryptor.encryptChunk(Mockito.any(ByteBuffer.class), Mockito.anyLong(), Mockito.any(FileHeader.class))).thenAnswer(invocation -> {
 			ByteBuffer input = invocation.getArgument(0);
 			String inStr = UTF_8.decode(input).toString();
 			return ByteBuffer.wrap(inStr.toLowerCase().getBytes(UTF_8));
 		});
-
 		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenAnswer(invocationOnMock -> {
 					InputStream in = invocationOnMock.getArgument(2);
 					var encrypted = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).readLine();
 					Assertions.assertEquals("hhhhhtopsecret!", encrypted);
-					return CompletableFuture.completedFuture(file1Metadata);
+					return CompletableFuture.completedFuture(new CloudItemMetadata(file1Metadata.getName(), file1Metadata.getPath(), CloudItemType.FILE, Optional.of(Instant.EPOCH), Optional.of(15l)));
 				});
 
 		var futureResult = decorator.write(CloudPath.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Assertions.assertEquals(file1Metadata, result);
+		Assertions.assertEquals(CloudPath.of("/File 1"), result.getPath());
+		Assertions.assertEquals("File 1", result.getName());
+		Assertions.assertEquals(CloudItemType.FILE, result.getItemType());
+		Assertions.assertEquals(Optional.of(10l), result.getSize());
+		Assertions.assertEquals(Optional.of(Instant.EPOCH), result.getLastModifiedDate());
 	}
 
 }
