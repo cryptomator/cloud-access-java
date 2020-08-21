@@ -199,7 +199,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return getC9rPath(source).thenCompose(sourceC9rPath -> {
 			fileHeaderCache.evict(sourceC9rPath);
 			return getC9rPath(target).thenCompose(targetC9rPath -> delegate.move(sourceC9rPath, targetC9rPath, replace));
-		}).thenApply(unused -> {
+		}).thenApply(targetC9rPath -> {
+			fileHeaderCache.evict(targetC9rPath);
 			dirIdCache.evict(source);
 			return target;
 		});
