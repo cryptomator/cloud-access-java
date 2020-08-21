@@ -124,11 +124,12 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
-		return getC9rPath(file).thenCompose(filePath -> {
+		return getC9rPath(file).thenCompose(ciphertextPath -> {
+			fileHeaderCache.evict(ciphertextPath);
 			try (var src = Channels.newChannel(data); //
 				 var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor); //
 				 var encryptedIn = Channels.newInputStream(encryptingChannel)) {
-				return delegate.write(filePath, replace, encryptedIn, progressListener);
+				return delegate.write(ciphertextPath, replace, encryptedIn, progressListener);
 			} catch (IOException e) {
 				return CompletableFuture.failedFuture(e);
 			}
