@@ -109,7 +109,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private long checkedMultiply(long a, long b, long onOverflow) {
 		try {
 			return LongMath.checkedMultiply(a, b);
-		}  catch (ArithmeticException e) {
+		} catch (ArithmeticException e) {
 			return onOverflow;
 		}
 	}
@@ -117,7 +117,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private long checkedAdd(long a, long b, long onOverflow) {
 		try {
 			return LongMath.checkedAdd(a, b);
-		}  catch (ArithmeticException e) {
+		} catch (ArithmeticException e) {
 			return onOverflow;
 		}
 	}
@@ -125,9 +125,9 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(filePath -> {
-			try (var src = Channels.newChannel(data);
-				 var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
-				 var encryptedIn= Channels.newInputStream(encryptingChannel)) {
+			try (var src = Channels.newChannel(data); //
+				 var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor); //
+				 var encryptedIn = Channels.newInputStream(encryptingChannel)) {
 				return delegate.write(filePath, replace, encryptedIn, progressListener);
 			} catch (IOException e) {
 				return CompletableFuture.failedFuture(e);
@@ -149,12 +149,12 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 		final var dirId = UUID.randomUUID().toString();
 
-		return getC9rPath(folder)
-				.thenCompose(delegate::createFolder)
-				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId.getBytes(StandardCharsets.UTF_8)), ProgressListener.NO_PROGRESS_AWARE))
-				.thenCompose(unused -> getDirPathFromClearTextDir(folder))
-					.thenCompose(dirPath -> delegate.createFolder(dirPath.getParent()).handle(handler)
-					.thenCompose(unused -> delegate.createFolder(dirPath)))
+		return getC9rPath(folder) //
+				.thenCompose(delegate::createFolder) //
+				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId.getBytes(StandardCharsets.UTF_8)), ProgressListener.NO_PROGRESS_AWARE)) //
+				.thenCompose(unused -> getDirPathFromClearTextDir(folder)) //
+				.thenCompose(dirPath -> delegate.createFolder(dirPath.getParent()).handle(handler) //
+						.thenCompose(unused -> delegate.createFolder(dirPath))) //
 				.thenApply(dirPath -> folder);
 	}
 
@@ -167,24 +167,24 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 					return delegate.delete(ciphertextPath);
 				});
 			} else {
-				return deleteCiphertextDir(getDirPathFromClearTextDir(node))
-						.thenCompose(ignored -> getC9rPath(node))
-						.thenCompose(delegate::delete)
+				return deleteCiphertextDir(getDirPathFromClearTextDir(node)) //
+						.thenCompose(ignored -> getC9rPath(node)) //
+						.thenCompose(delegate::delete) //
 						.thenRun(() -> dirIdCache.evictIncludingDescendants(node));
 			}
 		});
 	}
 
 	private CompletionStage<Void> deleteCiphertextDir(CompletionStage<CloudPath> dirPath) {
-		return dirPath
-				.thenCompose(delegate::listExhaustively)
-				.thenApply(itemsList -> itemsList.getItems().stream().filter(subdir -> subdir.getItemType() == CloudItemType.FOLDER).map(CloudItemMetadata::getPath))
-				.thenApply(subDirsC9rPath -> subDirsC9rPath.map(this::getDirPathFromC9rDir))
-				.thenApply(subDirsDirPath -> subDirsDirPath.map(this::deleteCiphertextDir))
+		return dirPath //
+				.thenCompose(delegate::listExhaustively) //
+				.thenApply(itemsList -> itemsList.getItems().stream().filter(subdir -> subdir.getItemType() == CloudItemType.FOLDER).map(CloudItemMetadata::getPath)) //
+				.thenApply(subDirsC9rPath -> subDirsC9rPath.map(this::getDirPathFromC9rDir)) //
+				.thenApply(subDirsDirPath -> subDirsDirPath.map(this::deleteCiphertextDir)) //
 				.thenCompose(result -> {
 					var futures = result.map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
 					return CompletableFuture.allOf(futures);
-				}).thenCombine(dirPath, (unused, path) -> path)
+				}).thenCombine(dirPath, (unused, path) -> path) //
 				.thenCompose(delegate::delete);
 	}
 
@@ -251,8 +251,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	private CompletionStage<FileHeader> readFileHeader(CloudPath ciphertextPath) {
 		var headerCryptor = cryptor.fileHeaderCryptor();
-		return delegate.read(ciphertextPath, 0, headerCryptor.headerSize(), ProgressListener.NO_PROGRESS_AWARE)
-				.thenCompose(this::readAllBytes)
+		return delegate.read(ciphertextPath, 0, headerCryptor.headerSize(), ProgressListener.NO_PROGRESS_AWARE) //
+				.thenCompose(this::readAllBytes) //
 				.thenApply(bytes -> headerCryptor.decryptHeader(ByteBuffer.wrap(bytes)));
 	}
 
@@ -269,8 +269,8 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	private CompletionStage<CloudPath> getDirPathFromC9rDir(CloudPath dirC9rPath) {
-		return delegate.read(dirC9rPath.resolve(DIR_FILE_NAME), ProgressListener.NO_PROGRESS_AWARE)
-				.thenCompose(this::readAllBytes)
+		return delegate.read(dirC9rPath.resolve(DIR_FILE_NAME), ProgressListener.NO_PROGRESS_AWARE) //
+				.thenCompose(this::readAllBytes) //
 				.thenApply(this::getDirPathWithId);
 	}
 
