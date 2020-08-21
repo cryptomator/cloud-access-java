@@ -1,11 +1,13 @@
 package org.cryptomator.cloudaccess.api;
 
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 /**
  * Common interface of all providers that provide access to a certain cloud.
@@ -136,6 +138,28 @@ public interface CloudProvider {
 	 * @return CompletionStage with the same path as <code>folder</code> if created successfully.
 	 */
 	CompletionStage<CloudPath> createFolder(CloudPath folder);
+
+	/**
+	 * Convenience method, which is the same as {@link #createFolder(CloudPath)}, except that it will not fail
+	 * in case of an {@link AlreadyExistsException}.
+	 *
+	 * @param folder The remote path of the folder to create.
+	 * @return CompletionStage with the same path as <code>folder</code> if created successfully or already existing.
+	 */
+	default CompletionStage<CloudPath> createFolderIfNonExisting(CloudPath folder) {
+		return createFolder(folder)
+				.handle((createdFolder, exception) -> {
+					if (exception == null) {
+						assert createdFolder != null;
+						return CompletableFuture.completedFuture(createdFolder);
+					} else if (exception instanceof AlreadyExistsException) {
+						return CompletableFuture.completedFuture(folder);
+					} else {
+						return CompletableFuture.<CloudPath>failedFuture(exception);
+					}
+				})
+				.thenCompose(Function.identity());
+	}
 
 	/**
 	 * Recursively delete a file or folder.
