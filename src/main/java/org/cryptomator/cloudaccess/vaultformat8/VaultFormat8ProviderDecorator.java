@@ -10,6 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
 import org.cryptomator.cryptolib.EncryptingReadableByteChannel;
@@ -29,7 +30,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.BiFunction;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,6 +52,19 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		this.cryptor = cryptor;
 		this.dirIdCache = new DirectoryIdCache();
 		this.fileHeaderCache = new FileHeaderCache();
+	}
+
+	public void initialize() throws InterruptedException, CloudProviderException {
+		try {
+			var rootDirPath = getDirPathWithId(new byte[0]);
+			assert rootDirPath.getParent().getParent().equals(dataDir) : "root dir should be dataDir/xx/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy";
+			var futureRootDir = delegate.createFolderIfNonExisting(dataDir)
+					.thenCompose(unused -> delegate.createFolderIfNonExisting(rootDirPath.getParent()))
+					.thenCompose(unused -> delegate.createFolderIfNonExisting(rootDirPath));
+			futureRootDir.toCompletableFuture().get();
+		} catch (ExecutionException e) {
+			throw new CloudProviderException("Failed to initialize vault", e);
+		}
 	}
 
 	@Override
