@@ -161,8 +161,11 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<Void> delete(CloudPath node) {
 		return itemMetadata(node).thenCompose(cloudNode -> {
-			if(cloudNode.getItemType() == CloudItemType.FILE) {
-				return getC9rPath(node).thenCompose(delegate::delete);
+			if (cloudNode.getItemType() == CloudItemType.FILE) {
+				return getC9rPath(node).thenCompose(ciphertextPath -> {
+					fileHeaderCache.evict(ciphertextPath);
+					return delegate.delete(ciphertextPath);
+				});
 			} else {
 				return deleteCiphertextDir(getDirPathFromClearTextDir(node))
 						.thenCompose(ignored -> getC9rPath(node))
@@ -187,11 +190,13 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
-		return getC9rPath(source).thenCompose(sourcec9rPath -> getC9rPath(target).thenCompose(targetc9rPath -> delegate.move(sourcec9rPath, targetc9rPath, replace)))
-				.thenApply(unused -> {
-					dirIdCache.evict(source);
-					return target;
-				});
+		return getC9rPath(source).thenCompose(sourceC9rPath -> {
+			fileHeaderCache.evict(sourceC9rPath);
+			return getC9rPath(target).thenCompose(targetC9rPath -> delegate.move(sourceC9rPath, targetC9rPath, replace));
+		}).thenApply(unused -> {
+			dirIdCache.evict(source);
+			return target;
+		});
 	}
 
 	private CloudItemList toCleartextItemList(CloudItemList ciphertextItemList, CloudPath cleartextParent, byte[] parentDirId) {

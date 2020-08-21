@@ -33,5 +33,8 @@ class FileHeaderCache {
 		}
 	}
 
+	public void evict(CloudPath ciphertextPath) {
+		cache.invalidate(ciphertextPath);
+	}
 
 }
