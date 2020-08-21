@@ -10,7 +10,6 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
-import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
 import org.cryptomator.cryptolib.EncryptingReadableByteChannel;
@@ -138,25 +137,17 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		BiFunction<CloudPath, Throwable, CompletableFuture<CloudPath>> handler = (result, exception) -> {
-			if (exception == null) {
-				return CompletableFuture.completedFuture(result);
-			} else if (exception instanceof AlreadyExistsException) {
-				return CompletableFuture.completedFuture(folder);
-			} else {
-				return CompletableFuture.failedFuture(exception);
-			}
-		};
+		final var dirId = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+		final var dirPath = getDirPathWithId(dirId);
 
-		final var dirId = UUID.randomUUID().toString();
+		var futureC9rFile = getC9rPath(folder)
+				.thenCompose(delegate::createFolder)
+				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId), ProgressListener.NO_PROGRESS_AWARE));
 
-		return getC9rPath(folder) //
-				.thenCompose(delegate::createFolder) //
-				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId.getBytes(StandardCharsets.UTF_8)), ProgressListener.NO_PROGRESS_AWARE)) //
-				.thenCompose(unused -> getDirPathFromClearTextDir(folder)) //
-				.thenCompose(dirPath -> delegate.createFolder(dirPath.getParent()).handle(handler) //
-						.thenCompose(unused -> delegate.createFolder(dirPath))) //
-				.thenApply(dirPath -> folder);
+		var futureDir = delegate.createFolderIfNonExisting(dirPath.getParent())
+				.thenCompose(unused -> delegate.createFolder(dirPath));
+
+		return futureC9rFile.thenCombine(futureDir, (c9rFile, dir) -> folder);
 	}
 
 	@Override

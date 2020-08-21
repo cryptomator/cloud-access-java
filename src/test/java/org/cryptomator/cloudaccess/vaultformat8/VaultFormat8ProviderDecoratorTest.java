@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.AdditionalMatchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
@@ -313,9 +315,8 @@ public class VaultFormat8ProviderDecoratorTest {
 	}
 
 	@DisplayName("create(\"/Directory 3/\")")
-	@ParameterizedTest
-	@ValueSource(booleans = {true, false})
-	public void testCreateFolder(boolean parentDirFolderExists) {
+	@Test
+	public void testCreateFolder() {
 		/*
 		 * <code>
 		 * path/to/vault/d
@@ -325,27 +326,16 @@ public class VaultFormat8ProviderDecoratorTest {
 		 * ├─ ...
 		 * </code>
 		 */
-
 		final var dir3Metadata = new CloudItemMetadata("dir3.c9r", dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/dir3.c9r"), CloudItemType.FOLDER);
-
-		final var dirId3 = "dir3-id";
 		final var hashFolder3Id = "33DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
 		final var dataDirFolder3 = dataDir.resolve("33/DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
-
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "Directory 3", dirIdRoot.getBytes())).thenReturn("dir3");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "dir3", dirIdRoot.getBytes())).thenReturn("Directory 3");
-		Mockito.when(fileNameCryptor.hashDirectoryId(dirId3)).thenReturn(hashFolder3Id);
-
+		Mockito.when(fileNameCryptor.hashDirectoryId(Mockito.eq(""))).thenReturn("00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+		Mockito.when(fileNameCryptor.hashDirectoryId(AdditionalMatchers.not(Mockito.eq("")))).thenReturn(hashFolder3Id);
 		Mockito.when(cloudProvider.createFolder(dir3Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(dir3Metadata.getPath()));
-		Mockito.when(cloudProvider.write(Mockito.eq(dir3Metadata.getPath().resolve("dir.c9r")), Mockito.eq(false), Mockito.any(), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
-				.thenReturn(CompletableFuture.completedFuture(dir3Metadata));
-		Mockito.when(cloudProvider.read(dir3Metadata.getPath().resolve("dir.c9r"), ProgressListener.NO_PROGRESS_AWARE)).thenReturn(CompletableFuture.completedFuture(new ByteArrayInputStream(dirId3.getBytes())));
-
-		if(parentDirFolderExists) {
-			Mockito.when(cloudProvider.createFolder(dataDirFolder3.getParent())).thenReturn(CompletableFuture.failedFuture(new AlreadyExistsException("Foo")));
-		} else {
-			Mockito.when(cloudProvider.createFolder(dataDirFolder3.getParent())).thenReturn(CompletableFuture.completedFuture(dataDirFolder3.getParent()));
-		}
+		Mockito.when(cloudProvider.write(Mockito.eq(dir3Metadata.getPath().resolve("dir.c9r")), Mockito.eq(false), Mockito.any(), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE))).thenReturn(CompletableFuture.completedFuture(dir3Metadata));
+		Mockito.when(cloudProvider.createFolderIfNonExisting(dataDirFolder3.getParent())).thenReturn(CompletableFuture.completedFuture(dataDirFolder3.getParent()));
 		Mockito.when(cloudProvider.createFolder(dataDirFolder3)).thenReturn(CompletableFuture.completedFuture(dataDirFolder3));
 
 		var futureResult = decorator.createFolder(CloudPath.of("/Directory 3/"));
