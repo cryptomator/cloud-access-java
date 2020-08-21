@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Random;
 
 public class VaultFormat8IntegrationTest {
@@ -29,7 +30,7 @@ public class VaultFormat8IntegrationTest {
 	}
 
 	@Test
-	public void writeThenReadFile() throws IOException {
+	public void testWriteThenReadFile() throws IOException {
 		var path = CloudPath.of("/file.txt");
 		var content = new byte[100_000];
 		new Random(42l).nextBytes(content);
@@ -40,9 +41,14 @@ public class VaultFormat8IntegrationTest {
 		Assertions.assertEquals(content.length, metadata.getSize().get());
 
 		// read all bytes
-		var futureInputStream = encryptedProvider.read(path, ProgressListener.NO_PROGRESS_AWARE);
-		var inputStream = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream.toCompletableFuture().get());
-		Assertions.assertArrayEquals(content, inputStream.readAllBytes());
+		var futureInputStream1 = encryptedProvider.read(path, ProgressListener.NO_PROGRESS_AWARE);
+		var inputStream1 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream1.toCompletableFuture().get());
+		Assertions.assertArrayEquals(content, inputStream1.readAllBytes());
+
+		// read partially
+		var futureInputStream2 = encryptedProvider.read(path, 2000, 15000, ProgressListener.NO_PROGRESS_AWARE);
+		var inputStream2 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream2.toCompletableFuture().get());
+		Assertions.assertArrayEquals(Arrays.copyOfRange(content, 2000, 17000), inputStream2.readAllBytes());
 	}
 
 }
