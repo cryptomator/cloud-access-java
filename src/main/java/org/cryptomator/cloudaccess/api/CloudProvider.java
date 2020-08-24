@@ -60,14 +60,14 @@ public interface CloudProvider {
 	 * @see #list(CloudPath, Optional)
 	 */
 	default CompletionStage<CloudItemList> listExhaustively(CloudPath folder) {
-		return listExhaustively(this, folder, CloudItemList.empty());
+		return listExhaustively(folder, CloudItemList.empty());
 	}
 
-	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, CloudPath folder, CloudItemList itemList) {
-		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
+	private CompletionStage<CloudItemList> listExhaustively(CloudPath folder, CloudItemList itemList) {
+		return list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
 			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
 			if (nextItems.getNextPageToken().isPresent()) {
-				return listExhaustively(provider, folder, combined);
+				return listExhaustively(folder, combined);
 			} else {
 				return CompletableFuture.completedStage(combined);
 			}
