@@ -214,11 +214,10 @@ public class WebDavCloudProviderTestIT {
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
-		var thrown = Assertions.assertThrows(CompletionException.class, () -> {
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
 			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
 		});
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
@@ -311,11 +310,10 @@ public class WebDavCloudProviderTestIT {
 	public void testMoveToExisting() throws InterruptedException {
 		server.enqueue(getInterceptedResponse(412, "item-move-exists-no-replace.xml"));
 
-		var thrown = Assertions.assertThrows(CompletionException.class, () -> {
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
 			final var targetPath = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join();
 			Assertions.assertNull(targetPath);
 		});
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("MOVE", rq.getMethod());

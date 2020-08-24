@@ -112,11 +112,9 @@ public class LocalFsCloudProviderTest {
 
 		var result = provider.write(CloudPath.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
 
-		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
-			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
+			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().join());
 		});
-
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 	}
 
 	@Test
@@ -190,11 +188,9 @@ public class LocalFsCloudProviderTest {
 		Files.createFile(root.resolve("bar"));
 
 		var result = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false);
-		var thrown = Assertions.assertThrows(ExecutionException.class, () -> {
-			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
+			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().join());
 		});
-
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 	}
 
 	@Test

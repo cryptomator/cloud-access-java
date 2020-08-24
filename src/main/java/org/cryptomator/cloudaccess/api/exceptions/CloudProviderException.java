@@ -1,6 +1,8 @@
 package org.cryptomator.cloudaccess.api.exceptions;
 
-public class CloudProviderException extends RuntimeException {
+import java.util.concurrent.CompletionException;
+
+public class CloudProviderException extends CompletionException {
 
     public CloudProviderException() {
         super();
