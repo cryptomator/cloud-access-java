@@ -90,27 +90,6 @@ public class WebDavClientTest {
 	}
 
 	@Test
-	@DisplayName("list exhaustively /")
-	public void testListExhaustively() throws IOException {
-		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "directory-list-exhaustively-response.xml"));
-
-		final var nodeList = webDavClient.listExhaustively(CloudPath.of("/"));
-
-		final var testFileAbout = new CloudItemMetadata("About.odt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.odt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(77422L));
-		final var testFileAboutTxt = new CloudItemMetadata("About.txt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(1074L));
-		final var testFileFlyer = new CloudItemMetadata("Nextcloud Flyer.pdf", CloudPath.of("/cloud/remote.php/webdav/Documents/Nextcloud Flyer.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(2529331L));
-		final var testFileCoast = new CloudItemMetadata("Coast.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Coast.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(819766L));
-		final var testFileHummingbird = new CloudItemMetadata("Hummingbird.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Hummingbird.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(585219L));
-		final var testFileCommunity = new CloudItemMetadata("Nextcloud Community.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nextcloud Community.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(797325L));
-		final var testFileNut = new CloudItemMetadata("Nut.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nut.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(955026L));
-
-		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
-
-		MatcherAssert.assertThat(nodeList.getItems(), CoreMatchers.hasItems(expectedList.toArray(new CloudItemMetadata[] {})));
-		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
-	}
-
-	@Test
 	@DisplayName("read /Documents/About.txt (complete)")
 	public void testRead() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "item-read-response.txt"));

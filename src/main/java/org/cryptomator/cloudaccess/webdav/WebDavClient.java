@@ -37,15 +37,7 @@ public class WebDavClient {
 	}
 
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
-		return list(folder, PROPFIND_DEPTH.ONE);
-	}
-
-	CloudItemList listExhaustively(CloudPath folder) throws CloudProviderException {
-		return list(folder, PROPFIND_DEPTH.INFINITY);
-	}
-
-	private CloudItemList list(final CloudPath folder, final PROPFIND_DEPTH propfind_depth) throws CloudProviderException {
-		try (final var response = executePropfindRequest(folder, propfind_depth)) {
+		try (final var response = executePropfindRequest(folder, PROPFIND_DEPTH.ONE)) {
 			checkExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);

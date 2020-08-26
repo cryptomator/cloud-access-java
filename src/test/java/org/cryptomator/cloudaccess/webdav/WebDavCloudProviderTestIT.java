@@ -95,33 +95,6 @@ public class WebDavCloudProviderTestIT {
 	}
 
 	@Test
-	@DisplayName("list exhaustively /")
-	public void testListExhaustively() throws InterruptedException {
-		server.enqueue(getInterceptedResponse("directory-list-exhaustively-response.xml"));
-
-		final var nodeList = provider.listExhaustively(CloudPath.of("/")).toCompletableFuture().join();
-
-		final var testFileAbout = new CloudItemMetadata("About.odt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.odt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(77422L));
-		final var testFileAboutTxt = new CloudItemMetadata("About.txt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(1074L));
-		final var testFileFlyer = new CloudItemMetadata("Nextcloud Flyer.pdf", CloudPath.of("/cloud/remote.php/webdav/Documents/Nextcloud Flyer.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(2529331L));
-		final var testFileCoast = new CloudItemMetadata("Coast.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Coast.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(819766L));
-		final var testFileHummingbird = new CloudItemMetadata("Hummingbird.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Hummingbird.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(585219L));
-		final var testFileCommunity = new CloudItemMetadata("Nextcloud Community.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nextcloud Community.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(797325L));
-		final var testFileNut = new CloudItemMetadata("Nut.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nut.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(955026L));
-
-		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
-
-		Assertions.assertEquals(expectedList, nodeList.getItems());
-		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
-
-		RecordedRequest rq = server.takeRequest();
-		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("infinity", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
-		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
-	}
-
-	@Test
 	@DisplayName("read /Documents/About.txt (complete)")
 	public void testRead() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("item-read-response.txt"));

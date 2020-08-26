@@ -36,11 +36,6 @@ public class WebDavCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemList> listExhaustively(CloudPath folder) {
-		return supplyAsync(() -> webDavClient.listExhaustively(folder));
-	}
-
-	@Override
 	public CompletionStage<InputStream> read(CloudPath file, ProgressListener progressListener) {
 		return supplyAsync(() -> webDavClient.read(file, progressListener));
 	}
