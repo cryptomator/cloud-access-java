@@ -1,5 +1,7 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -19,6 +21,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,10 +29,13 @@ import java.util.stream.IntStream;
 
 public class WebDavClient {
 
+	private static final Duration PROPFIND_CACHE_MAX_AGE = Duration.ofSeconds(10);
+	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
+
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
+	private final Cache<CloudPath, CloudItemMetadata> metadataCache = CacheBuilder.newBuilder().expireAfterWrite(PROPFIND_CACHE_MAX_AGE).build();
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
@@ -41,20 +47,27 @@ public class WebDavClient {
 			checkExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);
-
-			return processDirList(nodes);
+			var itemList = processDirList(nodes);
+			itemList.getItems().forEach(metadata -> metadataCache.put(metadata.getPath(), metadata));
+			return itemList;
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
 	}
 
 	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
+		var cachedMetadata = metadataCache.getIfPresent(path);
+		if (cachedMetadata != null) {
+			return cachedMetadata;
+		}
 		try (final var response = executePropfindRequest(path, PROPFIND_DEPTH.ZERO)) {
 			checkExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);
 
-			return processGet(nodes);
+			var metadata = processGet(nodes);
+			metadataCache.put(path, metadata);
+			return metadata;
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
@@ -125,6 +138,8 @@ public class WebDavClient {
 
 			checkExecutionSucceeded(response.code());
 
+			metadataCache.invalidate(from);
+			metadataCache.invalidate(to);
 			return to;
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
@@ -169,7 +184,9 @@ public class WebDavClient {
 
 		try (final var response = httpClient.execute(requestBuilder)) {
 			checkExecutionSucceeded(response.code());
-			return itemMetadata(file);
+			var metadata = itemMetadata(file);
+			metadataCache.put(file, metadata);
+			return metadata;
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -190,6 +207,7 @@ public class WebDavClient {
 
 		try (final var response = httpClient.execute(builder)) {
 			checkExecutionSucceeded(response.code());
+			metadataCache.invalidate(path);
 			return path;
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
@@ -203,6 +221,7 @@ public class WebDavClient {
 
 		try (final var response = httpClient.execute(builder)) {
 			checkExecutionSucceeded(response.code());
+			metadataCache.invalidate(path);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}

@@ -257,13 +257,20 @@ public class WebDavClientTest {
 	}
 
 	@Test
-	@DisplayName("check if client can authenticate against server")
-	public void testTryAuthenticatedRequest() throws IOException {
+	@DisplayName("check if client can authenticate against server (auth succeeded)")
+	public void testTryAuthenticatedRequestSuccess() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
-				.thenReturn(getInterceptedResponse(baseUrl, "authentication-response.xml"))
-				.thenReturn(getInterceptedResponse(baseUrl, 401, ""));
+				.thenReturn(getInterceptedResponse(baseUrl, "authentication-response.xml"));
 
 		webDavClient.tryAuthenticatedRequest();
+	}
+
+	@Test
+	@DisplayName("check if client can authenticate against server (auth failed)")
+	public void testTryAuthenticatedRequestUnauthorized() throws IOException {
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
+				.thenReturn(getInterceptedResponse(baseUrl, 401, ""));
+
 		Assertions.assertThrows(UnauthorizedException.class, () -> webDavClient.tryAuthenticatedRequest());
 	}
 
