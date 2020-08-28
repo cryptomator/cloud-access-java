@@ -191,6 +191,10 @@ public class WebDavClient {
 	}
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
+		if(exists(path)) {
+			throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
+		}
+
 		final var builder = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
