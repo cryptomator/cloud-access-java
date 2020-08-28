@@ -10,8 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.MatcherAssert;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -87,6 +87,19 @@ public class WebDavClientTest {
 		Assertions.assertEquals(expectedList, nodeList.getItems());
 
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
+	}
+
+	@Test
+	@DisplayName("read /Documents/About.txt (Error 404)")
+	public void testReadNotFound() throws IOException {
+		var response = Mockito.mock(Response.class);
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(response);
+		Mockito.when(response.code()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+
+		Assertions.assertThrows(NotFoundException.class, () -> {
+			webDavClient.read(CloudPath.of("/Documents/About.txt"), ProgressListener.NO_PROGRESS_AWARE);
+		});
+		Mockito.verify(response).close();
 	}
 
 	@Test
@@ -174,6 +187,7 @@ public class WebDavClientTest {
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
+				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl));
 
 		final var path = webDavClient.createFolder(CloudPath.of("/foo"));

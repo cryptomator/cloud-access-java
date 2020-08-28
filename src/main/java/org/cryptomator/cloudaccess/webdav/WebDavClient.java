@@ -162,13 +162,20 @@ public class WebDavClient {
 	}
 
 	private InputStream read(final Request.Builder getRequest, final ProgressListener progressListener) throws CloudProviderException {
+		Response response = null;
+		boolean success = false;
 		try {
-			final var response = httpClient.execute(getRequest);
+			response = httpClient.execute(getRequest);
 			final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
 			checkExecutionSucceeded(response.code());
+			success = true;
 			return countingBody.byteStream();
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
+		} finally {
+			if (response != null && !success) {
+				response.close();
+			}
 		}
 	}
 
@@ -201,6 +208,10 @@ public class WebDavClient {
 	}
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
+		if(exists(path)) {
+			throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
+		}
+
 		final var builder = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
