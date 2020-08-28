@@ -187,6 +187,7 @@ public class WebDavClientTest {
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
+				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl));
 
 		final var path = webDavClient.createFolder(CloudPath.of("/foo"));
