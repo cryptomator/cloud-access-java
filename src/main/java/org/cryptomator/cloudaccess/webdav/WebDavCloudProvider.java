@@ -46,8 +46,8 @@ public class WebDavCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
-		return supplyAsync(() -> webDavClient.write(file, replace, data, progressListener));
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
+		return supplyAsync(() -> webDavClient.write(file, replace, data, size, progressListener));
 	}
 
 	@Override

@@ -114,16 +114,16 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		var options = replace
 				? EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 				: EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
 
 		try (var ch = FileChannel.open(filePath, options)) {
-			var size = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
+			var tmpSize = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
 			var modifiedDate = Files.getLastModifiedTime(filePath).toInstant();
-			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(size));
+			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(tmpSize));
 			return CompletableFuture.completedFuture(metadata);
 		} catch (NoSuchFileException e) {
 			return CompletableFuture.failedFuture(new NotFoundException(e));

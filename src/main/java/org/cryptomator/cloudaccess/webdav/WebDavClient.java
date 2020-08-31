@@ -14,6 +14,7 @@ import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.xml.sax.SAXException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -164,12 +165,12 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
+	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final long size, final ProgressListener progressListener) throws CloudProviderException {
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
 
-		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data), progressListener);
+		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data, size), progressListener);
 		final var requestBuilder = new Request.Builder()
 				.url(absoluteURLFrom(file))
 				.put(countingBody);

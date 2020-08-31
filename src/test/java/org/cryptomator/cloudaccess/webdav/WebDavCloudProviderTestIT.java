@@ -128,7 +128,7 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (non-existing)")
-	public void testWriteToNewFile() throws InterruptedException {
+	public void testWriteToNewFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse(404, ""));
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
@@ -136,7 +136,7 @@ public class WebDavCloudProviderTestIT {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 		RecordedRequest rq = server.takeRequest();
@@ -158,14 +158,14 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (non-existing, replace)")
-	public void testWriteToAndReplaceNewFile() throws InterruptedException {
+	public void testWriteToAndReplaceNewFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
@@ -188,7 +188,7 @@ public class WebDavCloudProviderTestIT {
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
 		});
 
@@ -201,14 +201,14 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (replace existing)")
-	public void testWriteToAndReplaceExistingFile() throws InterruptedException {
+	public void testWriteToAndReplaceExistingFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 

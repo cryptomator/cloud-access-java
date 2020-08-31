@@ -120,10 +120,11 @@ public interface CloudProvider {
 	 * @param file             A remote path referencing a file
 	 * @param replace          Flag indicating whether to overwrite the file if it already exists.
 	 * @param data             A data source from which to copy contents to the remote file
+	 * @param size             The size of data
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage that will be completed after writing all <code>data</code> and holds the new metadata of the item referenced by <code>file</code>.
 	 */
-	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener);
+	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener);
 
 	/**
 	 * Create a folder. Does not create any potentially missing parent directories.

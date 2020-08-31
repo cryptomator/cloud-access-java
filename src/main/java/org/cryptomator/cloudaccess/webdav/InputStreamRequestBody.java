@@ -1,5 +1,6 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import com.google.common.base.Preconditions;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.BufferedSink;
@@ -10,14 +11,17 @@ import java.io.InputStream;
 
 public class InputStreamRequestBody extends RequestBody {
 	private final InputStream inputStream;
+	private final long size;
 
-	private InputStreamRequestBody(final InputStream inputStream) {
-		if (inputStream == null) throw new NullPointerException("inputStream == null");
+	private InputStreamRequestBody(final InputStream inputStream, long size) {
+		Preconditions.checkNotNull(inputStream, "Inputstream must be provided");
+		Preconditions.checkArgument(size >= 0, "Size must be positive");
 		this.inputStream = inputStream;
+		this.size = size;
 	}
 
-	public static RequestBody from(final InputStream inputStream) {
-		return new InputStreamRequestBody(inputStream);
+	public static RequestBody from(final InputStream inputStream, long size) {
+		return new InputStreamRequestBody(inputStream, size);
 	}
 
 	@Override
@@ -26,8 +30,8 @@ public class InputStreamRequestBody extends RequestBody {
 	}
 
 	@Override
-	public long contentLength() throws IOException {
-		return inputStream.available() == 0 ? -1 : inputStream.available();
+	public long contentLength() {
+		return size;
 	}
 
 	@Override

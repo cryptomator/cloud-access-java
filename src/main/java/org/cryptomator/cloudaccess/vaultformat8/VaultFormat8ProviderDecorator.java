@@ -136,13 +136,14 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(ciphertextPath -> {
 			fileHeaderCache.evict(ciphertextPath);
 			var src = Channels.newChannel(data);
 			var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
 			var encryptedIn = Channels.newInputStream(encryptingChannel);
-			return delegate.write(ciphertextPath, replace, encryptedIn, progressListener);
+			long numBytes = Cryptors.ciphertextSize(size, cryptor) + cryptor.fileHeaderCryptor().headerSize();
+			return delegate.write(ciphertextPath, replace, encryptedIn, numBytes, progressListener);
 		}).thenApply(ciphertextMetadata -> toCleartextMetadata(ciphertextMetadata, file.getParent(), file.getFileName().toString()));
 	}
 
@@ -153,7 +154,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 		var futureC9rFile = getC9rPath(folder)
 				.thenCompose(delegate::createFolder)
-				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId), ProgressListener.NO_PROGRESS_AWARE));
+				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId), dirId.length, ProgressListener.NO_PROGRESS_AWARE));
 
 		var futureDir = delegate.createFolderIfNonExisting(dirPath.getParent())
 				.thenCompose(unused -> delegate.createFolder(dirPath));
