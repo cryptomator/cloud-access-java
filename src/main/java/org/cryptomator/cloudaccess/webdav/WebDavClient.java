@@ -153,6 +153,13 @@ public class WebDavClient {
 		try {
 			response = httpClient.execute(getRequest);
 			final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
+
+			final int UNSATISFIABLE_RANGE = 416;
+			 if(response.code() == UNSATISFIABLE_RANGE) {
+				success = true;
+				return new ByteArrayInputStream(new byte[0]);
+			}
+
 			checkExecutionSucceeded(response.code());
 			success = true;
 			return countingBody.byteStream();

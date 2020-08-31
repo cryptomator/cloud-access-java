@@ -102,7 +102,7 @@ public interface CloudProvider {
 	 * @param offset           The first byte (inclusive) to read.
 	 * @param count            The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
 	 * @param progressListener TODO Future use
-	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
+	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally. If the requested range cannot be fulfilled, an inputstream with 0 bytes is returned
 	 */
 	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
 
