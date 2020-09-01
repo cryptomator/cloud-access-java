@@ -41,11 +41,22 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * CloudProvider implementation to mirror a folder in the local filesystem.
+ * <p>
+ * This class is mainly for testing purposes and therefore aims for correctness, not performance.
+ * All filesystem altering operations (create, delete, move and write) will be executed exclusively and blocking,
+ * while all fs quering operations are performed simultanously.
+ */
 public class LocalFsCloudProvider implements CloudProvider {
 
 	private static final CloudPath ABS_ROOT = CloudPath.of("/");
 
 	private final Path root;
+
+	/**
+	 * Lock to ensure that any operation always performed on a consistent filesystem, i.e. no pending fs-altering operation exists.
+	 */
 	private final ReadWriteLock lock;
 
 	public LocalFsCloudProvider(Path root) {
