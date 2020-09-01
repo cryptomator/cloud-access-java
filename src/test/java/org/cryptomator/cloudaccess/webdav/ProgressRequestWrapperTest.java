@@ -24,7 +24,8 @@ public class ProgressRequestWrapperTest {
 		//Order of execution is important here
 		final var buffer = new Buffer();
 		final var progressListener = Mockito.mock(ProgressListener.class);
-		final var progressRequestWrapper = new ProgressRequestWrapper(InputStreamRequestBody.from(load()), progressListener);
+		var in = load();
+		final var progressRequestWrapper = new ProgressRequestWrapper(InputStreamRequestBody.from(in, in.available()), progressListener);
 
 		Assertions.assertEquals(CONTENT.getBytes().length, progressRequestWrapper.contentLength());
 		Assertions.assertEquals(MediaType.parse("application/octet-stream"), progressRequestWrapper.contentType());

@@ -92,7 +92,7 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToNewFile() throws IOException {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), false, in, 10, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals("file", metaData.getName());
@@ -110,7 +110,7 @@ public class LocalFsCloudProviderTest {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), false, in, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), false, in, 10, ProgressListener.NO_PROGRESS_AWARE);
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
 			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().join());
@@ -123,7 +123,7 @@ public class LocalFsCloudProviderTest {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), true, in, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), true, in, 10, ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals("file", metaData.getName());

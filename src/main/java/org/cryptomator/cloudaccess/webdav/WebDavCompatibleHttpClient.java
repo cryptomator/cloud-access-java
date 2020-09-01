@@ -39,7 +39,7 @@ class WebDavCompatibleHttpClient {
 				.readTimeout(NetworkTimeout.READ.getTimeout(), NetworkTimeout.READ.getUnit())
 				.writeTimeout(NetworkTimeout.WRITE.getTimeout(), NetworkTimeout.WRITE.getUnit())
 				.followRedirects(false)
-				.addInterceptor(new HttpLoggingInterceptor(LOG::debug))
+				.addInterceptor(new HttpLoggingInterceptor(LOG::trace))
 				.authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
 				.addInterceptor(new AuthenticationCacheInterceptor(authCache));
 

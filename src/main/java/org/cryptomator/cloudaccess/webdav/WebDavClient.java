@@ -16,6 +16,7 @@ import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.xml.sax.SAXException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -167,6 +168,12 @@ public class WebDavClient {
 		try {
 			response = httpClient.execute(getRequest);
 			final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
+
+			final int UNSATISFIABLE_RANGE = 416;
+			 if(response.code() == UNSATISFIABLE_RANGE) {
+				return new ByteArrayInputStream(new byte[0]);
+			}
+
 			checkExecutionSucceeded(response.code());
 			success = true;
 			return countingBody.byteStream();
@@ -179,12 +186,12 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final ProgressListener progressListener) throws CloudProviderException {
+	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final long size, final ProgressListener progressListener) throws CloudProviderException {
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
 
-		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data), progressListener);
+		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data, size), progressListener);
 		final var requestBuilder = new Request.Builder()
 				.url(absoluteURLFrom(file))
 				.put(countingBody);
