@@ -13,8 +13,6 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class CloudAccess {
 
@@ -37,7 +35,7 @@ public class CloudAccess {
 			// TODO validate vaultFormat.jwt before creating decorator
 			VaultFormat8ProviderDecorator provider = new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 			provider.initialize();
-			return provider;
+			return new MetadataCachingProviderDecorator(provider);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		} catch (InterruptedException e) {
