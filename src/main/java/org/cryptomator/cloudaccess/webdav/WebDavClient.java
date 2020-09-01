@@ -156,7 +156,6 @@ public class WebDavClient {
 
 			final int UNSATISFIABLE_RANGE = 416;
 			 if(response.code() == UNSATISFIABLE_RANGE) {
-				success = true;
 				return new ByteArrayInputStream(new byte[0]);
 			}
 
