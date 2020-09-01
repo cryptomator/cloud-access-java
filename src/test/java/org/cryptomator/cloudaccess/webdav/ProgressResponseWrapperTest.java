@@ -15,31 +15,25 @@ import java.util.stream.Collectors;
 
 public class ProgressResponseWrapperTest {
 
-    @Test
-    public void updateProgressWhenReadFromProgressResponseWrapper() {
-        final var thisContent = new BufferedReader(new InputStreamReader(load(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
+	@Test
+	public void updateProgressWhenReadFromProgressResponseWrapper() {
+		final var thisContent = new BufferedReader(new InputStreamReader(load(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
+		final var responseBody = ResponseBody.create(thisContent, MediaType.parse("application/octet-stream; charset=utf-8"));
+		final var progressListener = Mockito.mock(ProgressListener.class);
+		final var progressResponseWrapper = new ProgressResponseWrapper(responseBody, progressListener);
+		Assertions.assertEquals(8193, progressResponseWrapper.contentLength());
+		Assertions.assertEquals(MediaType.parse("application/octet-stream; charset=utf-8"), progressResponseWrapper.contentType());
 
-        final var responseBody = ResponseBody.create(thisContent, MediaType.parse("application/octet-stream; charset=utf-8"));
+		final var thatContent = new BufferedReader(new InputStreamReader(progressResponseWrapper.byteStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
-        final var progressListener = Mockito.mock(ProgressListener.class);
-        final var spyProgressListener = Mockito.spy(progressListener);
+		Assertions.assertEquals(thatContent, thisContent);
+		Mockito.verify(progressListener).onProgress(8192);
+		Mockito.verify(progressListener).onProgress(8193);
+	}
 
-        final var progressResponseWrapper = new ProgressResponseWrapper(responseBody, spyProgressListener);
-
-        Assertions.assertEquals(8193, progressResponseWrapper.contentLength());
-        Assertions.assertEquals(MediaType.parse("application/octet-stream; charset=utf-8"), progressResponseWrapper.contentType());
-
-        final var thatContent = new BufferedReader(new InputStreamReader(progressResponseWrapper.byteStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
-
-        Assertions.assertEquals(thatContent, thisContent);
-
-        Mockito.verify(spyProgressListener).onProgress(8192);
-        Mockito.verify(spyProgressListener).onProgress(8193);
-    }
-
-    private InputStream load() {
-        return getClass().getResourceAsStream("/progress-request-text.txt");
-    }
+	private InputStream load() {
+		return getClass().getResourceAsStream("/progress-request-text.txt");
+	}
 
 
 }

@@ -7,11 +7,11 @@ import java.util.Locale;
 
 class TestUtil {
 
-    public static Instant toInstant(String date) {
-        try {
-            return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).parse(date).toInstant();
-        } catch (ParseException e) {
-            throw new IllegalStateException("Not valid date string provided", e);
-        }
-    }
+	public static Instant toInstant(String date) {
+		try {
+			return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).parse(date).toInstant();
+		} catch (ParseException e) {
+			throw new IllegalStateException("Not valid date string provided", e);
+		}
+	}
 }

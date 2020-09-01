@@ -1,24 +1,12 @@
 package org.cryptomator.cloudaccess.localfs;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-
 import com.google.common.io.ByteStreams;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
+import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
@@ -26,18 +14,58 @@ import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.file.CopyOption;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+/**
+ * CloudProvider implementation to mirror a folder in the local filesystem.
+ * <p>
+ * This class is mainly for testing purposes and therefore aims for correctness, not performance.
+ * All filesystem altering operations (create, delete, move and write) will be executed exclusively and blocking,
+ * while all fs quering operations are performed simultanously.
+ */
 public class LocalFsCloudProvider implements CloudProvider {
 
-	private static final Path ABS_ROOT = Path.of("/");
+	private static final CloudPath ABS_ROOT = CloudPath.of("/");
 
 	private final Path root;
 
+	/**
+	 * Lock to ensure that any operation always performed on a consistent filesystem, i.e. no pending fs-altering operation exists.
+	 */
+	private final ReadWriteLock lock;
+
 	public LocalFsCloudProvider(Path root) {
 		this.root = root;
+		this.lock = new ReentrantReadWriteLock();
 	}
 
-	private Path resolve(Path cloudPath) {
-		Path relPath = ABS_ROOT.relativize(cloudPath);
+	private Path resolve(CloudPath cloudPath) {
+		String relPath = ABS_ROOT.relativize(cloudPath).toString();
 		return root.resolve(relPath);
 	}
 
@@ -46,12 +74,14 @@ public class LocalFsCloudProvider implements CloudProvider {
 		var type = attr.isDirectory() ? CloudItemType.FOLDER : attr.isRegularFile() ? CloudItemType.FILE : CloudItemType.UNKNOWN;
 		var modifiedDate = Optional.of(attr.lastModifiedTime().toInstant());
 		var size = Optional.of(attr.size());
-		return new CloudItemMetadata(relPath.getFileName().toString(), ABS_ROOT.resolve(relPath), type, modifiedDate, size);
+		return new CloudItemMetadata(relPath.getFileName().toString(), ABS_ROOT.resolve(relPath.toString()), type, modifiedDate, size);
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> itemMetadata(Path node) {
+	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		Path path = resolve(node);
+		Lock l = lock.readLock();
+		l.lock();
 		try {
 			var attr = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
 			var metadata = createMetadata(path, attr);
@@ -60,14 +90,19 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<CloudItemList> list(Path folder, Optional<String> pageToken) {
+	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		Path folderPath = resolve(folder);
+		Lock l = lock.readLock();
+		l.lock();
 		try {
 			List<CloudItemMetadata> items = new ArrayList<>();
+			var provider = this;
 			Files.walkFileTree(folderPath, EnumSet.noneOf(FileVisitOption.class), 1, new SimpleFileVisitor<>() {
 
 				@Override
@@ -83,12 +118,16 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new TypeMismatchException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<InputStream> read(Path file, long offset, long count, ProgressListener progressListener) {
+	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
 		Path filePath = resolve(file);
+		Lock l = lock.readLock();
+		l.lock();
 		try {
 			var ch = Files.newByteChannel(filePath, StandardOpenOption.READ);
 			ch.position(offset);
@@ -97,20 +136,24 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(Path file, boolean replace, InputStream data, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		var options = replace
 				? EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 				: EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
 
+		Lock l = lock.writeLock();
+		l.lock();
 		try (var ch = FileChannel.open(filePath, options)) {
-			var size = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
+			var tmpSize = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
 			var modifiedDate = Files.getLastModifiedTime(filePath).toInstant();
-			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(size));
+			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(tmpSize));
 			return CompletableFuture.completedFuture(metadata);
 		} catch (NoSuchFileException e) {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
@@ -118,12 +161,16 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<Path> createFolder(Path folder) {
+	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
 		Path folderPath = resolve(folder);
+		Lock l = lock.writeLock();
+		l.lock();
 		try {
 			Files.createDirectory(folderPath);
 			return CompletableFuture.completedFuture(folder);
@@ -131,12 +178,16 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<Void> delete(Path node) {
+	public CompletionStage<Void> delete(CloudPath node) {
 		Path path = resolve(node);
+		Lock l = lock.writeLock();
+		l.lock();
 		try {
 			MoreFiles.deleteRecursively(path, RecursiveDeleteOption.ALLOW_INSECURE);
 			return CompletableFuture.completedFuture(null);
@@ -144,13 +195,17 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 
 	@Override
-	public CompletionStage<Path> move(Path source, Path target, boolean replace) {
+	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		Path src = resolve(source);
 		Path dst = resolve(target);
+		Lock l = lock.writeLock();
+		l.lock();
 		try {
 			var options = replace ? EnumSet.of(StandardCopyOption.REPLACE_EXISTING) : EnumSet.noneOf(StandardCopyOption.class);
 			Files.move(src, dst, options.toArray(CopyOption[]::new));
@@ -161,6 +216,8 @@ public class LocalFsCloudProvider implements CloudProvider {
 			return CompletableFuture.failedFuture(new AlreadyExistsException(e));
 		} catch (IOException e) {
 			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
 		}
 	}
 }

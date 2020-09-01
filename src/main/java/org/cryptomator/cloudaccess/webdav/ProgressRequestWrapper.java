@@ -13,50 +13,50 @@ import java.io.IOException;
 
 public class ProgressRequestWrapper extends RequestBody {
 
-    protected RequestBody delegate;
-    protected ProgressListener listener;
+	protected RequestBody delegate;
+	protected ProgressListener listener;
 
-    public ProgressRequestWrapper(final RequestBody delegate, final ProgressListener listener) {
-        this.delegate = delegate;
-        this.listener = listener;
-    }
+	public ProgressRequestWrapper(final RequestBody delegate, final ProgressListener listener) {
+		this.delegate = delegate;
+		this.listener = listener;
+	}
 
-    @Override
-    public MediaType contentType() {
-        return delegate.contentType();
-    }
+	@Override
+	public MediaType contentType() {
+		return delegate.contentType();
+	}
 
-    @Override
-    public long contentLength() throws IOException {
-        return delegate.contentLength();
-    }
+	@Override
+	public long contentLength() throws IOException {
+		return delegate.contentLength();
+	}
 
-    @Override
-    public void writeTo(final BufferedSink sink) throws IOException {
-        final var countingSink = new CountingSink(sink);
+	@Override
+	public void writeTo(final BufferedSink sink) throws IOException {
+		final var countingSink = new CountingSink(sink);
 
-        final var bufferedSink = Okio.buffer(countingSink);
+		final var bufferedSink = Okio.buffer(countingSink);
 
-        delegate.writeTo(bufferedSink);
+		delegate.writeTo(bufferedSink);
 
-        bufferedSink.flush();
-    }
+		bufferedSink.flush();
+	}
 
-    protected final class CountingSink extends ForwardingSink {
+	protected final class CountingSink extends ForwardingSink {
 
-        private long bytesWritten = 0;
+		private long bytesWritten = 0;
 
-        public CountingSink(Sink delegate) {
-            super(delegate);
-        }
+		public CountingSink(Sink delegate) {
+			super(delegate);
+		}
 
-        @Override
-        public void write(final Buffer source, final long byteCount) throws IOException {
-            super.write(source, byteCount);
+		@Override
+		public void write(final Buffer source, final long byteCount) throws IOException {
+			super.write(source, byteCount);
 
-            bytesWritten += byteCount;
-            listener.onProgress(bytesWritten);
-        }
+			bytesWritten += byteCount;
+			listener.onProgress(bytesWritten);
+		}
 
-    }
+	}
 }

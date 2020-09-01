@@ -14,115 +14,117 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.ProtocolException;
-import java.nio.file.Path;
+import java.net.URL;
 
 public class WebDavRedirectHandlerTest {
 
-    private final OkHttpClient mockedOkHttpClient = Mockito.mock(OkHttpClient.class);
-    private final Call remoteCall = Mockito.mock(Call.class);
+	private final OkHttpClient mockedOkHttpClient = Mockito.mock(OkHttpClient.class);
+	private final Call remoteCall = Mockito.mock(Call.class);
+	private WebDavRedirectHandler webDavRedirectHandler;
 
+	private URL baseUrl;
+	private URL redirectUrl;
+	private URL targetUrl;
 
-    private WebDavRedirectHandler webDavRedirectHandler;
+	@BeforeEach
+	public void setUp() throws MalformedURLException {
+		webDavRedirectHandler = new WebDavRedirectHandler(mockedOkHttpClient);
+		baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
+		redirectUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav/redirected");
+		targetUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav/target");
+	}
 
-    private final Path baseUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav");
-    private final Path redirectUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav/redirected");
-    private final Path targetUrl = Path.of("https://www.nextcloud.com/cloud/remote.php/webdav/target");
+	@Test
+	public void testRedirect() throws IOException {
+		final var request = new Request.Builder()
+				.url(baseUrl)
+				.build();
 
-    @BeforeEach
-    public void setUp() {
-        webDavRedirectHandler = new WebDavRedirectHandler(mockedOkHttpClient);
-    }
+		Mockito.when(remoteCall.execute())
+				.thenReturn(mockedRedirectResponse(baseUrl, 302))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 302))
+				.thenReturn(mockedRedirectResponse(targetUrl, 200));
 
-    @Test
-    public void testRedirect() throws IOException {
-        final var request = new Request.Builder()
-                .url(baseUrl.toString())
-                .build();
+		Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
 
-        Mockito.when(remoteCall.execute())
-                .thenReturn(mockedRedirectResponse(baseUrl, 302))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 302))
-                .thenReturn(mockedRedirectResponse(targetUrl, 200));
+		final var response = webDavRedirectHandler.executeFollowingRedirects(request);
 
-        Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
+		Assertions.assertEquals(mockedRedirectResponse(targetUrl, 200).toString(), response.toString());
+	}
 
-        final var response = webDavRedirectHandler.executeFollowingRedirects(request);
+	@Test
+	public void testRedirectWithoutLocationInHeaderLeadsToNoRedirect() throws IOException {
+		final var request = new Request.Builder()
+				.url(baseUrl)
+				.build();
 
-        Assertions.assertEquals(mockedRedirectResponse(targetUrl, 200).toString(), response.toString());
-    }
+		Mockito.when(remoteCall.execute())
+				.thenReturn(mockedRedirectResponse(baseUrl, 302, false))
+				.thenReturn(mockedRedirectResponse(targetUrl, 200));
 
-    @Test
-    public void testRedirectWithoutLocationInHeaderLeadsToNoRedirect() throws IOException {
-        final var request = new Request.Builder()
-                .url(baseUrl.toString())
-                .build();
+		Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
 
-        Mockito.when(remoteCall.execute())
-                .thenReturn(mockedRedirectResponse(baseUrl, 302, false))
-                .thenReturn(mockedRedirectResponse(targetUrl, 200));
+		final var response = webDavRedirectHandler.executeFollowingRedirects(request);
 
-        Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
+		Assertions.assertEquals(mockedRedirectResponse(baseUrl, 302).toString(), response.toString());
+	}
 
-        final var response = webDavRedirectHandler.executeFollowingRedirects(request);
+	@Test
+	public void testTooManyRedirectsThrowsProtocolException() throws IOException {
+		final var request = new Request.Builder()
+				.url(baseUrl)
+				.build();
 
-        Assertions.assertEquals(mockedRedirectResponse(baseUrl, 302).toString(), response.toString());
-    }
+		Mockito.when(remoteCall.execute())
+				.thenReturn(mockedRedirectResponse(baseUrl, 300))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 301))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 302))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 307))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 308))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 300))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 301))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 302))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 307))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 308))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 300))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 301))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 302))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 307))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 308))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 300))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 301))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 302))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 307))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 308))
+				.thenReturn(mockedRedirectResponse(redirectUrl, 300))
+				.thenReturn(mockedRedirectResponse(targetUrl, 200));
 
-    @Test
-    public void testTooManyRedirectsThrowsProtocolException() throws IOException {
-        final var request = new Request.Builder()
-                .url(baseUrl.toString())
-                .build();
+		Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
 
-        Mockito.when(remoteCall.execute())
-                .thenReturn(mockedRedirectResponse(baseUrl, 300))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 301))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 302))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 307))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 308))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 300))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 301))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 302))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 307))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 308))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 300))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 301))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 302))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 307))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 308))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 300))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 301))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 302))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 307))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 308))
-                .thenReturn(mockedRedirectResponse(redirectUrl, 300))
-                .thenReturn(mockedRedirectResponse(targetUrl, 200));
+		final var exception = Assertions.assertThrows(ProtocolException.class, () -> webDavRedirectHandler.executeFollowingRedirects(request));
+		Assertions.assertTrue(exception.getMessage().contains("Too many redirects: 21"));
+	}
 
-        Mockito.when(mockedOkHttpClient.newCall(ArgumentMatchers.any())).thenReturn(remoteCall);
+	private Response mockedRedirectResponse(final URL url, int httpStatusCode) {
+		return mockedRedirectResponse(url, httpStatusCode, true);
+	}
 
-        final var exception = Assertions.assertThrows(ProtocolException.class, () -> webDavRedirectHandler.executeFollowingRedirects(request));
-        Assertions.assertTrue(exception.getMessage().contains("Too many redirects: 21"));
-    }
+	private Response mockedRedirectResponse(final URL url, int httpStatusCode, boolean locationHeader) {
+		var responseBuilder = new Response.Builder()
+				.request(new Request.Builder()
+						.url(url)
+						.build())
+				.protocol(Protocol.HTTP_1_1)
+				.code(httpStatusCode)
+				.body(ResponseBody.create("", MediaType.parse("application/json; charset=utf-8")))
+				.message("");
 
-    private Response mockedRedirectResponse(final Path url, int httpStatusCode) {
-        return mockedRedirectResponse(url, httpStatusCode, true);
-    }
+		if (locationHeader) {
+			responseBuilder = responseBuilder.addHeader("Location", redirectUrl.toString());
+		}
 
-    private Response mockedRedirectResponse(final Path url, int httpStatusCode, boolean locationHeader) {
-        var responseBuilder = new Response.Builder()
-                .request(new Request.Builder()
-                        .url(url.toString())
-                        .build())
-                .protocol(Protocol.HTTP_1_1)
-                .code(httpStatusCode)
-                .body(ResponseBody.create("", MediaType.parse("application/json; charset=utf-8")))
-                .message("");
-
-        if(locationHeader) {
-            responseBuilder = responseBuilder.addHeader("Location", redirectUrl.toString());
-        }
-
-        return responseBuilder.build();
-    }
+		return responseBuilder.build();
+	}
 }

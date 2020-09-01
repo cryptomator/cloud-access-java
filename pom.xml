@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.cryptomator</groupId>
     <artifactId>cloud-access</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 
     <name>Cryptomator CloudAccess in Java</name>
     <description>CloudAccess is used in e.g. Cryptomator for Android to access different cloud providers.</description>
@@ -16,6 +16,13 @@
         <url>git@github.com:cryptomator/cloud-access-java.git</url>
     </scm>
     <developers>
+        <developer>
+            <name>Armin Schrenk</name>
+            <email>armin.schrenk@skymatic.de</email>
+            <timezone>+1</timezone>
+            <organization>Skymatic GmbH</organization>
+            <organizationUrl>http://skymatic.de</organizationUrl>
+        </developer>
         <developer>
             <name>Julian Raufelder</name>
             <email>julian.raufelder@skymatic.de</email>
@@ -37,7 +44,7 @@
         <guava.version>29.0-jre</guava.version>
 
         <okhttp.version>4.7.2</okhttp.version>
-        <okhttp-digest.version>2.3</okhttp-digest.version>
+        <okhttp-digest.version>2.4</okhttp-digest.version>
         <okhttp.mockwebserver.version>4.7.2</okhttp.mockwebserver.version>
         <kxml2.version>2.3.0</kxml2.version>
 
@@ -78,18 +85,17 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.cryptomator</groupId>
+            <artifactId>cryptolib</artifactId>
+            <version>1.4.0-beta3</version>
+        </dependency>
 
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>test</scope>
         </dependency>
 
         <!-- WebDAV -->
@@ -127,6 +133,12 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
             <version>${okhttp.mockwebserver.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
