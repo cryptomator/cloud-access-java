@@ -1,11 +1,13 @@
 package org.cryptomator.cloudaccess.api;
 
+import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 /**
  * Common interface of all providers that provide access to a certain cloud.
@@ -58,14 +60,14 @@ public interface CloudProvider {
 	 * @see #list(CloudPath, Optional)
 	 */
 	default CompletionStage<CloudItemList> listExhaustively(CloudPath folder) {
-		return listExhaustively(this, folder, CloudItemList.empty());
+		return listExhaustively(folder, CloudItemList.empty());
 	}
 
-	private static CompletionStage<CloudItemList> listExhaustively(CloudProvider provider, CloudPath folder, CloudItemList itemList) {
-		return provider.list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
+	private CompletionStage<CloudItemList> listExhaustively(CloudPath folder, CloudItemList itemList) {
+		return list(folder, itemList.getNextPageToken()).thenCompose(nextItems -> {
 			var combined = itemList.add(nextItems.getItems(), nextItems.getNextPageToken());
 			if (nextItems.getNextPageToken().isPresent()) {
-				return listExhaustively(provider, folder, combined);
+				return listExhaustively(folder, combined);
 			} else {
 				return CompletableFuture.completedStage(combined);
 			}
@@ -100,7 +102,7 @@ public interface CloudProvider {
 	 * @param offset           The first byte (inclusive) to read.
 	 * @param count            The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
 	 * @param progressListener TODO Future use
-	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
+	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally. If the requested range cannot be fulfilled, an inputstream with 0 bytes is returned
 	 */
 	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
 
@@ -118,10 +120,11 @@ public interface CloudProvider {
 	 * @param file             A remote path referencing a file
 	 * @param replace          Flag indicating whether to overwrite the file if it already exists.
 	 * @param data             A data source from which to copy contents to the remote file
+	 * @param size             The size of data
 	 * @param progressListener TODO Future use
 	 * @return CompletionStage that will be completed after writing all <code>data</code> and holds the new metadata of the item referenced by <code>file</code>.
 	 */
-	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, ProgressListener progressListener);
+	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener);
 
 	/**
 	 * Create a folder. Does not create any potentially missing parent directories.
@@ -136,6 +139,28 @@ public interface CloudProvider {
 	 * @return CompletionStage with the same path as <code>folder</code> if created successfully.
 	 */
 	CompletionStage<CloudPath> createFolder(CloudPath folder);
+
+	/**
+	 * Convenience method, which is the same as {@link #createFolder(CloudPath)}, except that it will not fail
+	 * in case of an {@link AlreadyExistsException}.
+	 *
+	 * @param folder The remote path of the folder to create.
+	 * @return CompletionStage with the same path as <code>folder</code> if created successfully or already existing.
+	 */
+	default CompletionStage<CloudPath> createFolderIfNonExisting(CloudPath folder) {
+		return createFolder(folder)
+				.handle((createdFolder, exception) -> {
+					if (exception == null) {
+						assert createdFolder != null;
+						return CompletableFuture.completedFuture(createdFolder);
+					} else if (exception instanceof AlreadyExistsException) {
+						return CompletableFuture.completedFuture(folder);
+					} else {
+						return CompletableFuture.<CloudPath>failedFuture(exception);
+					}
+				})
+				.thenCompose(Function.identity());
+	}
 
 	/**
 	 * Recursively delete a file or folder.

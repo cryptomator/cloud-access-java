@@ -95,33 +95,6 @@ public class WebDavCloudProviderTestIT {
 	}
 
 	@Test
-	@DisplayName("list exhaustively /")
-	public void testListExhaustively() throws InterruptedException {
-		server.enqueue(getInterceptedResponse("directory-list-exhaustively-response.xml"));
-
-		final var nodeList = provider.listExhaustively(CloudPath.of("/")).toCompletableFuture().join();
-
-		final var testFileAbout = new CloudItemMetadata("About.odt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.odt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(77422L));
-		final var testFileAboutTxt = new CloudItemMetadata("About.txt", CloudPath.of("/cloud/remote.php/webdav/Documents/About.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(1074L));
-		final var testFileFlyer = new CloudItemMetadata("Nextcloud Flyer.pdf", CloudPath.of("/cloud/remote.php/webdav/Documents/Nextcloud Flyer.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(2529331L));
-		final var testFileCoast = new CloudItemMetadata("Coast.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Coast.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(819766L));
-		final var testFileHummingbird = new CloudItemMetadata("Hummingbird.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Hummingbird.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(585219L));
-		final var testFileCommunity = new CloudItemMetadata("Nextcloud Community.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nextcloud Community.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(797325L));
-		final var testFileNut = new CloudItemMetadata("Nut.jpg", CloudPath.of("/cloud/remote.php/webdav/Photos/Nut.jpg"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(955026L));
-
-		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos, testFileAbout, testFileAboutTxt, testFileFlyer, testFileCoast, testFileHummingbird, testFileCommunity, testFileNut);
-
-		Assertions.assertEquals(expectedList, nodeList.getItems());
-		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
-
-		RecordedRequest rq = server.takeRequest();
-		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("infinity", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
-		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
-	}
-
-	@Test
 	@DisplayName("read /Documents/About.txt (complete)")
 	public void testRead() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("item-read-response.txt"));
@@ -155,7 +128,7 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (non-existing)")
-	public void testWriteToNewFile() throws InterruptedException {
+	public void testWriteToNewFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse(404, ""));
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
@@ -163,7 +136,7 @@ public class WebDavCloudProviderTestIT {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 		RecordedRequest rq = server.takeRequest();
@@ -185,14 +158,14 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (non-existing, replace)")
-	public void testWriteToAndReplaceNewFile() throws InterruptedException {
+	public void testWriteToAndReplaceNewFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
@@ -214,11 +187,10 @@ public class WebDavCloudProviderTestIT {
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
-		var thrown = Assertions.assertThrows(CompletionException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
+			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
 		});
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
@@ -229,14 +201,14 @@ public class WebDavCloudProviderTestIT {
 
 	@Test
 	@DisplayName("write to /foo.txt (replace existing)")
-	public void testWriteToAndReplaceExistingFile() throws InterruptedException {
+	public void testWriteToAndReplaceExistingFile() throws InterruptedException, IOException {
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
@@ -311,11 +283,10 @@ public class WebDavCloudProviderTestIT {
 	public void testMoveToExisting() throws InterruptedException {
 		server.enqueue(getInterceptedResponse(412, "item-move-exists-no-replace.xml"));
 
-		var thrown = Assertions.assertThrows(CompletionException.class, () -> {
+		Assertions.assertThrows(AlreadyExistsException.class, () -> {
 			final var targetPath = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join();
 			Assertions.assertNull(targetPath);
 		});
-		MatcherAssert.assertThat(thrown.getCause(), CoreMatchers.instanceOf(AlreadyExistsException.class));
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("MOVE", rq.getMethod());

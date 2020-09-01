@@ -121,12 +121,12 @@ class PropfindResponseParser {
 
 		private void assembleEntry() {
 			if (!status.contains(STATUS_OK)) {
-				LOG.warn("No propstat element with 200 status in response element. Entry ignored.");
+				LOG.info("No propstat element with 200 status in response element. Entry ignored.");
 				return; // no-op
 			}
 
 			if (href == null) {
-				LOG.warn("Missing href in response element. Entry ignored.");
+				LOG.info("Missing href in response element. Entry ignored.");
 				return; // no-op
 			}
 
