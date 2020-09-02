@@ -68,7 +68,6 @@ public class VaultFormat8ProviderDecoratorTest {
 	private final CloudItemMetadata dir2Metadata = new CloudItemMetadata("dir2.c9r", dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/dir2.c9r"), CloudItemType.FOLDER);
 	private final CloudItemMetadata file3Metadata = new CloudItemMetadata("file3.c9r", dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file3.c9r"), CloudItemType.FILE);
 	private final CloudItemMetadata file4Metadata = new CloudItemMetadata("file4.c9r", dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"), CloudItemType.FILE);
-	private final TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private CloudProvider cloudProvider;
 	private Cryptor cryptor;
@@ -78,9 +77,7 @@ public class VaultFormat8ProviderDecoratorTest {
 	private VaultFormat8ProviderDecorator decorator;
 
 	@BeforeEach
-	public void setup() throws IOException {
-		tempFolder.create();
-
+	public void setup() {
 		cloudProvider = Mockito.mock(CloudProvider.class);
 		cryptor = Mockito.mock(Cryptor.class);
 		fileNameCryptor = Mockito.mock(FileNameCryptor.class);
@@ -100,11 +97,6 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "dir2", dirId1.getBytes())).thenReturn("Directory 2");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "file3", dirId1.getBytes())).thenReturn("File 3");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "file4", dirIdRoot.getBytes())).thenReturn("File 4");
-	}
-
-	@AfterEach
-	public void tearDown() {
-		tempFolder.delete();
 	}
 
 	@Test
