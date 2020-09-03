@@ -27,10 +27,11 @@ import java.util.stream.IntStream;
 
 public class WebDavClient {
 
+	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
+
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
