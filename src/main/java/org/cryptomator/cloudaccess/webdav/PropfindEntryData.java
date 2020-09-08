@@ -1,7 +1,7 @@
 package org.cryptomator.cloudaccess.webdav;
 
-import org.cryptomator.cloudaccess.api.CloudItemMetadata;
-import org.cryptomator.cloudaccess.api.CloudPath;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Streams;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -9,15 +9,13 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static org.cryptomator.cloudaccess.api.CloudItemType.FILE;
-import static org.cryptomator.cloudaccess.api.CloudItemType.FOLDER;
-
 class PropfindEntryData {
+
 	private static final Pattern URI_PATTERN = Pattern.compile("^[a-z]+://[^/]+/(.*)$");
 
-	private CloudPath path;
+	private String path;
 
-	private boolean file = true;
+	private boolean collection = true;
 	private Optional<Instant> lastModified = Optional.empty();
 	private Optional<Long> size = Optional.empty();
 
@@ -32,52 +30,47 @@ class PropfindEntryData {
 		}
 	}
 
+	private String urlDecode(final String value) {
+		return URLDecoder.decode(value, StandardCharsets.UTF_8);
+	}
+
+	public Optional<Instant> getLastModified() {
+		return lastModified;
+	}
+
 	void setLastModified(final Optional<Instant> lastModified) {
 		this.lastModified = lastModified;
 	}
 
-	public CloudPath getPath() {
+	public String getPath() {
 		return path;
 	}
 
-	public void setPath(final String pathOrUri) {
-		this.path = CloudPath.of(extractPath(pathOrUri));
+	void setPath(final String pathOrUri) {
+		this.path = extractPath(pathOrUri);
 	}
 
 	public Optional<Long> getSize() {
 		return size;
 	}
 
-	public void setSize(final Optional<Long> size) {
+	void setSize(final Optional<Long> size) {
 		this.size = size;
 	}
 
-	private boolean isFile() {
-		return file;
+	public boolean isCollection() {
+		return collection;
 	}
 
-	public void setFile(final boolean file) {
-		this.file = file;
+	void setCollection(final boolean collection) {
+		this.collection = collection;
 	}
 
-	public CloudItemMetadata toCloudItem() {
-		if (isFile()) {
-			return new CloudItemMetadata(getName(), path, FILE, lastModified, size);
-		} else {
-			return new CloudItemMetadata(getName(), path, FOLDER);
-		}
+	public long getDepth() {
+		return Splitter.on("/").omitEmptyStrings().splitToStream(path).count();
 	}
 
-	private String urlDecode(final String value) {
-		return URLDecoder.decode(value, StandardCharsets.UTF_8);
+	public String getName() {
+		return Streams.findLast(Splitter.on("/").omitEmptyStrings().splitToStream(path)).orElse("");
 	}
-
-	int getDepth() {
-		return path.getNameCount();
-	}
-
-	private String getName() {
-		return path.getFileName().toString();
-	}
-
 }

@@ -17,6 +17,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import static org.cryptomator.cloudaccess.api.CloudItemType.FILE;
+import static org.cryptomator.cloudaccess.api.CloudItemType.FOLDER;
+
 public class PropfindResponseParserTest {
 
 	private static final String RESPONSE_EMPTY_DIRECTORY = "empty-directory";
@@ -28,13 +31,8 @@ public class PropfindResponseParserTest {
 	private static final String RESPONSE_ONE_FILE_MULTI_STATUS = "file-multi-status";
 
 	private static final CloudItemMetadata testFolder = new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
-	private static final CloudItemMetadata testFile = new CloudItemMetadata(
-			"0.txt",
-			CloudPath.of("/0.txt"),
-			CloudItemType.FILE,
-			Optional.of(TestUtil.toInstant("Thu, 18 May 2017 9:49:41 GMT")),
-			Optional.of(54175L));
-	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
+	private static final CloudItemMetadata testFile = new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 18 May 2017 9:49:41 GMT")), Optional.of(54175L));
+	private final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryData::getDepth);
 	private PropfindResponseParser propfindResponseParser;
 
 	@BeforeEach
@@ -45,7 +43,7 @@ public class PropfindResponseParserTest {
 	@Test
 	public void testEmptyResponseLeadsToEmptyCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_EMPTY_DIRECTORY));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/"));
 
 		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
 		Assertions.assertEquals(Optional.empty(), cloudNodeItemList.getNextPageToken());
@@ -54,14 +52,9 @@ public class PropfindResponseParserTest {
 	@Test
 	public void testFolderWithoutServerPartInHrefResponseLeadsToFolderInCloudNodeListWithCompleteUrl() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_NO_SERVER));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/User7de989b/asdasdasd/d/OC/"));
 
-		final var resultFolder = new CloudItemMetadata(
-				"DYNTZMMHWLW25RZHWYEDHLFWIUZZG2",
-				CloudPath.of("/User7de989b/asdasdasd/d/OC/DYNTZMMHWLW25RZHWYEDHLFWIUZZG2"),
-				CloudItemType.FOLDER,
-				Optional.empty(),
-				Optional.empty());
+		final var resultFolder = new CloudItemMetadata("DYNTZMMHWLW25RZHWYEDHLFWIUZZG2", CloudPath.of("/User7de989b/asdasdasd/d/OC/DYNTZMMHWLW25RZHWYEDHLFWIUZZG2"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
 		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(List.of(resultFolder), cloudNodeItemList.getItems());
@@ -70,7 +63,7 @@ public class PropfindResponseParserTest {
 	@Test
 	public void testFileResponseLeadsToFileAndFoldersInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_AND_FOLDERS));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/"));
 
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(List.of(testFile, testFolder), cloudNodeItemList.getItems());
@@ -79,22 +72,16 @@ public class PropfindResponseParserTest {
 	@Test
 	public void testFileWithMalFormattedDateResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_DATE));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/"));
 
 		Assertions.assertEquals(2, cloudNodeItemList.getItems().size());
-		Assertions.assertEquals(
-				List.of(
-						new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)),
-						new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())
-				),
-				cloudNodeItemList.getItems()
-		);
+		Assertions.assertEquals(List.of(new CloudItemMetadata("0.txt", CloudPath.of("/0.txt"), CloudItemType.FILE, Optional.empty(), Optional.of(54175L)), new CloudItemMetadata("Gelöschte Dateien", CloudPath.of("/Gelöschte Dateien"), CloudItemType.FOLDER, Optional.empty(), Optional.empty())), cloudNodeItemList.getItems());
 	}
 
 	@Test
 	public void testFileMultiStatusLeadsToFolderInCloudNodeList() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_ONE_FILE_MULTI_STATUS));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/"));
 
 		Assertions.assertEquals(1, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(List.of(testFolder), cloudNodeItemList.getItems());
@@ -103,13 +90,13 @@ public class PropfindResponseParserTest {
 	@Test
 	public void testFileNoPathResponseLeadsToFileAndFoldersInCloudNodeListWithoutDate() throws SAXException, IOException {
 		final var propfindEntryList = propfindResponseParser.parse(load(RESPONSE_MAL_FORMATTED_NO_PATH));
-		final var cloudNodeItemList = processDirList(propfindEntryList);
+		final var cloudNodeItemList = processDirList(propfindEntryList, CloudPath.of("/"));
 
 		Assertions.assertEquals(0, cloudNodeItemList.getItems().size());
 		Assertions.assertEquals(Collections.EMPTY_LIST, cloudNodeItemList.getItems());
 	}
 
-	private CloudItemList processDirList(final List<PropfindEntryData> entryData) {
+	private CloudItemList processDirList(final List<PropfindEntryData> entryData, final CloudPath folder) {
 		var result = new CloudItemList(new ArrayList<>());
 
 		if (entryData.isEmpty()) {
@@ -121,9 +108,17 @@ public class PropfindResponseParserTest {
 		// because it's depth is 1 smaller than the depth
 		// ot the other entries, thus we skip the first entry
 		for (PropfindEntryData childEntry : entryData.subList(1, entryData.size())) {
-			result = result.add(List.of(childEntry.toCloudItem()));
+			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
 		}
 		return result;
+	}
+
+	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
+		if (data.isCollection()) {
+			return new CloudItemMetadata(data.getName(), path, FOLDER);
+		} else {
+			return new CloudItemMetadata(data.getName(), path, FILE, data.getLastModified(), data.getSize());
+		}
 	}
 
 	@Test
