@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -129,7 +131,7 @@ public class WebDavCloudProviderTestIT {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 		RecordedRequest rq = server.takeRequest();
@@ -141,6 +143,7 @@ public class WebDavCloudProviderTestIT {
 		rq = server.takeRequest();
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
 
 		rq = server.takeRequest();
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
@@ -158,13 +161,14 @@ public class WebDavCloudProviderTestIT {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
 
 		rq = server.takeRequest();
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
@@ -181,7 +185,7 @@ public class WebDavCloudProviderTestIT {
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
 		});
 
@@ -201,13 +205,46 @@ public class WebDavCloudProviderTestIT {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
 
 		RecordedRequest rq = server.takeRequest();
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
+
+		rq = server.takeRequest();
+		Assertions.assertEquals("PROPFIND", rq.getMethod());
+		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+	}
+
+	@Test
+	@DisplayName("write to /foo.txt (try to set mod date)")
+	public void testWriteAndTrySetModDate() throws InterruptedException, IOException {
+		server.enqueue(getInterceptedResponse(404, ""));
+		server.enqueue(getInterceptedResponse(201, ""));
+		server.enqueue(getInterceptedResponse("item-write-response.xml"));
+
+		final var modDate = Instant.now().minus(Duration.ofDays(365));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+
+		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
+		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+
+		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		RecordedRequest rq = server.takeRequest();
+		Assertions.assertEquals("PROPFIND", rq.getMethod());
+		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
+
+		rq = server.takeRequest();
+		Assertions.assertEquals("PUT", rq.getMethod());
+		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals(String.valueOf(modDate.getEpochSecond()), rq.getHeader("X-OC-Mtime"));
 
 		rq = server.takeRequest();
 		Assertions.assertEquals("PROPFIND", rq.getMethod());

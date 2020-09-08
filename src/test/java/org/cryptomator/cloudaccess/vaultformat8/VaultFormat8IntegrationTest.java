@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Random;
 
 public class VaultFormat8IntegrationTest {
@@ -36,7 +37,7 @@ public class VaultFormat8IntegrationTest {
 		new Random(42l).nextBytes(content);
 
 		// write 100k
-		var futureMetadata = encryptedProvider.write(path, true, new ByteArrayInputStream(content), content.length, ProgressListener.NO_PROGRESS_AWARE);
+		var futureMetadata = encryptedProvider.write(path, true, new ByteArrayInputStream(content), content.length, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		var metadata = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureMetadata.toCompletableFuture().get());
 		Assertions.assertEquals(content.length, metadata.getSize().get());
 

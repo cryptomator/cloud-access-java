@@ -263,10 +263,10 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testWriteToFile() {
 		var updatedFile1Metadata = new CloudItemMetadata(file1Metadata.getName(), file1Metadata.getPath(), CloudItemType.FILE, Optional.of(Instant.EPOCH), Optional.of(15l));
 
-		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
+		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.completedFuture(updatedFile1Metadata));
 
-		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(file1Metadata.getPath(), result.getPath());
@@ -283,10 +283,10 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testWriteToFileNotFound() {
 		decorator.metadataCache.put(file1Metadata.getPath(), Optional.of(file1Metadata));
 
-		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
+		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
 
-		Assertions.assertThrows(NotFoundException.class, () -> decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
+		Assertions.assertThrows(NotFoundException.class, () -> decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
 
 		Assertions.assertNull(decorator.metadataCache.getIfPresent(file1Metadata.getPath()));
 	}

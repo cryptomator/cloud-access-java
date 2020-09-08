@@ -7,6 +7,7 @@ import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -46,8 +47,8 @@ public class WebDavCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
-		return supplyAsync(() -> webDavClient.write(file, replace, data, size, progressListener));
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+		return supplyAsync(() -> webDavClient.write(file, replace, data, size, lastModified, progressListener));
 	}
 
 	@Override

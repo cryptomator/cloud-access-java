@@ -21,9 +21,11 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
@@ -181,7 +183,7 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final long size, final ProgressListener progressListener) throws CloudProviderException {
+	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final long size, final Optional<Instant> lastModified, final ProgressListener progressListener) throws CloudProviderException {
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
@@ -190,6 +192,8 @@ public class WebDavClient {
 		final var requestBuilder = new Request.Builder() //
 				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
+
+		lastModified.ifPresent(instant -> requestBuilder.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
 
 		try (final var response = httpClient.execute(requestBuilder)) {
 			checkExecutionSucceeded(response.code());

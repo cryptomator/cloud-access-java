@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -136,14 +137,14 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(ciphertextPath -> {
 			fileHeaderCache.evict(ciphertextPath);
 			var src = Channels.newChannel(data);
 			var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
 			var encryptedIn = Channels.newInputStream(encryptingChannel);
 			long numBytes = Cryptors.ciphertextSize(size, cryptor) + cryptor.fileHeaderCryptor().headerSize();
-			return delegate.write(ciphertextPath, replace, encryptedIn, numBytes, progressListener);
+			return delegate.write(ciphertextPath, replace, encryptedIn, numBytes, lastModified, progressListener);
 		}).thenApply(ciphertextMetadata -> toCleartextMetadata(ciphertextMetadata, file.getParent(), file.getFileName().toString()));
 	}
 
@@ -154,7 +155,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 		var futureC9rFile = getC9rPath(folder)
 				.thenCompose(delegate::createFolder)
-				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId), dirId.length, ProgressListener.NO_PROGRESS_AWARE));
+				.thenCompose(folderPath -> delegate.write(folderPath.resolve(DIR_FILE_NAME), false, new ByteArrayInputStream(dirId), dirId.length, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE));
 
 		var futureDir = delegate.createFolderIfNonExisting(dirPath.getParent())
 				.thenCompose(unused -> delegate.createFolder(dirPath));

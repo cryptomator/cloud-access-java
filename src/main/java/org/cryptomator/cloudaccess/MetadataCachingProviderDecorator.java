@@ -11,6 +11,7 @@ import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -99,8 +100,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
-		return delegate.write(file, replace, data, size, progressListener).thenApply(metadata -> {
+	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+		return delegate.write(file, replace, data, size, lastModified, progressListener).thenApply(metadata -> {
 			metadataCache.put(file, Optional.of(metadata));
 			return metadata;
 		}).handle((metadata, exception) -> {

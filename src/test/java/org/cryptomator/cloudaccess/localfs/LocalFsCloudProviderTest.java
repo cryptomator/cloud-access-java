@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -92,7 +94,7 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToNewFile() throws IOException {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), false, in, 10, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals("file", metaData.getName());
@@ -110,7 +112,7 @@ public class LocalFsCloudProviderTest {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), false, in, 10, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
 			Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().join());
@@ -123,7 +125,7 @@ public class LocalFsCloudProviderTest {
 		Files.write(root.resolve("file"), "hello world".getBytes());
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var result = provider.write(CloudPath.of("/file"), true, in, 10, ProgressListener.NO_PROGRESS_AWARE);
+		var result = provider.write(CloudPath.of("/file"), true, in, 10, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertEquals("file", metaData.getName());
@@ -133,6 +135,26 @@ public class LocalFsCloudProviderTest {
 		Assertions.assertEquals(10, metaData.getSize().get());
 		Assertions.assertTrue(metaData.getLastModifiedDate().isPresent());
 		Assertions.assertEquals(Files.getLastModifiedTime(root.resolve("file")).toInstant(), metaData.getLastModifiedDate().get());
+	}
+
+
+	@Test
+	@DisplayName("write to /file (non-existing) update modification date")
+	public void testWriteToNewFileUpdateModificationDate() throws IOException {
+		var in = new ByteArrayInputStream("hallo welt".getBytes());
+
+		var modDate = Instant.now().minus(Duration.ofDays(365));
+
+		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE);
+		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+
+		Assertions.assertEquals("file", metaData.getName());
+		Assertions.assertEquals(CloudPath.of("/file"), metaData.getPath());
+		Assertions.assertEquals(CloudItemType.FILE, metaData.getItemType());
+		Assertions.assertTrue(metaData.getSize().isPresent());
+		Assertions.assertEquals(10, metaData.getSize().get());
+		Assertions.assertTrue(metaData.getLastModifiedDate().isPresent());
+		Assertions.assertEquals(Files.getLastModifiedTime(root.resolve("file")).toInstant(), modDate);
 	}
 
 	@Test
