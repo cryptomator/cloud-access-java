@@ -124,9 +124,9 @@ public interface CloudProvider {
 	 * @param size             The size of data
 	 * @param lastModified     The lastModified which should be provided to the server
 	 * @param progressListener TODO Future use
-	 * @return CompletionStage that will be completed after writing all <code>data</code> and holds the new metadata of the item referenced by <code>file</code>.
+	 * @return CompletionStage that will be completed after writing all <code>data</code>.
 	 */
-	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener);
+	CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener);
 
 	/**
 	 * Create a folder. Does not create any potentially missing parent directories.

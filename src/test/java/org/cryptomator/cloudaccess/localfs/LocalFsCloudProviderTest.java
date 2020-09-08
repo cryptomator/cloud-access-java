@@ -95,9 +95,10 @@ public class LocalFsCloudProviderTest {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
 		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
-		Assertions.assertEquals("file", metaData.getName());
+		var metaData = provider.itemMetadata(CloudPath.of("/file")).toCompletableFuture().join();
+
 		Assertions.assertEquals(CloudPath.of("/file"), metaData.getPath());
 		Assertions.assertEquals(CloudItemType.FILE, metaData.getItemType());
 		Assertions.assertTrue(metaData.getSize().isPresent());
@@ -126,7 +127,9 @@ public class LocalFsCloudProviderTest {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
 		var result = provider.write(CloudPath.of("/file"), true, in, 10, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+
+		var metaData = provider.itemMetadata(CloudPath.of("/file")).toCompletableFuture().join();
 
 		Assertions.assertEquals("file", metaData.getName());
 		Assertions.assertEquals(CloudPath.of("/file"), metaData.getPath());
@@ -146,7 +149,9 @@ public class LocalFsCloudProviderTest {
 		var modDate = Instant.now().minus(Duration.ofDays(365));
 
 		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE);
-		var metaData = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+
+		var metaData = provider.itemMetadata(CloudPath.of("/file")).toCompletableFuture().join();
 
 		Assertions.assertEquals("file", metaData.getName());
 		Assertions.assertEquals(CloudPath.of("/file"), metaData.getPath());

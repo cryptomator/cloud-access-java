@@ -12,8 +12,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import static java.util.concurrent.CompletableFuture.supplyAsync;
-
 public class WebDavCloudProvider implements CloudProvider {
 
 	private final WebDavClient webDavClient;
@@ -28,32 +26,32 @@ public class WebDavCloudProvider implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
-		return supplyAsync(() -> webDavClient.itemMetadata(node));
+		return CompletableFuture.supplyAsync(() -> webDavClient.itemMetadata(node));
 	}
 
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
-		return supplyAsync(() -> webDavClient.list(folder));
+		return CompletableFuture.supplyAsync(() -> webDavClient.list(folder));
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, ProgressListener progressListener) {
-		return supplyAsync(() -> webDavClient.read(file, progressListener));
+		return CompletableFuture.supplyAsync(() -> webDavClient.read(file, progressListener));
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
-		return supplyAsync(() -> webDavClient.read(file, offset, count, progressListener));
+		return CompletableFuture.supplyAsync(() -> webDavClient.read(file, offset, count, progressListener));
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
-		return supplyAsync(() -> webDavClient.write(file, replace, data, size, lastModified, progressListener));
+	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+		return CompletableFuture.runAsync(() -> webDavClient.write(file, replace, data, size, lastModified, progressListener));
 	}
 
 	@Override
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		return supplyAsync(() -> webDavClient.createFolder(folder));
+		return CompletableFuture.supplyAsync(() -> webDavClient.createFolder(folder));
 	}
 
 	@Override
@@ -63,7 +61,7 @@ public class WebDavCloudProvider implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
-		return supplyAsync(() -> webDavClient.move(source, target, replace));
+		return CompletableFuture.supplyAsync(() -> webDavClient.move(source, target, replace));
 	}
 
 }

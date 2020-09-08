@@ -137,7 +137,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(ciphertextPath -> {
 			fileHeaderCache.evict(ciphertextPath);
 			var src = Channels.newChannel(data);
@@ -145,7 +145,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			var encryptedIn = Channels.newInputStream(encryptingChannel);
 			long numBytes = Cryptors.ciphertextSize(size, cryptor) + cryptor.fileHeaderCryptor().headerSize();
 			return delegate.write(ciphertextPath, replace, encryptedIn, numBytes, lastModified, progressListener);
-		}).thenApply(ciphertextMetadata -> toCleartextMetadata(ciphertextMetadata, file.getParent(), file.getFileName().toString()));
+		});
 	}
 
 	@Override

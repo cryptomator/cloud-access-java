@@ -19,8 +19,8 @@ import java.util.function.Function;
 
 public class MetadataCachingProviderDecorator implements CloudProvider {
 
-	private final CloudProvider delegate;
 	final Cache<CloudPath, Optional<CloudItemMetadata>> metadataCache;
+	private final CloudProvider delegate;
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
 		this(delegate, Duration.ofSeconds(10));
@@ -100,19 +100,16 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
-		return delegate.write(file, replace, data, size, lastModified, progressListener).thenApply(metadata -> {
-			metadataCache.put(file, Optional.of(metadata));
-			return metadata;
-		}).handle((metadata, exception) -> {
-			if (exception == null) {
-				assert metadata != null;
-				return CompletableFuture.completedFuture(metadata);
-			} else {
-				metadataCache.invalidate(file);
-				return CompletableFuture.<CloudItemMetadata>failedFuture(exception);
-			}
-		}).thenCompose(Function.identity());
+	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+		return delegate.write(file, replace, data, size, lastModified, progressListener)
+				.handle((nullReturn, exception) -> {
+					if (exception == null) {
+						return CompletableFuture.completedFuture(nullReturn);
+					} else {
+						metadataCache.invalidate(file);
+						return CompletableFuture.<Void>failedFuture(exception);
+					}
+				}).thenCompose(Function.identity());
 	}
 
 	@Override
@@ -157,8 +154,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	}
 
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
-		for(var path : metadataCache.asMap().keySet()) {
-			if(path.startsWith(cleartextPath)) {
+		for (var path : metadataCache.asMap().keySet()) {
+			if (path.startsWith(cleartextPath)) {
 				metadataCache.invalidate(path);
 			}
 		}

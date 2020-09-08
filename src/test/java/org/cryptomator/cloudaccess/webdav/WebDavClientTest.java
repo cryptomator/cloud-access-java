@@ -21,7 +21,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -29,8 +28,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -137,9 +134,7 @@ public class WebDavClientTest {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -149,12 +144,8 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -166,8 +157,7 @@ public class WebDavClientTest {
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
+			webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		});
 	}
 
@@ -181,9 +171,7 @@ public class WebDavClientTest {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test

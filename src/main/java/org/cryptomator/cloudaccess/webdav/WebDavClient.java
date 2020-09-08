@@ -183,7 +183,7 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata write(final CloudPath file, final boolean replace, final InputStream data, final long size, final Optional<Instant> lastModified, final ProgressListener progressListener) throws CloudProviderException {
+	void write(final CloudPath file, final boolean replace, final InputStream data, final long size, final Optional<Instant> lastModified, final ProgressListener progressListener) throws CloudProviderException {
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
@@ -197,7 +197,6 @@ public class WebDavClient {
 
 		try (final var response = httpClient.execute(requestBuilder)) {
 			checkExecutionSucceeded(response.code());
-			return itemMetadata(file);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}

@@ -38,8 +38,7 @@ public class VaultFormat8IntegrationTest {
 
 		// write 100k
 		var futureMetadata = encryptedProvider.write(path, true, new ByteArrayInputStream(content), content.length, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-		var metadata = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureMetadata.toCompletableFuture().get());
-		Assertions.assertEquals(content.length, metadata.getSize().get());
+		Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureMetadata.toCompletableFuture().get());
 
 		// read all bytes
 		var futureInputStream1 = encryptedProvider.read(path, ProgressListener.NO_PROGRESS_AWARE);

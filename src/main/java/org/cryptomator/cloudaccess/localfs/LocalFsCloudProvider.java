@@ -144,7 +144,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		var options = replace
 				? EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
@@ -153,15 +153,12 @@ public class LocalFsCloudProvider implements CloudProvider {
 		Lock l = lock.writeLock();
 		l.lock();
 		try (var ch = FileChannel.open(filePath, options)) {
-			var tmpSize = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
-			var modifiedDate = Files.getLastModifiedTime(filePath).toInstant();
-
+			var written = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
+			assert size == written : "Written bytes should be equal to provided size";
 			if(lastModified.isPresent()) {
 				Files.setLastModifiedTime(filePath, FileTime.from(lastModified.get()));
 			}
-
-			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(tmpSize));
-			return CompletableFuture.completedFuture(metadata);
+			return CompletableFuture.completedFuture(null);
 		} catch (NoSuchFileException e) {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (FileAlreadyExistsException e) {
