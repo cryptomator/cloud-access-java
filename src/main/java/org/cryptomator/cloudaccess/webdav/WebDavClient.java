@@ -6,6 +6,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
@@ -24,9 +25,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
-
-import static org.cryptomator.cloudaccess.api.CloudItemType.FILE;
-import static org.cryptomator.cloudaccess.api.CloudItemType.FOLDER;
 
 public class WebDavClient {
 
@@ -113,9 +111,9 @@ public class WebDavClient {
 
 	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
 		if (data.isCollection()) {
-			return new CloudItemMetadata(data.getName(), path, FOLDER);
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
 		} else {
-			return new CloudItemMetadata(data.getName(), path, FILE, data.getLastModified(), data.getSize());
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FILE, data.getLastModified(), data.getSize());
 		}
 	}
 

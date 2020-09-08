@@ -17,9 +17,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-import static org.cryptomator.cloudaccess.api.CloudItemType.FILE;
-import static org.cryptomator.cloudaccess.api.CloudItemType.FOLDER;
-
 public class PropfindResponseParserTest {
 
 	private static final String RESPONSE_EMPTY_DIRECTORY = "empty-directory";
@@ -115,9 +112,9 @@ public class PropfindResponseParserTest {
 
 	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
 		if (data.isCollection()) {
-			return new CloudItemMetadata(data.getName(), path, FOLDER);
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
 		} else {
-			return new CloudItemMetadata(data.getName(), path, FILE, data.getLastModified(), data.getSize());
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FILE, data.getLastModified(), data.getSize());
 		}
 	}
 
