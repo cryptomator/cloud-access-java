@@ -6,6 +6,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
@@ -27,7 +28,7 @@ import java.util.stream.IntStream;
 
 public class WebDavClient {
 
-	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingInt(PropfindEntryData::getDepth);
+	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryData::getDepth);
 
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
@@ -39,30 +40,30 @@ public class WebDavClient {
 	}
 
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
-		try (final var response = executePropfindRequest(folder, PROPFIND_DEPTH.ONE)) {
+		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
 			checkExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);
 
-			return processDirList(nodes);
+			return processDirList(nodes, folder);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
 	}
 
 	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
-		try (final var response = executePropfindRequest(path, PROPFIND_DEPTH.ZERO)) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
 			checkExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);
 
-			return processGet(nodes);
+			return processGet(nodes, path);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
 	}
 
-	private Response executePropfindRequest(final CloudPath path, final PROPFIND_DEPTH propfind_depth) throws IOException {
+	private Response executePropfindRequest(final CloudPath path, final PropfindDepth propfindDepth) throws IOException {
 		final var body = "<d:propfind xmlns:d=\"DAV:\">\n" //
 				+ "<d:prop>\n" //
 				+ "<d:resourcetype />\n" //
@@ -74,7 +75,7 @@ public class WebDavClient {
 		final var builder = new Request.Builder() //
 				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
 				.url(absoluteURLFrom(path)) //
-				.header("DEPTH", propfind_depth.value) //
+				.header("Depth", propfindDepth.value) //
 				.header("Content-Type", "text/xml");
 
 		return httpClient.execute(builder);
@@ -86,12 +87,12 @@ public class WebDavClient {
 		}
 	}
 
-	private CloudItemMetadata processGet(final List<PropfindEntryData> entryData) {
+	private CloudItemMetadata processGet(final List<PropfindEntryData> entryData, final CloudPath path) {
 		entryData.sort(ASCENDING_BY_DEPTH);
-		return entryData.size() >= 1 ? entryData.get(0).toCloudItem() : null;
+		return entryData.size() >= 1 ? toCloudItem(entryData.get(0), path) : null;
 	}
 
-	private CloudItemList processDirList(final List<PropfindEntryData> entryData) {
+	private CloudItemList processDirList(final List<PropfindEntryData> entryData, final CloudPath folder) {
 		var result = new CloudItemList(new ArrayList<>());
 
 		if (entryData.isEmpty()) {
@@ -103,9 +104,17 @@ public class WebDavClient {
 		// because it's depth is 1 smaller than the depth
 		// ot the other entries, thus we skip the first entry
 		for (PropfindEntryData childEntry : entryData.subList(1, entryData.size())) {
-			result = result.add(List.of(childEntry.toCloudItem()));
+			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
 		}
 		return result;
+	}
+
+	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
+		if (data.isCollection()) {
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
+		} else {
+			return new CloudItemMetadata(data.getName(), path, CloudItemType.FILE, data.getLastModified(), data.getSize());
+		}
 	}
 
 	CloudPath move(final CloudPath from, final CloudPath to, boolean replace) throws CloudProviderException {
@@ -142,7 +151,7 @@ public class WebDavClient {
 
 	InputStream read(final CloudPath path, final long offset, final long count, final ProgressListener progressListener) throws CloudProviderException {
 		final var getRequest = new Request.Builder() //
-				.header("Range", String.format("bytes=%d-%d", offset, offset + count - 1))
+				.header("Range", String.format("bytes=%d-%d", offset, offset + count - 1)) //
 				.get() //
 				.url(absoluteURLFrom(path));
 		return read(getRequest, progressListener);
@@ -156,7 +165,7 @@ public class WebDavClient {
 			final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
 
 			final int UNSATISFIABLE_RANGE = 416;
-			 if(response.code() == UNSATISFIABLE_RANGE) {
+			if (response.code() == UNSATISFIABLE_RANGE) {
 				return new ByteArrayInputStream(new byte[0]);
 			}
 
@@ -178,8 +187,8 @@ public class WebDavClient {
 		}
 
 		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data, size), progressListener);
-		final var requestBuilder = new Request.Builder()
-				.url(absoluteURLFrom(file))
+		final var requestBuilder = new Request.Builder() //
+				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
 
 		try (final var response = httpClient.execute(requestBuilder)) {
@@ -199,7 +208,7 @@ public class WebDavClient {
 	}
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
-		if(exists(path)) {
+		if (exists(path)) {
 			throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
 		}
 
@@ -228,8 +237,8 @@ public class WebDavClient {
 	}
 
 	void checkServerCompatibility() throws ServerNotWebdavCompatibleException {
-		final var optionsRequest = new Request.Builder()
-				.method("OPTIONS", null)
+		final var optionsRequest = new Request.Builder() //
+				.method("OPTIONS", null) //
 				.url(baseUrl);
 
 		try (final var response = httpClient.execute(optionsRequest)) {
@@ -282,19 +291,20 @@ public class WebDavClient {
 		}
 	}
 
-	private enum PROPFIND_DEPTH {
-		ZERO("0"),
-		ONE("1"),
+	private enum PropfindDepth {
+		ZERO("0"), //
+		ONE("1"), //
 		INFINITY("infinity");
 
 		private final String value;
 
-		PROPFIND_DEPTH(final String value) {
+		PropfindDepth(final String value) {
 			this.value = value;
 		}
 	}
 
 	static class WebDavAuthenticator {
+
 		static WebDavClient createAuthenticatedWebDavClient(final WebDavCredential webDavCredential) throws ServerNotWebdavCompatibleException, UnauthorizedException {
 			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential), webDavCredential);
 

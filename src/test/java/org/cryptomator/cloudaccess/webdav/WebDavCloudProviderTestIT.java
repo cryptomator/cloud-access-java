@@ -9,8 +9,6 @@ import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class WebDavCloudProviderTestIT {
@@ -31,11 +28,11 @@ public class WebDavCloudProviderTestIT {
 	private final CloudProvider provider;
 	private final URL baseUrl;
 
-	private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", CloudPath.of("/cloud/remote.php/webdav/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
-	private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", CloudPath.of("/cloud/remote.php/webdav/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
-	private final CloudItemMetadata testFileIntro = new CloudItemMetadata("Nextcloud intro.mp4", CloudPath.of("/cloud/remote.php/webdav/Nextcloud intro.mp4"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(462413L));
-	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/cloud/remote.php/webdav/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
-	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/cloud/remote.php/webdav/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", CloudPath.of("/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", CloudPath.of("/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
+	private final CloudItemMetadata testFileIntro = new CloudItemMetadata("Nextcloud intro.mp4", CloudPath.of("/Nextcloud intro.mp4"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(462413L));
+	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
+	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
 	private final String webDavRequestBody = "<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
 
@@ -50,11 +47,7 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(response);
 		server.enqueue(response);
 
-		provider = WebDavCloudProvider.from(WebDavCredential.from(
-				baseUrl,
-				"foo",
-				"bar"
-		));
+		provider = WebDavCloudProvider.from(WebDavCredential.from(baseUrl, "foo", "bar"));
 
 		server.takeRequest();
 		server.takeRequest();
@@ -133,7 +126,7 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -162,7 +155,7 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -205,7 +198,7 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -226,6 +219,7 @@ public class WebDavCloudProviderTestIT {
 	@Test
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws InterruptedException {
+		server.enqueue(getInterceptedResponse(404, ""));
 		server.enqueue(getInterceptedResponse());
 
 		final var path = provider.createFolder(CloudPath.of("/foo")).toCompletableFuture().join();
@@ -233,6 +227,10 @@ public class WebDavCloudProviderTestIT {
 		Assertions.assertEquals(path, CloudPath.of("/foo"));
 
 		RecordedRequest rq = server.takeRequest();
+		Assertions.assertEquals("PROPFIND", rq.getMethod());
+		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
+
+		rq = server.takeRequest();
 		Assertions.assertEquals("MKCOL", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
 	}
@@ -321,10 +319,7 @@ public class WebDavCloudProviderTestIT {
 	}
 
 	private MockResponse getInterceptedResponse(int httpCode, final String body) {
-		return new MockResponse()
-				.setResponseCode(httpCode)
-				.setHeader("DAV", "1,2,3, hyperactive-access")
-				.setBody(body);
+		return new MockResponse().setResponseCode(httpCode).setHeader("DAV", "1,2,3, hyperactive-access").setBody(body);
 	}
 
 	private String load(String resourceName) {

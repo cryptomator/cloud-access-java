@@ -134,7 +134,7 @@ class PropfindResponseParser {
 			entry.setLastModified(parseDate(lastModified));
 			entry.setSize(parseLong(contentLength));
 			entry.setPath(href);
-			entry.setFile(!isCollection);
+			entry.setCollection(isCollection);
 
 			entries.add(entry);
 		}
