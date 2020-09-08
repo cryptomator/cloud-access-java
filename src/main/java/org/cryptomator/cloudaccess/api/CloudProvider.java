@@ -4,6 +4,7 @@ import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -107,7 +108,7 @@ public interface CloudProvider {
 	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
 
 	/**
-	 * Writes to a given file, creating it if it doesn't exist yet.
+	 * Writes to a given file, creating it if it doesn't exist yet. <code>lastModified</code> is applied with best-effort but without guarantee.
 	 * <p>
 	 * The returned CompletionStage might complete exceptionally with one of the following exceptions:
 	 * <ul>
@@ -121,10 +122,11 @@ public interface CloudProvider {
 	 * @param replace          Flag indicating whether to overwrite the file if it already exists.
 	 * @param data             A data source from which to copy contents to the remote file
 	 * @param size             The size of data
+	 * @param lastModified     The lastModified which should be provided to the server
 	 * @param progressListener TODO Future use
-	 * @return CompletionStage that will be completed after writing all <code>data</code> and holds the new metadata of the item referenced by <code>file</code>.
+	 * @return CompletionStage that will be completed after writing all <code>data</code>.
 	 */
-	CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener);
+	CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener);
 
 	/**
 	 * Create a folder. Does not create any potentially missing parent directories.

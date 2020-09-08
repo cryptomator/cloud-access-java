@@ -31,6 +31,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -142,7 +144,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> write(CloudPath file, boolean replace, InputStream data, long size, ProgressListener progressListener) {
+	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		Path filePath = resolve(file);
 		var options = replace
 				? EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
@@ -151,10 +153,12 @@ public class LocalFsCloudProvider implements CloudProvider {
 		Lock l = lock.writeLock();
 		l.lock();
 		try (var ch = FileChannel.open(filePath, options)) {
-			var tmpSize = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
-			var modifiedDate = Files.getLastModifiedTime(filePath).toInstant();
-			var metadata = new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, Optional.of(modifiedDate), Optional.of(tmpSize));
-			return CompletableFuture.completedFuture(metadata);
+			var written = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
+			assert size == written : "Written bytes should be equal to provided size";
+			if(lastModified.isPresent()) {
+				Files.setLastModifiedTime(filePath, FileTime.from(lastModified.get()));
+			}
+			return CompletableFuture.completedFuture(null);
 		} catch (NoSuchFileException e) {
 			return CompletableFuture.failedFuture(new NotFoundException(e));
 		} catch (FileAlreadyExistsException e) {

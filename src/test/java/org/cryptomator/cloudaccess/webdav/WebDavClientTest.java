@@ -134,9 +134,7 @@ public class WebDavClientTest {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -146,12 +144,8 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -163,8 +157,7 @@ public class WebDavClientTest {
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
+			webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		});
 	}
 
@@ -178,9 +171,7 @@ public class WebDavClientTest {
 		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
