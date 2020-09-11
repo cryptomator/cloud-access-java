@@ -13,6 +13,8 @@ import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
@@ -30,6 +32,7 @@ import java.util.stream.IntStream;
 
 public class WebDavClient {
 
+	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
 	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryData::getDepth);
 
 	private final WebDavCompatibleHttpClient httpClient;
@@ -42,6 +45,7 @@ public class WebDavClient {
 	}
 
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
+		LOG.trace("list {}", folder);
 		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
 			checkExecutionSucceeded(response.code());
 
@@ -54,6 +58,7 @@ public class WebDavClient {
 	}
 
 	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
+		LOG.trace("itemMetadata {}", path);
 		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
 			checkExecutionSucceeded(response.code());
 
@@ -120,6 +125,7 @@ public class WebDavClient {
 	}
 
 	CloudPath move(final CloudPath from, final CloudPath to, boolean replace) throws CloudProviderException {
+		LOG.trace("move {} to {} (replace: {})", from, to, replace ? "true" : "false");
 		final var builder = new Request.Builder() //
 				.method("MOVE", null) //
 				.url(absoluteURLFrom(from)) //
@@ -145,6 +151,7 @@ public class WebDavClient {
 	}
 
 	InputStream read(final CloudPath path, final ProgressListener progressListener) throws CloudProviderException {
+		LOG.trace("read {}", path);
 		final var getRequest = new Request.Builder() //
 				.get() //
 				.url(absoluteURLFrom(path));
@@ -152,6 +159,7 @@ public class WebDavClient {
 	}
 
 	InputStream read(final CloudPath path, final long offset, final long count, final ProgressListener progressListener) throws CloudProviderException {
+		LOG.trace("read {} (offset: {}, count: {})", path, offset, count);
 		final var getRequest = new Request.Builder() //
 				.header("Range", String.format("bytes=%d-%d", offset, offset + count - 1)) //
 				.get() //
@@ -184,6 +192,7 @@ public class WebDavClient {
 	}
 
 	void write(final CloudPath file, final boolean replace, final InputStream data, final long size, final Optional<Instant> lastModified, final ProgressListener progressListener) throws CloudProviderException {
+		LOG.trace("write {} (size: {}, lastModified: {}, replace: {})", file, size, lastModified, replace ? "true" : "false");
 		if (!replace && exists(file)) {
 			throw new AlreadyExistsException("CloudNode already exists and replace is false");
 		}
@@ -211,6 +220,7 @@ public class WebDavClient {
 	}
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
+		LOG.trace("createFolder {}", path);
 		if (exists(path)) {
 			throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
 		}
@@ -228,6 +238,7 @@ public class WebDavClient {
 	}
 
 	void delete(final CloudPath path) throws CloudProviderException {
+		LOG.trace("delete {}", path);
 		final var builder = new Request.Builder() //
 				.delete() //
 				.url(absoluteURLFrom(path));
@@ -240,6 +251,7 @@ public class WebDavClient {
 	}
 
 	void checkServerCompatibility() throws ServerNotWebdavCompatibleException {
+		LOG.trace("checkServerCompatibility");
 		final var optionsRequest = new Request.Builder() //
 				.method("OPTIONS", null) //
 				.url(baseUrl);
@@ -256,6 +268,7 @@ public class WebDavClient {
 	}
 
 	void tryAuthenticatedRequest() throws UnauthorizedException {
+		LOG.trace("tryAuthenticatedRequest");
 		try {
 			itemMetadata(CloudPath.of("/"));
 		} catch (Exception e) {
