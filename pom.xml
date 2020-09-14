@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.cryptomator</groupId>
     <artifactId>cloud-access</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 
     <name>Cryptomator CloudAccess in Java</name>
     <description>CloudAccess is used in e.g. Cryptomator for Android to access different cloud providers.</description>

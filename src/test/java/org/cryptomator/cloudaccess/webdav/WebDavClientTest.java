@@ -35,11 +35,11 @@ import java.util.stream.Collectors;
 public class WebDavClientTest {
 
 	private final WebDavCompatibleHttpClient webDavCompatibleHttpClient = Mockito.mock(WebDavCompatibleHttpClient.class);
-	private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", CloudPath.of("/cloud/remote.php/webdav/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
-	private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", CloudPath.of("/cloud/remote.php/webdav/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
-	private final CloudItemMetadata testFileIntro = new CloudItemMetadata("Nextcloud intro.mp4", CloudPath.of("/cloud/remote.php/webdav/Nextcloud intro.mp4"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(462413L));
-	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/cloud/remote.php/webdav/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
-	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/cloud/remote.php/webdav/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", CloudPath.of("/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", CloudPath.of("/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
+	private final CloudItemMetadata testFileIntro = new CloudItemMetadata("Nextcloud intro.mp4", CloudPath.of("/Nextcloud intro.mp4"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(462413L));
+	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
+	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 	private WebDavClient webDavClient;
 	private URL baseUrl;
 
@@ -131,12 +131,10 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -146,12 +144,8 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -163,8 +157,7 @@ public class WebDavClientTest {
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
 		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
+			webDavClient.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		});
 	}
 
@@ -175,12 +168,10 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/cloud/remote.php/webdav/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
+		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
 
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), ProgressListener.NO_PROGRESS_AWARE);
-
-		Assertions.assertEquals(writtenItemMetadata, cloudItemMetadata);
+		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
 
 	@Test
@@ -271,13 +262,20 @@ public class WebDavClientTest {
 	}
 
 	@Test
-	@DisplayName("check if client can authenticate against server")
-	public void testTryAuthenticatedRequest() throws IOException {
+	@DisplayName("check if client can authenticate against server (auth succeeded)")
+	public void testTryAuthenticatedRequestSuccess() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
-				.thenReturn(getInterceptedResponse(baseUrl, "authentication-response.xml"))
-				.thenReturn(getInterceptedResponse(baseUrl, 401, ""));
+				.thenReturn(getInterceptedResponse(baseUrl, "authentication-response.xml"));
 
 		webDavClient.tryAuthenticatedRequest();
+	}
+
+	@Test
+	@DisplayName("check if client can authenticate against server (auth failed)")
+	public void testTryAuthenticatedRequestUnauthorized() throws IOException {
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
+				.thenReturn(getInterceptedResponse(baseUrl, 401, ""));
+
 		Assertions.assertThrows(UnauthorizedException.class, () -> webDavClient.tryAuthenticatedRequest());
 	}
 

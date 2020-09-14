@@ -24,6 +24,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.AdditionalMatchers;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
@@ -68,7 +69,6 @@ public class VaultFormat8ProviderDecoratorTest {
 	private final CloudItemMetadata dir2Metadata = new CloudItemMetadata("dir2.c9r", dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/dir2.c9r"), CloudItemType.FOLDER);
 	private final CloudItemMetadata file3Metadata = new CloudItemMetadata("file3.c9r", dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/file3.c9r"), CloudItemType.FILE);
 	private final CloudItemMetadata file4Metadata = new CloudItemMetadata("file4.c9r", dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"), CloudItemType.FILE);
-	private final TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private CloudProvider cloudProvider;
 	private Cryptor cryptor;
@@ -78,9 +78,7 @@ public class VaultFormat8ProviderDecoratorTest {
 	private VaultFormat8ProviderDecorator decorator;
 
 	@BeforeEach
-	public void setup() throws IOException {
-		tempFolder.create();
-
+	public void setup() {
 		cloudProvider = Mockito.mock(CloudProvider.class);
 		cryptor = Mockito.mock(Cryptor.class);
 		fileNameCryptor = Mockito.mock(FileNameCryptor.class);
@@ -100,11 +98,6 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "dir2", dirId1.getBytes())).thenReturn("Directory 2");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "file3", dirId1.getBytes())).thenReturn("File 3");
 		Mockito.when(fileNameCryptor.decryptFilename(BaseEncoding.base64Url(), "file4", dirIdRoot.getBytes())).thenReturn("File 4");
-	}
-
-	@AfterEach
-	public void tearDown() {
-		tempFolder.delete();
 	}
 
 	@Test
@@ -333,7 +326,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.hashDirectoryId(Mockito.eq(""))).thenReturn("00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 		Mockito.when(fileNameCryptor.hashDirectoryId(AdditionalMatchers.not(Mockito.eq("")))).thenReturn(hashFolder3Id);
 		Mockito.when(cloudProvider.createFolder(dir3Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(dir3Metadata.getPath()));
-		Mockito.when(cloudProvider.write(Mockito.eq(dir3Metadata.getPath().resolve("dir.c9r")), Mockito.eq(false), Mockito.any(), Mockito.anyLong(), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE))).thenReturn(CompletableFuture.completedFuture(dir3Metadata));
+		Mockito.when(cloudProvider.write(Mockito.eq(dir3Metadata.getPath().resolve("dir.c9r")), Mockito.eq(false), Mockito.any(), Mockito.anyLong(), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE))).thenReturn(CompletableFuture.completedFuture(null));
 		Mockito.when(cloudProvider.createFolderIfNonExisting(dataDirFolder3.getParent())).thenReturn(CompletableFuture.completedFuture(dataDirFolder3.getParent()));
 		Mockito.when(cloudProvider.createFolder(dataDirFolder3)).thenReturn(CompletableFuture.completedFuture(dataDirFolder3));
 
@@ -361,22 +354,16 @@ public class VaultFormat8ProviderDecoratorTest {
 			String inStr = UTF_8.decode(input).toString();
 			return ByteBuffer.wrap(inStr.toLowerCase().getBytes(UTF_8));
 		});
-		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
+		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenAnswer(invocationOnMock -> {
 					InputStream in = invocationOnMock.getArgument(2);
 					var encrypted = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).readLine();
 					Assertions.assertEquals("hhhhhtopsecret!", encrypted);
-					return CompletableFuture.completedFuture(new CloudItemMetadata(file1Metadata.getName(), file1Metadata.getPath(), CloudItemType.FILE, Optional.of(Instant.EPOCH), Optional.of(15l)));
+					return CompletableFuture.completedFuture(null);
 				});
 
-		var futureResult = decorator.write(CloudPath.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),10l, ProgressListener.NO_PROGRESS_AWARE);
-		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
-
-		Assertions.assertEquals(CloudPath.of("/File 1"), result.getPath());
-		Assertions.assertEquals("File 1", result.getName());
-		Assertions.assertEquals(CloudItemType.FILE, result.getItemType());
-		Assertions.assertEquals(Optional.of(10l), result.getSize());
-		Assertions.assertEquals(Optional.of(Instant.EPOCH), result.getLastModifiedDate());
+		var futureResult = decorator.write(CloudPath.of("/File 1"), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),10l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
+		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 	}
 
 }

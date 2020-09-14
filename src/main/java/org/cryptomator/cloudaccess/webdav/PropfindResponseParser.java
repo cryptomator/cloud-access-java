@@ -121,12 +121,12 @@ class PropfindResponseParser {
 
 		private void assembleEntry() {
 			if (!status.contains(STATUS_OK)) {
-				LOG.info("No propstat element with 200 status in response element. Entry ignored.");
+				LOG.trace("No propstat element with 200 status in response element. Entry ignored.");
 				return; // no-op
 			}
 
 			if (href == null) {
-				LOG.info("Missing href in response element. Entry ignored.");
+				LOG.trace("Missing href in response element. Entry ignored.");
 				return; // no-op
 			}
 
@@ -134,7 +134,7 @@ class PropfindResponseParser {
 			entry.setLastModified(parseDate(lastModified));
 			entry.setSize(parseLong(contentLength));
 			entry.setPath(href);
-			entry.setFile(!isCollection);
+			entry.setCollection(isCollection);
 
 			entries.add(entry);
 		}
