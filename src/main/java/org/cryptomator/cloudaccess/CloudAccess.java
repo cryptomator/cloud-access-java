@@ -54,8 +54,7 @@ public class CloudAccess {
 	 */
 	public static CloudProvider toWebDAV(URL url, String username, CharSequence password) {
 		// TODO can we pass though CharSequence to the auth mechanism?
-		var webdavCloudProvider = WebDavCloudProvider.from(WebDavCredential.from(url, username, password.toString()));
-		return new MetadataCachingProviderDecorator(webdavCloudProvider);
+		return WebDavCloudProvider.from(WebDavCredential.from(url, username, password.toString()));
 	}
 
 	/**

@@ -15,7 +15,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 public class MetadataCachingProviderDecorator implements CloudProvider {
 
@@ -35,122 +34,89 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		var cachedMetadata = metadataCache.getIfPresent(node);
 		if (cachedMetadata != null) {
-			return cachedMetadata
-					.map(CompletableFuture::completedFuture)
+			return cachedMetadata //
+					.map(CompletableFuture::completedFuture) //
 					.orElseGet(() -> CompletableFuture.failedFuture(new NotFoundException()));
 		} else {
-			return delegate.itemMetadata(node)
-					.handle((metadata, exception) -> {
+			return delegate.itemMetadata(node) //
+					.whenComplete((metadata, exception) -> {
 						if (exception == null) {
 							assert metadata != null;
 							metadataCache.put(node, Optional.of(metadata));
-							return CompletableFuture.completedFuture(metadata);
 						} else if (exception instanceof NotFoundException) {
 							metadataCache.put(node, Optional.empty());
-							return CompletableFuture.<CloudItemMetadata>failedFuture(exception);
 						} else {
 							metadataCache.invalidate(node);
-							return CompletableFuture.<CloudItemMetadata>failedFuture(exception);
 						}
-					}).thenCompose(Function.identity());
+					});
 		}
 	}
 
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
-		return delegate.list(folder, pageToken)
-				.handle((cloudItemList, exception) -> {
+		return delegate.list(folder, pageToken) //
+				.whenComplete((cloudItemList, exception) -> {
 					evictIncludingDescendants(folder);
 					if (exception == null) {
 						assert cloudItemList != null;
 						cloudItemList.getItems().forEach(metadata -> metadataCache.put(metadata.getPath(), Optional.of(metadata)));
-						return CompletableFuture.completedFuture(cloudItemList);
-					} else {
-						return CompletableFuture.<CloudItemList>failedFuture(exception);
 					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, ProgressListener progressListener) {
-		return delegate.read(file, progressListener)
-				.handle((metadata, exception) -> {
-					if (exception == null) {
-						assert metadata != null;
-						return CompletableFuture.completedFuture(metadata);
-					} else {
+		return delegate.read(file, progressListener) //
+				.whenComplete((metadata, exception) -> {
+					if (exception != null) {
 						metadataCache.invalidate(file);
-						return CompletableFuture.<InputStream>failedFuture(exception);
 					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
-		return delegate.read(file, offset, count, progressListener)
-				.handle((inputStream, exception) -> {
-					if (exception == null) {
-						assert inputStream != null;
-						return CompletableFuture.completedFuture(inputStream);
-					} else {
+		return delegate.read(file, offset, count, progressListener) //
+				.whenComplete((inputStream, exception) -> {
+					if (exception != null) {
 						metadataCache.invalidate(file);
-						return CompletableFuture.<InputStream>failedFuture(exception);
 					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
-		return delegate.write(file, replace, data, size, lastModified, progressListener)
-				.handle((nullReturn, exception) -> {
-					if (exception == null) {
-						return CompletableFuture.completedFuture(nullReturn);
-					} else {
+		return delegate.write(file, replace, data, size, lastModified, progressListener) //
+				.whenComplete((nullReturn, exception) -> {
+					if (exception != null) {
 						metadataCache.invalidate(file);
-						return CompletableFuture.<Void>failedFuture(exception);
 					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		return delegate.createFolder(folder)
-				.handle((metadata, exception) -> {
+		return delegate.createFolder(folder) //
+				.whenComplete((metadata, exception) -> {
 					metadataCache.invalidate(folder);
-					if (exception == null) {
-						assert metadata != null;
-						return CompletableFuture.completedFuture(metadata);
-					} else {
-						return CompletableFuture.<CloudPath>failedFuture(exception);
-					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<Void> delete(CloudPath node) {
-		return delegate.delete(node)
-				.handle((nullReturn, exception) -> {
+		return delegate.delete(node) //
+				.whenComplete((nullReturn, exception) -> {
 					evictIncludingDescendants(node);
-					if (exception == null) {
-						return CompletableFuture.completedFuture(nullReturn);
-					} else {
-						return CompletableFuture.<Void>failedFuture(exception);
-					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
-		return delegate.move(source, target, replace)
-				.handle((path, exception) -> {
+		return delegate.move(source, target, replace) //
+				.whenComplete((path, exception) -> {
 					metadataCache.invalidate(source);
 					metadataCache.invalidate(target);
-					if (exception == null) {
-						return CompletableFuture.completedFuture(path);
-					} else {
-						return CompletableFuture.<CloudPath>failedFuture(exception);
-					}
-				}).thenCompose(Function.identity());
+				});
 	}
 
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
