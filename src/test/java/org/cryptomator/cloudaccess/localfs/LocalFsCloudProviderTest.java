@@ -147,7 +147,8 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToNewFileUpdateModificationDate() throws IOException {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var modDate = Instant.now().minus(Duration.ofDays(365)).truncatedTo(ChronoUnit.MILLIS);
+		// Files.getLastModifiedTime(...) precision in Windows is ChronoUnit.MICROS and Instant.now() is ChronoUnit.NANOS
+		var modDate = Instant.now().minus(Duration.ofDays(365)).truncatedTo(ChronoUnit.MICROS);
 
 		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE);
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
