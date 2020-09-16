@@ -81,7 +81,7 @@ public interface CloudProvider {
 	 * The returned CompletionStage might complete exceptionally with the same exceptions as specified in {@link #read(CloudPath, long, long, ProgressListener)}.
 	 *
 	 * @param file             A remote path referencing a file
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
 	 * @see #read(CloudPath, long, long, ProgressListener)
 	 */
@@ -102,7 +102,7 @@ public interface CloudProvider {
 	 * @param file             A remote path referencing a file
 	 * @param offset           The first byte (inclusive) to read.
 	 * @param count            The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally. If the requested range cannot be fulfilled, an inputstream with 0 bytes is returned
 	 */
 	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
@@ -123,7 +123,7 @@ public interface CloudProvider {
 	 * @param data             A data source from which to copy contents to the remote file
 	 * @param size             The size of data
 	 * @param lastModified     The lastModified which should be provided to the server
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage that will be completed after writing all <code>data</code>.
 	 */
 	CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener);
