@@ -1,5 +1,7 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import org.cryptomator.cloudaccess.api.Quota;
+import org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
@@ -28,6 +30,8 @@ class PropfindResponseParser {
 	private static final String TAG_COLLECTION = "collection";
 	private static final String TAG_LAST_MODIFIED = "getlastmodified";
 	private static final String TAG_CONTENT_LENGTH = "getcontentlength";
+	private static final String TAG_QUOTA_AVAILABLE = "quota-available-bytes";
+	private static final String TAG_QUOTA_USED = "quota-used-bytes";
 	private static final String TAG_PROPSTAT = "propstat";
 	private static final String TAG_STATUS = "status";
 	private static final String STATUS_OK = "200";
@@ -46,18 +50,27 @@ class PropfindResponseParser {
 		}
 	}
 
-	public List<PropfindEntryData> parse(final InputStream responseBody) throws SAXException, IOException {
+	public List<PropfindEntryItemData> parseItemData(final InputStream responseBody) throws SAXException, IOException {
 		if (responseBody == null) {
 			return List.of();
 		}
-		var parseHandler = new ParseHandler();
+		var parseHandler = new ParseItemMetadataHandler();
 		parser.parse(responseBody, parseHandler);
 		return parseHandler.entries;
 	}
 
-	private class ParseHandler extends DefaultHandler {
+	public Quota parseQuta(final InputStream responseBody) throws SAXException, IOException {
+		if (responseBody == null) {
+			return null;
+		}
+		var parseHandler = new ParseQuotaHandler();
+		parser.parse(responseBody, parseHandler);
+		return parseHandler.quota;
+	}
 
-		public final List<PropfindEntryData> entries = new ArrayList<>();
+	private class ParseItemMetadataHandler extends DefaultHandler {
+
+		public final List<PropfindEntryItemData> entries = new ArrayList<>();
 		private StringBuilder textBuffer;
 		private String href;
 		private String lastModified;
@@ -130,7 +143,7 @@ class PropfindResponseParser {
 				return; // no-op
 			}
 
-			var entry = new PropfindEntryData();
+			var entry = new PropfindEntryItemData();
 			entry.setLastModified(parseDate(lastModified));
 			entry.setSize(parseLong(contentLength));
 			entry.setPath(href);
@@ -139,22 +152,93 @@ class PropfindResponseParser {
 			entries.add(entry);
 		}
 
-		private Optional<Instant> parseDate(final String text) {
-			try {
-				return Optional.of(Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(text)));
-			} catch (DateTimeException e) {
-				return Optional.empty();
+	}
+
+	private class ParseQuotaHandler extends DefaultHandler {
+
+		public Quota quota;
+		private StringBuilder textBuffer;
+		private String quotaAvailable;
+		private String quotaUsed;
+		private String status;
+
+		@Override
+		public void startElement(String uri, String localName, String qName, Attributes attributes) {
+			switch (localName.toLowerCase()) {
+				case TAG_RESPONSE:
+					status = null;
+					break;
+				case TAG_QUOTA_AVAILABLE:
+				case TAG_QUOTA_USED:
+				case TAG_STATUS:
+					textBuffer = new StringBuilder();
+					break;
+				default:
+					// no-op
 			}
 		}
 
-		private Optional<Long> parseLong(final String text) {
-			try {
-				return Optional.of(Long.parseLong(text));
-			} catch (NumberFormatException e) {
-				return Optional.empty();
+		@Override
+		public void characters(char[] ch, int start, int length) {
+			if (textBuffer != null) {
+				textBuffer.append(ch, start, length);
 			}
 		}
 
+		@Override
+		public void endElement(String uri, String localName, String qName) {
+			switch (localName.toLowerCase()) {
+				case TAG_PROPSTAT:
+					assembleEntry();
+					break;
+				case TAG_QUOTA_AVAILABLE:
+					quotaAvailable = textBuffer.toString();
+					break;
+				case TAG_QUOTA_USED:
+					quotaUsed = textBuffer.toString();
+					break;
+				case TAG_STATUS:
+					status = textBuffer.toString();
+					break;
+				default:
+					// no-op
+			}
+		}
+
+		private void assembleEntry() {
+			if (!status.contains(STATUS_OK)) {
+				LOG.trace("No propstat element with 200 status in response element. Entry ignored.");
+				return; // no-op
+			}
+
+			var available = parseLong(quotaAvailable);
+			var used = parseLong(quotaUsed);
+
+			if(available.isEmpty() || used.isEmpty()) {
+				throw new QuotaNotAvailableException();
+			} else if(available.get() < 0 || used.get() < 0) {
+				throw new QuotaNotAvailableException();
+			} else {
+				quota = new Quota(available.get(), Optional.empty(), used);
+			}
+		}
+
+	}
+
+	private Optional<Instant> parseDate(final String text) {
+		try {
+			return Optional.of(Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(text)));
+		} catch (DateTimeException e) {
+			return Optional.empty();
+		}
+	}
+
+	private Optional<Long> parseLong(final String text) {
+		try {
+			return Optional.of(Long.parseLong(text));
+		} catch (NumberFormatException e) {
+			return Optional.empty();
+		}
 	}
 
 

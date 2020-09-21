@@ -54,6 +54,16 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("quota /")
+	public void testQuota() throws IOException {
+		var result = provider.quota(CloudPath.of("/"));
+		var quota = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+
+		Assertions.assertTrue(quota.getTotalBytes().isPresent());
+		Assertions.assertTrue(quota.getUsedBytes().isEmpty());
+	}
+
+	@Test
 	@DisplayName("list /")
 	public void testListExhaustively() throws IOException {
 		Files.createDirectory(root.resolve("dir"));

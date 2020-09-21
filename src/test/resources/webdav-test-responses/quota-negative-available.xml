@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+	<d:response>
+		<d:href>/cloud/remote.php/webdav/</d:href>
+		<d:propstat>
+			<d:prop>
+				<d:quota-available-bytes>-3</d:quota-available-bytes>
+				<d:quota-used-bytes>37914874</d:quota-used-bytes>
+			</d:prop>
+			<d:status>HTTP/1.1 200 OK</d:status>
+		</d:propstat>
+	</d:response>
+</d:multistatus>

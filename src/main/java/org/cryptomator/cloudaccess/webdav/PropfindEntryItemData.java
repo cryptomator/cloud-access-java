@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-class PropfindEntryData {
+class PropfindEntryItemData {
 
 	private static final Pattern URI_PATTERN = Pattern.compile("^[a-z]+://[^/]+/(.*)$");
 

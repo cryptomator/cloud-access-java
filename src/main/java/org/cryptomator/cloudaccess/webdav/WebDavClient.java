@@ -9,6 +9,7 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
@@ -33,7 +34,7 @@ import java.util.stream.IntStream;
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryData::getDepth);
+	private static final Comparator<PropfindEntryItemData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryItemData::getDepth);
 
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
@@ -44,19 +45,6 @@ public class WebDavClient {
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
-	CloudItemList list(final CloudPath folder) throws CloudProviderException {
-		LOG.trace("list {}", folder);
-		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
-			checkExecutionSucceeded(response.code());
-
-			final var nodes = getEntriesFromResponse(response);
-
-			return processDirList(nodes, folder);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
-	}
-
 	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
 		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
@@ -65,6 +53,46 @@ public class WebDavClient {
 			final var nodes = getEntriesFromResponse(response);
 
 			return processGet(nodes, path);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
+	Quota quota(final CloudPath folder) throws CloudProviderException {
+		LOG.trace("quota {}", folder);
+		final var body = "<?xml version=\"1.0\" ?>\n" //
+				+ "<d:propfind xmlns:d=\"DAV:\">\n" //
+				+ "<d:prop>\n" //
+				+ "<d:quota-available-bytes/>\n" //
+				+ "<d:quota-used-bytes/>\n" //
+				+ "</d:prop>\n" //
+				+ "</d:propfind>";
+
+		final var builder = new Request.Builder() //
+				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
+				.url(absoluteURLFrom(folder)) //
+				.header("Depth", PropfindDepth.ZERO.value) //
+				.header("Content-Type", "text/xml");
+
+		try (final var response = httpClient.execute(builder)) {
+			checkExecutionSucceeded(response.code());
+
+			try (final var responseBody = response.body()) {
+				return new PropfindResponseParser().parseQuta(responseBody.byteStream());
+			}
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
+	CloudItemList list(final CloudPath folder) throws CloudProviderException {
+		LOG.trace("list {}", folder);
+		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
+			checkExecutionSucceeded(response.code());
+
+			final var nodes = getEntriesFromResponse(response);
+
+			return processDirList(nodes, folder);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
@@ -88,18 +116,18 @@ public class WebDavClient {
 		return httpClient.execute(builder);
 	}
 
-	private List<PropfindEntryData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
+	private List<PropfindEntryItemData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
 		try (final var responseBody = response.body()) {
-			return new PropfindResponseParser().parse(responseBody.byteStream());
+			return new PropfindResponseParser().parseItemData(responseBody.byteStream());
 		}
 	}
 
-	private CloudItemMetadata processGet(final List<PropfindEntryData> entryData, final CloudPath path) {
+	private CloudItemMetadata processGet(final List<PropfindEntryItemData> entryData, final CloudPath path) {
 		entryData.sort(ASCENDING_BY_DEPTH);
 		return entryData.size() >= 1 ? toCloudItem(entryData.get(0), path) : null;
 	}
 
-	private CloudItemList processDirList(final List<PropfindEntryData> entryData, final CloudPath folder) {
+	private CloudItemList processDirList(final List<PropfindEntryItemData> entryData, final CloudPath folder) {
 		var result = new CloudItemList(new ArrayList<>());
 
 		if (entryData.isEmpty()) {
@@ -110,13 +138,13 @@ public class WebDavClient {
 		// after sorting the first entry is the parent
 		// because it's depth is 1 smaller than the depth
 		// ot the other entries, thus we skip the first entry
-		for (PropfindEntryData childEntry : entryData.subList(1, entryData.size())) {
+		for (PropfindEntryItemData childEntry : entryData.subList(1, entryData.size())) {
 			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
 		}
 		return result;
 	}
 
-	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
+	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath path) {
 		if (data.isCollection()) {
 			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
 		} else {

@@ -35,6 +35,21 @@ public interface CloudProvider {
 	CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node);
 
 	/**
+	 * Fetches the available, used and or total quota for a folder
+	 * <p>
+	 * The returned CompletionStage might complete exceptionally with one of the following exceptions:
+	 * <ul>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException} If the quota could not be queried. </li>
+	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
+	 * </ul>
+	 *
+	 * @param folder The remote path of the folder, whose quota to fetch.
+	 * @return CompletionStage with the quota info for a folder. If the fetch fails, it completes exceptionally.
+	 */
+	CompletionStage<Quota> quota(CloudPath folder);
+
+	/**
 	 * Starts fetching the contents of a folder.
 	 * If the result's <code>CloudItemList</code> has a <code>nextPageToken</code>, calling this method again with the provided token will continue listing.
 	 * If on the other hand the end of the list is reached, <code>nextPageToken</code> will be absent.

@@ -10,6 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
@@ -78,6 +79,16 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			var cleartextName = node.getFileName().toString();
 			var futureCiphertextMetadata = futureParentDirId.thenApply(parentDirId -> getC9rPath(parentDirId, cleartextName)).thenCompose(delegate::itemMetadata);
 			return futureCiphertextMetadata.thenCombine(futureParentDirId, (ciphertextMetadata, parentDirId) -> toCleartextMetadata(ciphertextMetadata, node.getParent(), parentDirId));
+		}
+	}
+
+	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		if (folder.getNameCount() == 0) {
+			// ROOT
+			return delegate.quota(folder);
+		} else {
+			return getDirPathFromClearTextDir(folder).thenCompose(delegate::quota);
 		}
 	}
 

@@ -5,6 +5,7 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 
 import java.io.InputStream;
 import java.time.Instant;
@@ -27,6 +28,11 @@ public class WebDavCloudProvider implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		return CompletableFuture.supplyAsync(() -> webDavClient.itemMetadata(node));
+	}
+
+	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		return CompletableFuture.supplyAsync(() -> webDavClient.quota(folder));
 	}
 
 	@Override
