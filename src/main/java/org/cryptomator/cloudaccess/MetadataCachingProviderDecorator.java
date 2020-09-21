@@ -19,12 +19,14 @@ import java.util.concurrent.CompletionStage;
 
 public class MetadataCachingProviderDecorator implements CloudProvider {
 
+	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
+
 	final Cache<CloudPath, Optional<CloudItemMetadata>> itemMetadataCache;
 	final Cache<CloudPath, Optional<Quota>> quotaCache;
 	private final CloudProvider delegate;
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
-		this(delegate, Duration.ofSeconds(10));
+		this(delegate, Duration.ofSeconds(DEFAULT_CACHE_TIMEOUT_SECONDS));
 	}
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {

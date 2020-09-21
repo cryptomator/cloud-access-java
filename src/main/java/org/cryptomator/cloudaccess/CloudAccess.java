@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 
 public class CloudAccess {
 
@@ -59,7 +60,7 @@ public class CloudAccess {
 
 			VaultFormat8ProviderDecorator provider = new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 			provider.initialize();
-			return new MetadataCachingProviderDecorator(provider);
+			return new MetadataCachingProviderDecorator(provider, Duration.ofSeconds(Long.getLong("org.cryptomator.cloudaccess.cryptometadatatimeout", 10L)));
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		} catch (InterruptedException e) {

@@ -11,7 +11,7 @@ import okhttp3.Authenticator;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.cryptomator.cloudaccess.api.NetworkTimeout;
+import org.cryptomator.cloudaccess.api.NetworkTimeouts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +32,12 @@ class WebDavCompatibleHttpClient {
 
 	private static OkHttpClient httpClientFor(final WebDavCredential webDavCredential) {
 		final Map<String, CachingAuthenticator> authCache = new ConcurrentHashMap<>();
-
+		var networkTimeouts = NetworkTimeouts.createBySystemPropertiesOrDefaults();
 		final var builder = new OkHttpClient()
 				.newBuilder()
-				.connectTimeout(NetworkTimeout.CONNECTION.getTimeout(), NetworkTimeout.CONNECTION.getUnit())
-				.readTimeout(NetworkTimeout.READ.getTimeout(), NetworkTimeout.READ.getUnit())
-				.writeTimeout(NetworkTimeout.WRITE.getTimeout(), NetworkTimeout.WRITE.getUnit())
+				.connectTimeout(networkTimeouts.connection().getTimeout(), networkTimeouts.connection().getUnit())
+				.readTimeout(networkTimeouts.read().getTimeout(), networkTimeouts.read().getUnit())
+				.writeTimeout(networkTimeouts.write().getTimeout(), networkTimeouts.write().getUnit())
 				.followRedirects(false)
 				.addInterceptor(new HttpLoggingInterceptor(LOG::trace))
 				.authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
