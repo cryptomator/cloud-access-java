@@ -189,8 +189,6 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
@@ -199,7 +197,6 @@ public class WebDavClientTest {
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
-				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl));
 
 		final var path = webDavClient.createFolder(CloudPath.of("/foo"));

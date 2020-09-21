@@ -130,6 +130,7 @@ public interface CloudProvider {
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If the parent directory of this file doesn't exist</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException} If the path points to a node that isn't a file</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given path already exists and <code>replace</code> is false</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException} If the parent folder of a node doesn't exists</li>
 	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
 	 * </ul>
 	 *
@@ -200,6 +201,7 @@ public interface CloudProvider {
 	 * <ul>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given source path</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given target path already exists and <code>replace</code> is false</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException} If the parent folder of a node doesn't exists</li>
 	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
 	 * </ul>
 	 *
