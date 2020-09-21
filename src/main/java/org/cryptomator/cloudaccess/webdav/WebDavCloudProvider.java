@@ -16,9 +16,11 @@ import java.util.concurrent.CompletionStage;
 public class WebDavCloudProvider implements CloudProvider {
 
 	private final WebDavClient webDavClient;
+	private final WebDavProviderConfig config;
 
 	private WebDavCloudProvider(final WebDavCredential webDavCredential) {
-		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential);
+		config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
+		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential, config);
 	}
 
 	public static WebDavCloudProvider from(final WebDavCredential webDavCredential) throws UnauthorizedException, ServerNotWebdavCompatibleException {

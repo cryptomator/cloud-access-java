@@ -26,7 +26,9 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	private final CloudProvider delegate;
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
-		this(delegate, Duration.ofSeconds(DEFAULT_CACHE_TIMEOUT_SECONDS));
+		this(delegate, Duration.ofSeconds( //
+				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS)
+		));
 	}
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {

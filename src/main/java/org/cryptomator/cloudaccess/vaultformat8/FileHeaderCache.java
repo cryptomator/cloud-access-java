@@ -14,10 +14,14 @@ import java.util.function.Function;
 
 class FileHeaderCache {
 
-	private static final Duration TIMEOUT = Duration.ofMillis(1000);
 	private static final Logger LOG = LoggerFactory.getLogger(FileHeaderCache.class);
 
-	private final Cache<CloudPath, FileHeader> cache = CacheBuilder.newBuilder().expireAfterAccess(TIMEOUT).build();
+	private final Cache<CloudPath, FileHeader> cache;
+
+	FileHeaderCache(int timeoutMillis) {
+		this.cache = CacheBuilder.newBuilder().expireAfterAccess(Duration.ofMillis(timeoutMillis)).build();
+	}
+
 
 	public CompletionStage<FileHeader> get(CloudPath ciphertextPath, Function<CloudPath, CompletionStage<FileHeader>> onMiss) {
 		var cached = cache.getIfPresent(ciphertextPath);
