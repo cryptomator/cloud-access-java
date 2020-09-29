@@ -36,9 +36,8 @@ public class WebDavCloudProviderTestIT {
 	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
 	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
-	private final String webDavRequestBody = "<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
+	private final String webDavRequestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
 
-	//TODO: add timeout to webserver if it fails to start/handle the requests
 	public WebDavCloudProviderTestIT() throws IOException, InterruptedException {
 		server = new MockWebServer();
 		server.start();
@@ -222,7 +221,6 @@ public class WebDavCloudProviderTestIT {
 	@Test
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws InterruptedException {
-		server.enqueue(getInterceptedResponse(404, ""));
 		server.enqueue(getInterceptedResponse());
 
 		final var path = Assertions.assertTimeoutPreemptively(timeout, () -> provider.createFolder(CloudPath.of("/foo")).toCompletableFuture().join());
@@ -230,10 +228,6 @@ public class WebDavCloudProviderTestIT {
 		Assertions.assertEquals(path, CloudPath.of("/foo"));
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
-		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
-
-		rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("MKCOL", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
 	}

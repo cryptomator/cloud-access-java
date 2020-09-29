@@ -47,13 +47,15 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
 	private final FileHeaderCache fileHeaderCache;
+	private final VaultFormat8ProviderConfig config;
 
 	public VaultFormat8ProviderDecorator(CloudProvider delegate, CloudPath dataDir, Cryptor cryptor) {
 		this.delegate = delegate;
 		this.dataDir = dataDir;
 		this.cryptor = cryptor;
+		this.config = VaultFormat8ProviderConfig.createFromSystemProperties();
 		this.dirIdCache = new DirectoryIdCache();
-		this.fileHeaderCache = new FileHeaderCache();
+		this.fileHeaderCache = new FileHeaderCache(config.getFileHeaderCacheTimeoutMillis());
 	}
 
 	public void initialize() throws InterruptedException, CloudProviderException {
