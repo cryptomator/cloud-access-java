@@ -11,6 +11,7 @@ import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -73,6 +74,26 @@ public class WebDavClientTest {
 		final var itemMetadata = webDavClient.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"));
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
+	}
+
+	@Test
+	@DisplayName("get quota of /")
+	public void testQuota() throws IOException {
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "quota.xml"));
+
+		final var quota = webDavClient.quota(CloudPath.of("/"));
+
+		Assertions.assertEquals(10699503366L, quota.getAvailableBytes());
+		Assertions.assertEquals(37914874L, quota.getUsedBytes().get());
+		Assertions.assertEquals(Optional.empty(), quota.getTotalBytes());
+	}
+
+	@Test
+	@DisplayName("get quota of / with negative available")
+	public void testQuotaWithNegativeAvailable() throws IOException {
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "quota-negative-available.xml"));
+
+		Assertions.assertThrows(QuotaNotAvailableException.class, () -> webDavClient.quota(CloudPath.of("/")));
 	}
 
 	@Test
@@ -168,8 +189,6 @@ public class WebDavClientTest {
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"))
 				.thenReturn(getInterceptedResponse(baseUrl, "item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		InputStream inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 		webDavClient.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 	}
@@ -178,7 +197,6 @@ public class WebDavClientTest {
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws IOException {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
-				.thenReturn(getInterceptedResponse(baseUrl, 404, ""))
 				.thenReturn(getInterceptedResponse(baseUrl));
 
 		final var path = webDavClient.createFolder(CloudPath.of("/foo"));

@@ -7,6 +7,7 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
 import java.io.InputStream;
@@ -18,21 +19,27 @@ import java.util.concurrent.CompletionStage;
 
 public class MetadataCachingProviderDecorator implements CloudProvider {
 
-	final Cache<CloudPath, Optional<CloudItemMetadata>> metadataCache;
+	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
+
+	final Cache<CloudPath, Optional<CloudItemMetadata>> itemMetadataCache;
+	final Cache<CloudPath, Optional<Quota>> quotaCache;
 	private final CloudProvider delegate;
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
-		this(delegate, Duration.ofSeconds(10));
+		this(delegate, Duration.ofSeconds( //
+				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS)
+		));
 	}
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {
 		this.delegate = delegate;
-		this.metadataCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
+		this.itemMetadataCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
+		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
 	}
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
-		var cachedMetadata = metadataCache.getIfPresent(node);
+		var cachedMetadata = itemMetadataCache.getIfPresent(node);
 		if (cachedMetadata != null) {
 			return cachedMetadata //
 					.map(CompletableFuture::completedFuture) //
@@ -42,11 +49,33 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 					.whenComplete((metadata, exception) -> {
 						if (exception == null) {
 							assert metadata != null;
-							metadataCache.put(node, Optional.of(metadata));
+							itemMetadataCache.put(node, Optional.of(metadata));
 						} else if (exception instanceof NotFoundException) {
-							metadataCache.put(node, Optional.empty());
+							itemMetadataCache.put(node, Optional.empty());
 						} else {
-							metadataCache.invalidate(node);
+							itemMetadataCache.invalidate(node);
+						}
+					});
+		}
+	}
+
+	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		var cachedMetadata = quotaCache.getIfPresent(folder);
+		if (cachedMetadata != null) {
+			return cachedMetadata //
+					.map(CompletableFuture::completedFuture) //
+					.orElseGet(() -> CompletableFuture.failedFuture(new NotFoundException()));
+		} else {
+			return delegate.quota(folder) //
+					.whenComplete((quota, exception) -> {
+						if (exception == null) {
+							assert quota != null;
+							quotaCache.put(folder, Optional.of(quota));
+						} else if (exception instanceof NotFoundException) {
+							quotaCache.put(folder, Optional.empty());
+						} else {
+							quotaCache.invalidate(folder);
 						}
 					});
 		}
@@ -59,7 +88,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 					evictIncludingDescendants(folder);
 					if (exception == null) {
 						assert cloudItemList != null;
-						cloudItemList.getItems().forEach(metadata -> metadataCache.put(metadata.getPath(), Optional.of(metadata)));
+						cloudItemList.getItems().forEach(metadata -> itemMetadataCache.put(metadata.getPath(), Optional.of(metadata)));
 					}
 				});
 	}
@@ -69,7 +98,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.read(file, progressListener) //
 				.whenComplete((metadata, exception) -> {
 					if (exception != null) {
-						metadataCache.invalidate(file);
+						itemMetadataCache.invalidate(file);
 					}
 				});
 	}
@@ -79,7 +108,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.read(file, offset, count, progressListener) //
 				.whenComplete((inputStream, exception) -> {
 					if (exception != null) {
-						metadataCache.invalidate(file);
+						itemMetadataCache.invalidate(file);
 					}
 				});
 	}
@@ -89,7 +118,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.write(file, replace, data, size, lastModified, progressListener) //
 				.whenComplete((nullReturn, exception) -> {
 					if (exception != null) {
-						metadataCache.invalidate(file);
+						itemMetadataCache.invalidate(file);
+						quotaCache.invalidateAll();
 					}
 				});
 	}
@@ -98,7 +128,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
 		return delegate.createFolder(folder) //
 				.whenComplete((metadata, exception) -> {
-					metadataCache.invalidate(folder);
+					itemMetadataCache.invalidate(folder);
 				});
 	}
 
@@ -107,6 +137,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.delete(node) //
 				.whenComplete((nullReturn, exception) -> {
 					evictIncludingDescendants(node);
+					quotaCache.invalidateAll();
 				});
 	}
 
@@ -114,15 +145,16 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		return delegate.move(source, target, replace) //
 				.whenComplete((path, exception) -> {
-					metadataCache.invalidate(source);
-					metadataCache.invalidate(target);
+					itemMetadataCache.invalidate(source);
+					itemMetadataCache.invalidate(target);
+					quotaCache.invalidateAll();
 				});
 	}
 
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
-		for (var path : metadataCache.asMap().keySet()) {
+		for (var path : itemMetadataCache.asMap().keySet()) {
 			if (path.startsWith(cleartextPath)) {
-				metadataCache.invalidate(path);
+				itemMetadataCache.invalidate(path);
 			}
 		}
 	}

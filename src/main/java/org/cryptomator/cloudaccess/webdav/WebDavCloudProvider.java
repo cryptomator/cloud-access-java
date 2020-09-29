@@ -5,6 +5,7 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 
 import java.io.InputStream;
 import java.time.Instant;
@@ -15,9 +16,11 @@ import java.util.concurrent.CompletionStage;
 public class WebDavCloudProvider implements CloudProvider {
 
 	private final WebDavClient webDavClient;
+	private final WebDavProviderConfig config;
 
 	private WebDavCloudProvider(final WebDavCredential webDavCredential) {
-		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential);
+		config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
+		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential, config);
 	}
 
 	public static WebDavCloudProvider from(final WebDavCredential webDavCredential) throws UnauthorizedException, ServerNotWebdavCompatibleException {
@@ -27,6 +30,11 @@ public class WebDavCloudProvider implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		return CompletableFuture.supplyAsync(() -> webDavClient.itemMetadata(node));
+	}
+
+	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		return CompletableFuture.supplyAsync(() -> webDavClient.quota(folder));
 	}
 
 	@Override

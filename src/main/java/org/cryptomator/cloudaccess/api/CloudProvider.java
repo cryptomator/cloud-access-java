@@ -35,6 +35,21 @@ public interface CloudProvider {
 	CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node);
 
 	/**
+	 * Fetches the available, used and or total quota for a folder
+	 * <p>
+	 * The returned CompletionStage might complete exceptionally with one of the following exceptions:
+	 * <ul>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException} If the quota could not be queried. </li>
+	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
+	 * </ul>
+	 *
+	 * @param folder The remote path of the folder, whose quota to fetch.
+	 * @return CompletionStage with the quota info for a folder. If the fetch fails, it completes exceptionally.
+	 */
+	CompletionStage<Quota> quota(CloudPath folder);
+
+	/**
 	 * Starts fetching the contents of a folder.
 	 * If the result's <code>CloudItemList</code> has a <code>nextPageToken</code>, calling this method again with the provided token will continue listing.
 	 * If on the other hand the end of the list is reached, <code>nextPageToken</code> will be absent.
@@ -81,7 +96,7 @@ public interface CloudProvider {
 	 * The returned CompletionStage might complete exceptionally with the same exceptions as specified in {@link #read(CloudPath, long, long, ProgressListener)}.
 	 *
 	 * @param file             A remote path referencing a file
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally.
 	 * @see #read(CloudPath, long, long, ProgressListener)
 	 */
@@ -102,7 +117,7 @@ public interface CloudProvider {
 	 * @param file             A remote path referencing a file
 	 * @param offset           The first byte (inclusive) to read.
 	 * @param count            The number of bytes requested. Can exceed the actual file length. Set to {@link Long#MAX_VALUE} to read till EOF.
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage with an InputStream to read from. If accessing the file fails, it'll complete exceptionally. If the requested range cannot be fulfilled, an inputstream with 0 bytes is returned
 	 */
 	CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener);
@@ -115,6 +130,7 @@ public interface CloudProvider {
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If the parent directory of this file doesn't exist</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException} If the path points to a node that isn't a file</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given path already exists and <code>replace</code> is false</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException} If the parent folder of a node doesn't exists</li>
 	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
 	 * </ul>
 	 *
@@ -123,7 +139,7 @@ public interface CloudProvider {
 	 * @param data             A data source from which to copy contents to the remote file
 	 * @param size             The size of data
 	 * @param lastModified     The lastModified which should be provided to the server
-	 * @param progressListener TODO Future use
+	 * @param progressListener Future use
 	 * @return CompletionStage that will be completed after writing all <code>data</code>.
 	 */
 	CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener);
@@ -185,6 +201,7 @@ public interface CloudProvider {
 	 * <ul>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given source path</li>
 	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException} If a node with the given target path already exists and <code>replace</code> is false</li>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException} If the parent folder of a node doesn't exists</li>
 	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
 	 * </ul>
 	 *

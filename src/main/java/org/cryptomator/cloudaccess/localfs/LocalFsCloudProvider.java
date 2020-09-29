@@ -9,6 +9,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
@@ -98,15 +99,21 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		var file = resolve(folder).toFile();
+		var availableBytes = file.getFreeSpace();
+		var totalBytes = file.getTotalSpace();
+		return CompletableFuture.completedFuture(new Quota(availableBytes, Optional.of(totalBytes), Optional.empty()));
+	}
+
+	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		Path folderPath = resolve(folder);
 		Lock l = lock.readLock();
 		l.lock();
 		try {
 			List<CloudItemMetadata> items = new ArrayList<>();
-			var provider = this;
 			Files.walkFileTree(folderPath, EnumSet.noneOf(FileVisitOption.class), 1, new SimpleFileVisitor<>() {
-
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
 					items.add(createMetadata(file, attrs));
@@ -155,7 +162,7 @@ public class LocalFsCloudProvider implements CloudProvider {
 		try (var ch = FileChannel.open(filePath, options)) {
 			var written = ch.transferFrom(Channels.newChannel(data), 0, Long.MAX_VALUE);
 			assert size == written : "Written bytes should be equal to provided size";
-			if(lastModified.isPresent()) {
+			if (lastModified.isPresent()) {
 				Files.setLastModifiedTime(filePath, FileTime.from(lastModified.get()));
 			}
 			return CompletableFuture.completedFuture(null);

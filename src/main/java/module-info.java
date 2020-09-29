@@ -10,4 +10,5 @@ module org.cryptomator.cloudaccess {
 	requires okhttp3;
 	requires okhttp.digest;
 	requires okio;
+	requires java.jwt;
 }

@@ -9,10 +9,13 @@ import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException;
+import org.cryptomator.cloudaccess.api.exceptions.TypeMismatchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -33,7 +36,7 @@ import java.util.stream.IntStream;
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final Comparator<PropfindEntryData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryData::getDepth);
+	private static final Comparator<PropfindEntryItemData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryItemData::getDepth);
 
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
@@ -44,10 +47,48 @@ public class WebDavClient {
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
+	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
+		LOG.trace("itemMetadata {}", path);
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
+			checkPropfindExecutionSucceeded(response.code());
+
+			return processGet(getEntriesFromResponse(response), path);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
+	Quota quota(final CloudPath folder) throws CloudProviderException {
+		LOG.trace("quota {}", folder);
+		final var body = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" //
+				+ "<d:propfind xmlns:d=\"DAV:\">\n" //
+				+ "<d:prop>\n" //
+				+ "<d:quota-available-bytes/>\n" //
+				+ "<d:quota-used-bytes/>\n" //
+				+ "</d:prop>\n" //
+				+ "</d:propfind>";
+
+		final var builder = new Request.Builder() //
+				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
+				.url(absoluteURLFrom(folder)) //
+				.header("Depth", PropfindDepth.ZERO.value) //
+				.header("Content-Type", "text/xml");
+
+		try (final var response = httpClient.execute(builder)) {
+			checkPropfindExecutionSucceeded(response.code());
+
+			try (final var responseBody = response.body()) {
+				return new PropfindResponseParser().parseQuta(responseBody.byteStream());
+			}
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
 		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
-			checkExecutionSucceeded(response.code());
+			checkPropfindExecutionSucceeded(response.code());
 
 			final var nodes = getEntriesFromResponse(response);
 
@@ -57,21 +98,24 @@ public class WebDavClient {
 		}
 	}
 
-	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
-		LOG.trace("itemMetadata {}", path);
-		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
-			checkExecutionSucceeded(response.code());
+	private void checkPropfindExecutionSucceeded(int responseCode) {
+		switch (responseCode) {
+			case HttpURLConnection.HTTP_UNAUTHORIZED:
+				throw new UnauthorizedException();
+			case HttpURLConnection.HTTP_FORBIDDEN:
+				throw new ForbiddenException();
+			case HttpURLConnection.HTTP_NOT_FOUND:
+				throw new NotFoundException();
+		}
 
-			final var nodes = getEntriesFromResponse(response);
-
-			return processGet(nodes, path);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
+		if (responseCode < 199 || responseCode > 300) {
+			throw new CloudProviderException("Response code isn't between 200 and 300: " + responseCode);
 		}
 	}
 
 	private Response executePropfindRequest(final CloudPath path, final PropfindDepth propfindDepth) throws IOException {
-		final var body = "<d:propfind xmlns:d=\"DAV:\">\n" //
+		final var body = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" //
+				+ "<d:propfind xmlns:d=\"DAV:\">\n" //
 				+ "<d:prop>\n" //
 				+ "<d:resourcetype />\n" //
 				+ "<d:getcontentlength />\n" //
@@ -88,18 +132,18 @@ public class WebDavClient {
 		return httpClient.execute(builder);
 	}
 
-	private List<PropfindEntryData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
+	private List<PropfindEntryItemData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
 		try (final var responseBody = response.body()) {
-			return new PropfindResponseParser().parse(responseBody.byteStream());
+			return new PropfindResponseParser().parseItemData(responseBody.byteStream());
 		}
 	}
 
-	private CloudItemMetadata processGet(final List<PropfindEntryData> entryData, final CloudPath path) {
+	private CloudItemMetadata processGet(final List<PropfindEntryItemData> entryData, final CloudPath path) {
 		entryData.sort(ASCENDING_BY_DEPTH);
 		return entryData.size() >= 1 ? toCloudItem(entryData.get(0), path) : null;
 	}
 
-	private CloudItemList processDirList(final List<PropfindEntryData> entryData, final CloudPath folder) {
+	private CloudItemList processDirList(final List<PropfindEntryItemData> entryData, final CloudPath folder) {
 		var result = new CloudItemList(new ArrayList<>());
 
 		if (entryData.isEmpty()) {
@@ -110,13 +154,13 @@ public class WebDavClient {
 		// after sorting the first entry is the parent
 		// because it's depth is 1 smaller than the depth
 		// ot the other entries, thus we skip the first entry
-		for (PropfindEntryData childEntry : entryData.subList(1, entryData.size())) {
+		for (PropfindEntryItemData childEntry : entryData.subList(1, entryData.size())) {
 			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
 		}
 		return result;
 	}
 
-	private CloudItemMetadata toCloudItem(final PropfindEntryData data, final CloudPath path) {
+	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath path) {
 		if (data.isCollection()) {
 			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
 		} else {
@@ -138,13 +182,26 @@ public class WebDavClient {
 		}
 
 		try (final var response = httpClient.execute(builder)) {
-			if (response.code() == HttpURLConnection.HTTP_PRECON_FAILED) {
-				throw new AlreadyExistsException(absoluteURLFrom(to).toExternalForm());
+			if (response.isSuccessful()) {
+				return to;
+			} else {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					case HttpURLConnection.HTTP_NOT_FOUND:
+						throw new NotFoundException();
+					case HttpURLConnection.HTTP_CONFLICT:
+						throw new ParentFolderDoesNotExistException();
+					case HttpURLConnection.HTTP_PRECON_FAILED:
+						throw new AlreadyExistsException(absoluteURLFrom(to).toExternalForm());
+					case HTTP_INSUFFICIENT_STORAGE:
+						throw new InsufficientStorageException();
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
 			}
-
-			checkExecutionSucceeded(response.code());
-
-			return to;
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -173,15 +230,23 @@ public class WebDavClient {
 		try {
 			response = httpClient.execute(getRequest);
 			final var countingBody = new ProgressResponseWrapper(response.body(), progressListener);
-
-			final int UNSATISFIABLE_RANGE = 416;
-			if (response.code() == UNSATISFIABLE_RANGE) {
-				return new ByteArrayInputStream(new byte[0]);
+			if (response.isSuccessful()) {
+				success = true;
+				return countingBody.byteStream();
+			} else {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					case HttpURLConnection.HTTP_NOT_FOUND:
+						throw new NotFoundException();
+					case 416: // UNSATISFIABLE_RANGE
+						return new ByteArrayInputStream(new byte[0]);
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
 			}
-
-			checkExecutionSucceeded(response.code());
-			success = true;
-			return countingBody.byteStream();
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		} finally {
@@ -205,7 +270,22 @@ public class WebDavClient {
 		lastModified.ifPresent(instant -> requestBuilder.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
 
 		try (final var response = httpClient.execute(requestBuilder)) {
-			checkExecutionSucceeded(response.code());
+			if (!response.isSuccessful()) {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					case HttpURLConnection.HTTP_BAD_METHOD:
+						throw new TypeMismatchException();
+					case HttpURLConnection.HTTP_CONFLICT:
+						throw new ParentFolderDoesNotExistException();
+					case HTTP_INSUFFICIENT_STORAGE:
+						throw new InsufficientStorageException();
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
+			}
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -221,17 +301,29 @@ public class WebDavClient {
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
 		LOG.trace("createFolder {}", path);
-		if (exists(path)) {
-			throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
-		}
-
 		final var builder = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
 
 		try (final var response = httpClient.execute(builder)) {
-			checkExecutionSucceeded(response.code());
-			return path;
+			if (response.isSuccessful()) {
+				return path;
+			} else {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					case HttpURLConnection.HTTP_BAD_METHOD:
+						throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
+					case HttpURLConnection.HTTP_CONFLICT:
+						throw new ParentFolderDoesNotExistException();
+					case HTTP_INSUFFICIENT_STORAGE:
+						throw new InsufficientStorageException();
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
+			}
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -244,7 +336,18 @@ public class WebDavClient {
 				.url(absoluteURLFrom(path));
 
 		try (final var response = httpClient.execute(builder)) {
-			checkExecutionSucceeded(response.code());
+			if (!response.isSuccessful()) {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					case HttpURLConnection.HTTP_NOT_FOUND:
+						throw new NotFoundException(String.format("Node %s doesn't exists", path.toString()));
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
+			}
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -257,10 +360,20 @@ public class WebDavClient {
 				.url(baseUrl);
 
 		try (final var response = httpClient.execute(optionsRequest)) {
-			checkExecutionSucceeded(response.code());
-			final var containsDavHeader = response.headers().names().contains("DAV");
-			if (!containsDavHeader) {
-				throw new ServerNotWebdavCompatibleException();
+			if (response.isSuccessful()) {
+				final var containsDavHeader = response.headers().names().contains("DAV");
+				if (!containsDavHeader) {
+					throw new ServerNotWebdavCompatibleException();
+				}
+			} else {
+				switch (response.code()) {
+					case HttpURLConnection.HTTP_UNAUTHORIZED:
+						throw new UnauthorizedException();
+					case HttpURLConnection.HTTP_FORBIDDEN:
+						throw new ForbiddenException();
+					default:
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
+				}
 			}
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
@@ -269,37 +382,13 @@ public class WebDavClient {
 
 	void tryAuthenticatedRequest() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
-		try {
-			itemMetadata(CloudPath.of("/"));
-		} catch (Exception e) {
-			if (e instanceof UnauthorizedException) {
-				throw e;
-			}
-		}
-	}
-
-	private void checkExecutionSucceeded(final int status) throws CloudProviderException {
-		switch (status) {
-			case HttpURLConnection.HTTP_UNAUTHORIZED:
-				throw new UnauthorizedException();
-			case HttpURLConnection.HTTP_FORBIDDEN:
-				throw new ForbiddenException();
-			case HttpURLConnection.HTTP_NOT_FOUND: // fall through
-			case HttpURLConnection.HTTP_CONFLICT: //
-				throw new NotFoundException();
-			case HTTP_INSUFFICIENT_STORAGE:
-				throw new InsufficientStorageException();
-		}
-
-		if (status < 199 || status > 300) {
-			throw new CloudProviderException("Response code isn't between 200 and 300: " + status);
-		}
+		itemMetadata(CloudPath.of("/"));
 	}
 
 	// visible for testing
 	URL absoluteURLFrom(final CloudPath relativePath) {
 		var basePath = CloudPath.of(baseUrl.getPath()).toAbsolutePath();
-		var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(i -> relativePath.getName(i)).reduce(basePath, CloudPath::resolve);
+		var fullPath = IntStream.range(0, relativePath.getNameCount()).mapToObj(relativePath::getName).reduce(basePath, CloudPath::resolve);
 		try {
 			return new URL(baseUrl, fullPath.toString());
 		} catch (MalformedURLException e) {
@@ -321,8 +410,8 @@ public class WebDavClient {
 
 	static class WebDavAuthenticator {
 
-		static WebDavClient createAuthenticatedWebDavClient(final WebDavCredential webDavCredential) throws ServerNotWebdavCompatibleException, UnauthorizedException {
-			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential), webDavCredential);
+		static WebDavClient createAuthenticatedWebDavClient(final WebDavCredential webDavCredential, WebDavProviderConfig config) throws ServerNotWebdavCompatibleException, UnauthorizedException {
+			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential, config), webDavCredential);
 
 			webDavClient.checkServerCompatibility();
 			webDavClient.tryAuthenticatedRequest();

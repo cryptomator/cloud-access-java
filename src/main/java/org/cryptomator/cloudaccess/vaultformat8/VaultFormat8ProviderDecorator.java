@@ -10,6 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
+import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cryptolib.Cryptors;
 import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
@@ -46,13 +47,15 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
 	private final FileHeaderCache fileHeaderCache;
+	private final VaultFormat8ProviderConfig config;
 
 	public VaultFormat8ProviderDecorator(CloudProvider delegate, CloudPath dataDir, Cryptor cryptor) {
 		this.delegate = delegate;
 		this.dataDir = dataDir;
 		this.cryptor = cryptor;
+		this.config = VaultFormat8ProviderConfig.createFromSystemProperties();
 		this.dirIdCache = new DirectoryIdCache();
-		this.fileHeaderCache = new FileHeaderCache();
+		this.fileHeaderCache = new FileHeaderCache(config.getFileHeaderCacheTimeoutMillis());
 	}
 
 	public void initialize() throws InterruptedException, CloudProviderException {
@@ -78,6 +81,16 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			var cleartextName = node.getFileName().toString();
 			var futureCiphertextMetadata = futureParentDirId.thenApply(parentDirId -> getC9rPath(parentDirId, cleartextName)).thenCompose(delegate::itemMetadata);
 			return futureCiphertextMetadata.thenCombine(futureParentDirId, (ciphertextMetadata, parentDirId) -> toCleartextMetadata(ciphertextMetadata, node.getParent(), parentDirId));
+		}
+	}
+
+	@Override
+	public CompletionStage<Quota> quota(CloudPath folder) {
+		if (folder.getNameCount() == 0) {
+			// ROOT
+			return delegate.quota(folder);
+		} else {
+			return getDirPathFromClearTextDir(folder).thenCompose(delegate::quota);
 		}
 	}
 

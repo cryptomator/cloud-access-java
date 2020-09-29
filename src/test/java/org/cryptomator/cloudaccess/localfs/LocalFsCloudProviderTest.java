@@ -54,6 +54,16 @@ public class LocalFsCloudProviderTest {
 	}
 
 	@Test
+	@DisplayName("quota /")
+	public void testQuota() throws IOException {
+		var result = provider.quota(CloudPath.of("/"));
+		var quota = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
+
+		Assertions.assertTrue(quota.getTotalBytes().isPresent());
+		Assertions.assertTrue(quota.getUsedBytes().isEmpty());
+	}
+
+	@Test
 	@DisplayName("list /")
 	public void testListExhaustively() throws IOException {
 		Files.createDirectory(root.resolve("dir"));
@@ -147,7 +157,8 @@ public class LocalFsCloudProviderTest {
 	public void testWriteToNewFileUpdateModificationDate() throws IOException {
 		var in = new ByteArrayInputStream("hallo welt".getBytes());
 
-		var modDate = Instant.now().minus(Duration.ofDays(365)).truncatedTo(ChronoUnit.MILLIS);
+		// Files.getLastModifiedTime(...) precision in Windows is ChronoUnit.MICROS and Instant.now() is ChronoUnit.NANOS
+		var modDate = Instant.now().minus(Duration.ofDays(365)).truncatedTo(ChronoUnit.MICROS);
 
 		var result = provider.write(CloudPath.of("/file"), false, in, 10, Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE);
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());

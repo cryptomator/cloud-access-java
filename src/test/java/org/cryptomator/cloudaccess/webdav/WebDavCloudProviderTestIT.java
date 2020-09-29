@@ -2,7 +2,6 @@ package org.cryptomator.cloudaccess.webdav;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
 import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
@@ -29,6 +28,7 @@ public class WebDavCloudProviderTestIT {
 	private final MockWebServer server;
 	private final CloudProvider provider;
 	private final URL baseUrl;
+	private final Duration timeout = Duration.ofMillis(1000);
 
 	private final CloudItemMetadata testFolderDocuments = new CloudItemMetadata("Documents", CloudPath.of("/Documents"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 	private final CloudItemMetadata testFileManual = new CloudItemMetadata("Nextcloud Manual.pdf", CloudPath.of("/Nextcloud Manual.pdf"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(6837751L));
@@ -36,9 +36,8 @@ public class WebDavCloudProviderTestIT {
 	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
 	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
-	private final String webDavRequestBody = "<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
+	private final String webDavRequestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
 
-	//TODO: add timeout to webserver if it fails to start/handle the requests
 	public WebDavCloudProviderTestIT() throws IOException, InterruptedException {
 		server = new MockWebServer();
 		server.start();
@@ -49,10 +48,10 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(response);
 		server.enqueue(response);
 
-		provider = WebDavCloudProvider.from(WebDavCredential.from(baseUrl, "foo", "bar"));
+		provider = Assertions.assertTimeoutPreemptively(timeout, () -> WebDavCloudProvider.from(WebDavCredential.from(baseUrl, "foo", "bar")));
 
-		server.takeRequest();
-		server.takeRequest();
+		Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
+		Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 	}
 
 	@Test
@@ -60,10 +59,10 @@ public class WebDavCloudProviderTestIT {
 	public void testItemMetadata() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("item-meta-data-response.xml"));
 
-		final var itemMetadata = provider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf")).toCompletableFuture().join();
+		final var itemMetadata = Assertions.assertTimeoutPreemptively(timeout, () -> provider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf")).toCompletableFuture().join());
 		Assertions.assertEquals(itemMetadata, testFileManual);
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
 		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/Nextcloud%20Manual.pdf", rq.getPath());
@@ -75,14 +74,14 @@ public class WebDavCloudProviderTestIT {
 	public void testList() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("directory-list-response.xml"));
 
-		final var nodeList = provider.list(CloudPath.of("/"), Optional.empty()).toCompletableFuture().join();
+		final var nodeList = Assertions.assertTimeoutPreemptively(timeout, () -> provider.list(CloudPath.of("/"), Optional.empty()).toCompletableFuture().join());
 
 		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
 
 		Assertions.assertEquals(nodeList.getItems(), expectedList);
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
 		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
 		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
@@ -94,12 +93,12 @@ public class WebDavCloudProviderTestIT {
 	public void testRead() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("item-read-response.txt"));
 
-		final var inputStream = provider.read(CloudPath.of("/Documents/About.txt"), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var inputStream = Assertions.assertTimeoutPreemptively(timeout, () -> provider.read(CloudPath.of("/Documents/About.txt"), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
 		final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
 		Assertions.assertEquals(content, load("item-read-response.txt"));
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("GET", rq.getMethod());
 		Assertions.assertNull(rq.getHeader("Range"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
@@ -110,12 +109,12 @@ public class WebDavCloudProviderTestIT {
 	public void testRandomAccessRead() throws InterruptedException {
 		server.enqueue(getInterceptedResponse("item-partial-read-response.txt"));
 
-		final var inputStream = provider.read(CloudPath.of("/Documents/About.txt"), 4, 2, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		final var inputStream = Assertions.assertTimeoutPreemptively(timeout, () -> provider.read(CloudPath.of("/Documents/About.txt"), 4, 2, ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
 		final var content = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
 
 		Assertions.assertEquals(content, load("item-partial-read-response.txt"));
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("GET", rq.getMethod());
 		Assertions.assertEquals("bytes=4-5", rq.getHeader("Range"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/Documents/About.txt", rq.getPath());
@@ -129,15 +128,16 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
-		RecordedRequest rq = server.takeRequest();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
+
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
 		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 
-		rq = server.takeRequest();
+		rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
@@ -149,12 +149,11 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse(201, ""));
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
-		final var writtenItemMetadata = new CloudItemMetadata("foo.txt", CloudPath.of("/foo.txt"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 07 Jul 2020 16:55:50 GMT")), Optional.of(8193L));
-
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		final var cloudItemMetadata = provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
-		RecordedRequest rq = server.takeRequest();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
+
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
@@ -167,12 +166,12 @@ public class WebDavCloudProviderTestIT {
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
 
-		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var cloudItemMetadataUsingReplaceFalse = provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
-			Assertions.assertNull(cloudItemMetadataUsingReplaceFalse);
-		});
+		Assertions.assertThrows(AlreadyExistsException.class, () -> Assertions.assertTimeoutPreemptively(timeout, () -> //
+				provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE) //
+						.toCompletableFuture() //
+						.join()));
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
 		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
@@ -186,9 +185,10 @@ public class WebDavCloudProviderTestIT {
 		server.enqueue(getInterceptedResponse("item-write-response.xml"));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
-		RecordedRequest rq = server.takeRequest();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.write(CloudPath.of("/foo.txt"), true, inputStream, inputStream.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
+
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertNull(rq.getHeader("X-OC-Mtime"));
@@ -204,15 +204,15 @@ public class WebDavCloudProviderTestIT {
 		final var modDate = Instant.now().minus(Duration.ofDays(365));
 
 		final var inputStream = getClass().getResourceAsStream("/progress-request-text.txt");
-		provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.write(CloudPath.of("/foo.txt"), false, inputStream, inputStream.available(), Optional.of(modDate), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
 		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 
-		rq = server.takeRequest();
+		rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PUT", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 		Assertions.assertEquals(String.valueOf(modDate.getEpochSecond()), rq.getHeader("X-OC-Mtime"));
@@ -221,18 +221,13 @@ public class WebDavCloudProviderTestIT {
 	@Test
 	@DisplayName("create /foo")
 	public void testCreateFolder() throws InterruptedException {
-		server.enqueue(getInterceptedResponse(404, ""));
 		server.enqueue(getInterceptedResponse());
 
-		final var path = provider.createFolder(CloudPath.of("/foo")).toCompletableFuture().join();
+		final var path = Assertions.assertTimeoutPreemptively(timeout, () -> provider.createFolder(CloudPath.of("/foo")).toCompletableFuture().join());
 
 		Assertions.assertEquals(path, CloudPath.of("/foo"));
 
-		RecordedRequest rq = server.takeRequest();
-		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
-
-		rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("MKCOL", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
 	}
@@ -242,9 +237,9 @@ public class WebDavCloudProviderTestIT {
 	public void testDeleteFile() throws InterruptedException {
 		server.enqueue(getInterceptedResponse());
 
-		provider.delete(CloudPath.of("/foo.txt")).toCompletableFuture().join();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.delete(CloudPath.of("/foo.txt")).toCompletableFuture().join());
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("DELETE", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
 	}
@@ -254,9 +249,9 @@ public class WebDavCloudProviderTestIT {
 	public void testDeleteFolder() throws InterruptedException {
 		server.enqueue(getInterceptedResponse());
 
-		provider.delete(CloudPath.of("/foo")).toCompletableFuture().join();
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.delete(CloudPath.of("/foo")).toCompletableFuture().join());
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("DELETE", rq.getMethod());
 		Assertions.assertEquals("/cloud/remote.php/webdav/foo", rq.getPath());
 	}
@@ -266,11 +261,11 @@ public class WebDavCloudProviderTestIT {
 	public void testMoveToNonExisting() throws InterruptedException {
 		server.enqueue(getInterceptedResponse());
 
-		final var targetPath = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join();
+		final var targetPath = Assertions.assertTimeoutPreemptively(timeout, () -> provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join());
 
 		Assertions.assertEquals(CloudPath.of("/bar"), targetPath);
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("MOVE", rq.getMethod());
 		Assertions.assertEquals("infinity", rq.getHeader("Depth"));
 		Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
@@ -283,12 +278,9 @@ public class WebDavCloudProviderTestIT {
 	public void testMoveToExisting() throws InterruptedException {
 		server.enqueue(getInterceptedResponse(412, "item-move-exists-no-replace.xml"));
 
-		Assertions.assertThrows(AlreadyExistsException.class, () -> {
-			final var targetPath = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join();
-			Assertions.assertNull(targetPath);
-		});
+		Assertions.assertThrows(AlreadyExistsException.class, () -> Assertions.assertTimeoutPreemptively(timeout, () -> provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), false).toCompletableFuture().join()));
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("MOVE", rq.getMethod());
 		Assertions.assertEquals("infinity", rq.getHeader("Depth"));
 		Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
@@ -300,11 +292,12 @@ public class WebDavCloudProviderTestIT {
 	@DisplayName("move /foo -> /bar (replace existing)")
 	public void testMoveToAndReplaceExisting() throws InterruptedException {
 		server.enqueue(getInterceptedResponse(204, ""));
-		final var targetPath = provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), true).toCompletableFuture().join();
+
+		final var targetPath = Assertions.assertTimeoutPreemptively(timeout, () -> provider.move(CloudPath.of("/foo"), CloudPath.of("/bar"), true).toCompletableFuture().join());
 
 		Assertions.assertEquals(CloudPath.of("/bar"), targetPath);
 
-		RecordedRequest rq = server.takeRequest();
+		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("MOVE", rq.getMethod());
 		Assertions.assertEquals("infinity", rq.getHeader("Depth"));
 		Assertions.assertEquals(baseUrl.toString() + "/bar", rq.getHeader("Destination"));
