@@ -225,9 +225,9 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testDeleteFile() {
 		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
 
-		Mockito.when(cloudProvider.delete(file4Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFile(file4Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(file4Metadata.getPath());
+		var futureResult = decorator.deleteFile(file4Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
@@ -238,9 +238,9 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testDeleteFileNotFound() {
 		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
 
-		Mockito.when(cloudProvider.delete(file4Metadata.getPath())).thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
+		Mockito.when(cloudProvider.deleteFile(file4Metadata.getPath())).thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
 
-		Assertions.assertThrows(NotFoundException.class, () -> decorator.delete(file4Metadata.getPath()).toCompletableFuture().join());
+		Assertions.assertThrows(NotFoundException.class, () -> decorator.deleteFile(file4Metadata.getPath()).toCompletableFuture().join());
 
 		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
 	}
@@ -250,9 +250,9 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testDeleteFolder() {
 		decorator.itemMetadataCache.put(dir1Metadata.getPath(), Optional.of(dir1Metadata));
 
-		Mockito.when(cloudProvider.delete(dir1Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dir1Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(dir1Metadata.getPath());
+		var futureResult = decorator.deleteFolder(dir1Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);

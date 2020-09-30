@@ -133,10 +133,19 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(CloudPath node) {
-		return delegate.delete(node) //
+	public CompletionStage<Void> deleteFile(CloudPath file) {
+		return delegate.deleteFile(file) //
 				.whenComplete((nullReturn, exception) -> {
-					evictIncludingDescendants(node);
+					itemMetadataCache.invalidate(file);
+					quotaCache.invalidateAll();
+				});
+	}
+
+	@Override
+	public CompletionStage<Void> deleteFolder(CloudPath folder) {
+		return delegate.deleteFolder(folder) //
+				.whenComplete((nullReturn, exception) -> {
+					evictIncludingDescendants(folder);
 					quotaCache.invalidateAll();
 				});
 	}

@@ -237,7 +237,7 @@ public class WebDavCloudProviderTestIT {
 	public void testDeleteFile() throws InterruptedException {
 		server.enqueue(getInterceptedResponse());
 
-		Assertions.assertTimeoutPreemptively(timeout, () -> provider.delete(CloudPath.of("/foo.txt")).toCompletableFuture().join());
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.deleteFile(CloudPath.of("/foo.txt")).toCompletableFuture().join());
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("DELETE", rq.getMethod());
@@ -249,7 +249,7 @@ public class WebDavCloudProviderTestIT {
 	public void testDeleteFolder() throws InterruptedException {
 		server.enqueue(getInterceptedResponse());
 
-		Assertions.assertTimeoutPreemptively(timeout, () -> provider.delete(CloudPath.of("/foo")).toCompletableFuture().join());
+		Assertions.assertTimeoutPreemptively(timeout, () -> provider.deleteFolder(CloudPath.of("/foo")).toCompletableFuture().join());
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("DELETE", rq.getMethod());

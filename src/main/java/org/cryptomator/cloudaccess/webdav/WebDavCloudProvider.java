@@ -63,8 +63,13 @@ public class WebDavCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(CloudPath node) {
-		return CompletableFuture.runAsync(() -> webDavClient.delete(node));
+	public CompletionStage<Void> deleteFile(CloudPath file) {
+		return CompletableFuture.runAsync(() -> webDavClient.delete(file));
+	}
+
+	@Override
+	public CompletionStage<Void> deleteFolder(CloudPath folder) {
+		return CompletableFuture.runAsync(() -> webDavClient.delete(folder));
 	}
 
 	@Override
