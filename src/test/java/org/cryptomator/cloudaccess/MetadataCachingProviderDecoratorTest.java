@@ -230,7 +230,8 @@ public class MetadataCachingProviderDecoratorTest {
 		var futureResult = decorator.deleteFile(file4Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
+		Assertions.assertEquals(decorator.itemMetadataCache.size(), 1l);
+		Assertions.assertEquals(decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()), Optional.empty());
 	}
 
 	@Test
@@ -242,7 +243,8 @@ public class MetadataCachingProviderDecoratorTest {
 
 		Assertions.assertThrows(NotFoundException.class, () -> decorator.deleteFile(file4Metadata.getPath()).toCompletableFuture().join());
 
-		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
+		Assertions.assertEquals(decorator.itemMetadataCache.size(), 1l);
+		Assertions.assertEquals(decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()), Optional.empty());
 	}
 
 	@Test
@@ -255,7 +257,8 @@ public class MetadataCachingProviderDecoratorTest {
 		var futureResult = decorator.deleteFolder(dir1Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
+		Assertions.assertEquals(decorator.itemMetadataCache.size(), 1l);
+		Assertions.assertEquals(decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath()), Optional.empty());
 	}
 
 	@Test
@@ -266,7 +269,7 @@ public class MetadataCachingProviderDecoratorTest {
 		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), 15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(decorator.itemMetadataCache.size(), 0l);
@@ -280,7 +283,7 @@ public class MetadataCachingProviderDecoratorTest {
 		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
 
-		Assertions.assertThrows(NotFoundException.class, () -> decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)),15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
+		Assertions.assertThrows(NotFoundException.class, () -> decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), 15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join());
 
 		Assertions.assertNull(decorator.itemMetadataCache.getIfPresent(file1Metadata.getPath()));
 	}
