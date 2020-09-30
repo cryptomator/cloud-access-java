@@ -136,7 +136,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<Void> deleteFile(CloudPath file) {
 		return delegate.deleteFile(file) //
 				.whenComplete((nullReturn, exception) -> {
-					itemMetadataCache.invalidate(file);
+					itemMetadataCache.put(file, Optional.empty());
 					quotaCache.invalidateAll();
 				});
 	}
@@ -146,6 +146,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.deleteFolder(folder) //
 				.whenComplete((nullReturn, exception) -> {
 					evictIncludingDescendants(folder);
+					itemMetadataCache.put(folder, Optional.empty());
 					quotaCache.invalidateAll();
 				});
 	}
