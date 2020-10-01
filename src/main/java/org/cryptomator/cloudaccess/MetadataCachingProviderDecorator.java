@@ -9,6 +9,7 @@ import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException;
 
 import java.io.InputStream;
 import java.time.Duration;
@@ -65,14 +66,14 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		if (cachedMetadata != null) {
 			return cachedMetadata //
 					.map(CompletableFuture::completedFuture) //
-					.orElseGet(() -> CompletableFuture.failedFuture(new NotFoundException()));
+					.orElseGet(() -> CompletableFuture.failedFuture(new QuotaNotAvailableException()));
 		} else {
 			return delegate.quota(folder) //
 					.whenComplete((quota, exception) -> {
 						if (exception == null) {
 							assert quota != null;
 							quotaCache.put(folder, Optional.of(quota));
-						} else if (exception instanceof NotFoundException) {
+						} else if (exception instanceof NotFoundException || exception instanceof QuotaNotAvailableException) {
 							quotaCache.put(folder, Optional.empty());
 						} else {
 							quotaCache.invalidate(folder);

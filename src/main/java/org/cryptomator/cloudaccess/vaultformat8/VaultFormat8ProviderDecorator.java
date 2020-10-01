@@ -178,8 +178,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<Void> deleteFile(CloudPath file) {
-		return itemMetadata(file) //
-				.thenCompose(cloudNode -> getC9rPath(file)) //
+		return getC9rPath(file) //
 				.thenCompose(ciphertextPath -> {
 					fileHeaderCache.evict(ciphertextPath);
 					return delegate.deleteFile(ciphertextPath);
@@ -188,8 +187,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<Void> deleteFolder(CloudPath folder) {
-		return itemMetadata(folder) //
-				.thenCompose(cloudNode -> deleteCiphertextDir(getDirPathFromClearTextDir(folder))) //
+		return deleteCiphertextDir(getDirPathFromClearTextDir(folder)) //
 				.thenCompose(ignored -> getC9rPath(folder)) //
 				.thenCompose(delegate::deleteFolder) //
 				.thenRun(() -> dirIdCache.evictIncludingDescendants(folder));
