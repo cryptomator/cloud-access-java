@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -70,7 +71,7 @@ public class MetadataCachingProviderDecoratorTest {
 		Assertions.assertEquals(file3Metadata.getName(), result.getName());
 		Assertions.assertEquals(CloudItemType.FILE, result.getItemType());
 		Assertions.assertEquals(file3Metadata.getPath(), result.getPath());
-		Assertions.assertEquals(file3Metadata, decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()).get());
+		Assertions.assertEquals(file3Metadata, decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()).toCompletableFuture().join());
 	}
 
 	@Test
@@ -80,8 +81,10 @@ public class MetadataCachingProviderDecoratorTest {
 
 		var futureResult = decorator.itemMetadata(file3Metadata.getPath());
 		Assertions.assertThrows(NotFoundException.class, () -> Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().join()));
+		var futureMetadata = decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath());
+		var futureMetadataException = Assertions.assertThrows(ExecutionException.class, () -> futureMetadata.toCompletableFuture().get());
 
-		Assertions.assertEquals(Optional.empty(), decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()));
+		MatcherAssert.assertThat(futureMetadataException.getCause(), CoreMatchers.instanceOf(NotFoundException.class));
 	}
 
 	@Test
@@ -98,7 +101,7 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("itemMetadata(\"/Directory 1/File 3\") from cache")
 	public void testItemMetadataOfFile3FromCache() {
-		decorator.itemMetadataCache.put(file3Metadata.getPath(), Optional.of(file3Metadata));
+		decorator.itemMetadataCache.put(file3Metadata.getPath(), CompletableFuture.completedFuture(file3Metadata));
 
 		var futureResult = decorator.itemMetadata(file3Metadata.getPath());
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
@@ -106,7 +109,7 @@ public class MetadataCachingProviderDecoratorTest {
 		Assertions.assertEquals(file3Metadata.getName(), result.getName());
 		Assertions.assertEquals(CloudItemType.FILE, result.getItemType());
 		Assertions.assertEquals(file3Metadata.getPath(), result.getPath());
-		Assertions.assertEquals(file3Metadata, decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()).get());
+		Assertions.assertEquals(file3Metadata, decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()).toCompletableFuture().join());
 	}
 
 	@Test
@@ -125,10 +128,10 @@ public class MetadataCachingProviderDecoratorTest {
 		MatcherAssert.assertThat(names, CoreMatchers.hasItem(file2Metadata.getName()));
 		MatcherAssert.assertThat(names, CoreMatchers.hasItem(file4Metadata.getName()));
 
-		Assertions.assertEquals(dir1Metadata, decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath()).get());
-		Assertions.assertEquals(file1Metadata, decorator.itemMetadataCache.getIfPresent(file1Metadata.getPath()).get());
-		Assertions.assertEquals(file2Metadata, decorator.itemMetadataCache.getIfPresent(file2Metadata.getPath()).get());
-		Assertions.assertEquals(file4Metadata, decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()).get());
+		Assertions.assertEquals(dir1Metadata, decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath()).toCompletableFuture().join());
+		Assertions.assertEquals(file1Metadata, decorator.itemMetadataCache.getIfPresent(file1Metadata.getPath()).toCompletableFuture().join());
+		Assertions.assertEquals(file2Metadata, decorator.itemMetadataCache.getIfPresent(file2Metadata.getPath()).toCompletableFuture().join());
+		Assertions.assertEquals(file4Metadata, decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()).toCompletableFuture().join());
 	}
 
 	@Test
@@ -142,11 +145,11 @@ public class MetadataCachingProviderDecoratorTest {
 		 ...
 		 * ├─ file4
 		 */
-		decorator.itemMetadataCache.put(dir1Metadata.getPath(), Optional.of(dir1Metadata));
-		decorator.itemMetadataCache.put(dir2Metadata.getPath(), Optional.of(dir2Metadata));
-		decorator.itemMetadataCache.put(file3Metadata.getPath(), Optional.of(file3Metadata));
+		decorator.itemMetadataCache.put(dir1Metadata.getPath(), CompletableFuture.completedFuture(dir1Metadata));
+		decorator.itemMetadataCache.put(dir2Metadata.getPath(), CompletableFuture.completedFuture(dir2Metadata));
+		decorator.itemMetadataCache.put(file3Metadata.getPath(), CompletableFuture.completedFuture(file3Metadata));
 
-		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
+		decorator.itemMetadataCache.put(file4Metadata.getPath(), CompletableFuture.completedFuture(file4Metadata));
 
 		Mockito.when(cloudProvider.list(dir1Metadata.getPath(), Optional.empty())).thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
 
@@ -155,7 +158,7 @@ public class MetadataCachingProviderDecoratorTest {
 		Assertions.assertNull(decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath()));
 		Assertions.assertNull(decorator.itemMetadataCache.getIfPresent(dir2Metadata.getPath()));
 
-		Assertions.assertEquals(file4Metadata, decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()).get());
+		Assertions.assertEquals(file4Metadata, decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()).toCompletableFuture().join());
 	}
 
 	@Test
@@ -179,7 +182,7 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("read(\"/File 1\", NO_PROGRESS_AWARE) throws NotFoundException")
 	public void testReadNotFound() {
-		decorator.itemMetadataCache.put(file1Metadata.getPath(), Optional.of(file1Metadata));
+		decorator.itemMetadataCache.put(file1Metadata.getPath(), CompletableFuture.completedFuture(file1Metadata));
 
 		Mockito.when(cloudProvider.read(Mockito.eq(file1Metadata.getPath()), Mockito.any())).thenAnswer(invocation -> CompletableFuture.failedFuture(new NotFoundException()));
 
@@ -191,7 +194,7 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("move(\"/File 4\", \"/Directory 1/File 4\", replace=false)")
 	public void testMoveFileToNewFile() {
-		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
+		decorator.itemMetadataCache.put(file4Metadata.getPath(), CompletableFuture.completedFuture(file4Metadata));
 
 		final var movedFile4Metadata = new CloudItemMetadata("file4.png", rootDir.resolve("dir1/file4.png"), CloudItemType.FILE);
 
@@ -209,7 +212,7 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("move(\"/File 4\", \"/Directory 1/File 4\", replace=false) throws NotFoundException")
 	public void testMoveFileToNewFileNotFound() {
-		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
+		decorator.itemMetadataCache.put(file4Metadata.getPath(), CompletableFuture.completedFuture(file4Metadata));
 
 		final var movedFile4Metadata = new CloudItemMetadata("file4.png", rootDir.resolve("dir1/file4.png"), CloudItemType.FILE);
 
@@ -223,42 +226,47 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("delete(\"/File 4\")")
 	public void testDeleteFile() {
-		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
+		decorator.itemMetadataCache.put(file4Metadata.getPath(), CompletableFuture.completedFuture(file4Metadata));
 
 		Mockito.when(cloudProvider.deleteFile(file4Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
 		var futureResult = decorator.deleteFile(file4Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
+		var futureMetadata = decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath());
+		var futureMetadataException = Assertions.assertThrows(ExecutionException.class, () -> futureMetadata.toCompletableFuture().get());
 
 		Assertions.assertEquals(1l, decorator.itemMetadataCache.size());
-		Assertions.assertEquals(Optional.empty(), decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()));
+		MatcherAssert.assertThat(futureMetadataException.getCause(), CoreMatchers.instanceOf(NotFoundException.class));
 	}
 
 	@Test
 	@DisplayName("delete(\"/File 4\") throws NotFoundException")
 	public void testDeleteFileNotFound() {
-		decorator.itemMetadataCache.put(file4Metadata.getPath(), Optional.of(file4Metadata));
+		decorator.itemMetadataCache.put(file4Metadata.getPath(), CompletableFuture.completedFuture(file4Metadata));
 
 		Mockito.when(cloudProvider.deleteFile(file4Metadata.getPath())).thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
-
 		Assertions.assertThrows(NotFoundException.class, () -> decorator.deleteFile(file4Metadata.getPath()).toCompletableFuture().join());
+		var futureMetadata = decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath());
+		var futureMetadataException = Assertions.assertThrows(ExecutionException.class, () -> futureMetadata.toCompletableFuture().get());
 
 		Assertions.assertEquals(1l, decorator.itemMetadataCache.size());
-		Assertions.assertEquals(Optional.empty(), decorator.itemMetadataCache.getIfPresent(file4Metadata.getPath()));
+		MatcherAssert.assertThat(futureMetadataException.getCause(), CoreMatchers.instanceOf(NotFoundException.class));
 	}
 
 	@Test
 	@DisplayName("delete(\"/Directory 1\")")
 	public void testDeleteFolder() {
-		decorator.itemMetadataCache.put(dir1Metadata.getPath(), Optional.of(dir1Metadata));
+		decorator.itemMetadataCache.put(dir1Metadata.getPath(), CompletableFuture.completedFuture(dir1Metadata));
 
 		Mockito.when(cloudProvider.deleteFolder(dir1Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
 		var futureResult = decorator.deleteFolder(dir1Metadata.getPath());
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
+		var futureMetadata = decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath());
+		var futureMetadataException = Assertions.assertThrows(ExecutionException.class, () -> futureMetadata.toCompletableFuture().get());
 
 		Assertions.assertEquals(1l, decorator.itemMetadataCache.size());
-		Assertions.assertEquals(Optional.empty(), decorator.itemMetadataCache.getIfPresent(dir1Metadata.getPath()));
+		MatcherAssert.assertThat(futureMetadataException.getCause(), CoreMatchers.instanceOf(NotFoundException.class));
 	}
 
 	@Test
@@ -278,7 +286,7 @@ public class MetadataCachingProviderDecoratorTest {
 	@Test
 	@DisplayName("write(\"/File 1\", replace=false, text, NO_PROGRESS_AWARE) throws NotFoundException")
 	public void testWriteToFileNotFound() {
-		decorator.itemMetadataCache.put(file1Metadata.getPath(), Optional.of(file1Metadata));
+		decorator.itemMetadataCache.put(file1Metadata.getPath(), CompletableFuture.completedFuture(file1Metadata));
 
 		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
@@ -317,7 +325,7 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testCreateFolderNotFound() {
 		final var dir3Metadata = new CloudItemMetadata("dir3", rootDir.resolve("dir1/dir3"), CloudItemType.FOLDER);
 
-		decorator.itemMetadataCache.put(dir3Metadata.getPath(), Optional.of(dir3Metadata));
+		decorator.itemMetadataCache.put(dir3Metadata.getPath(), CompletableFuture.completedFuture(dir3Metadata));
 
 		Mockito.when(cloudProvider.createFolder(dir3Metadata.getPath())).thenReturn(CompletableFuture.failedFuture(new NotFoundException()));
 
@@ -332,9 +340,9 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testAutoInvalidateCache() throws InterruptedException {
 		decorator = new MetadataCachingProviderDecorator(cloudProvider, Duration.ofMillis(100));
 
-		decorator.itemMetadataCache.put(file1Metadata.getPath(), Optional.of(file1Metadata));
+		decorator.itemMetadataCache.put(file1Metadata.getPath(), CompletableFuture.completedFuture(file1Metadata));
 
-		Assertions.assertEquals(file1Metadata, decorator.itemMetadataCache.getIfPresent(file1Metadata.getPath()).get());
+		Assertions.assertEquals(file1Metadata, decorator.itemMetadataCache.getIfPresent(file1Metadata.getPath()).toCompletableFuture().join());
 
 		Thread.sleep(200);
 
