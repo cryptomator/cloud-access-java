@@ -42,12 +42,12 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		try {
-			return itemMetadataCache.get(node, () -> delegate.itemMetadata(node)).whenComplete((metadata, throwable) -> {
+			return itemMetadataCache.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
 				if (throwable != null && !(throwable instanceof NotFoundException)) {
 					itemMetadataCache.invalidate(node);
 				}
-			});
+			}));
 		} catch (ExecutionException e) {
 			return CompletableFuture.failedFuture(e);
 		}
@@ -56,12 +56,12 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<Quota> quota(CloudPath folder) {
 		try {
-			return quotaCache.get(folder, () -> delegate.quota(folder)).whenComplete((metadata, throwable) -> {
+			return quotaCache.get(folder, () -> delegate.quota(folder).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND and QUOTA NOT AVAILABLE):
 				if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
 					itemMetadataCache.invalidate(folder);
 				}
-			});
+			}));
 		} catch (ExecutionException e) {
 			return CompletableFuture.failedFuture(e);
 		}

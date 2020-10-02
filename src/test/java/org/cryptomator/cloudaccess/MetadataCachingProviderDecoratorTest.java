@@ -94,8 +94,10 @@ public class MetadataCachingProviderDecoratorTest {
 
 		var futureResult = decorator.itemMetadata(file3Metadata.getPath());
 		Assertions.assertThrows(CloudProviderException.class, () -> Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().join()));
+		var futureMetadata = decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath());
+		var futureMetadataException = Assertions.assertThrows(ExecutionException.class, () -> futureMetadata.toCompletableFuture().get());
 
-		Assertions.assertNull(decorator.itemMetadataCache.getIfPresent(file3Metadata.getPath()));
+		MatcherAssert.assertThat(futureMetadataException.getCause(), CoreMatchers.instanceOf(CloudProviderException.class));
 	}
 
 	@Test
