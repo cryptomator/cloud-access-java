@@ -60,7 +60,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 			return quotaCache.get(folder, () -> delegate.quota(folder).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND and QUOTA NOT AVAILABLE):
 				if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
-					itemMetadataCache.invalidate(folder);
+					quotaCache.invalidate(folder);
 				}
 			}));
 		} catch (ExecutionException e) {
