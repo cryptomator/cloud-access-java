@@ -118,6 +118,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.createFolder(folder) //
 				.whenComplete((metadata, exception) -> {
 					itemMetadataCache.invalidate(folder);
+					quotaCache.invalidateAll();
 				});
 	}
 
@@ -146,8 +147,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		return delegate.move(source, target, replace) //
 				.whenComplete((path, exception) -> {
-					itemMetadataCache.invalidate(source);
-					itemMetadataCache.invalidate(target);
+					evictIncludingDescendants(source);
+					evictIncludingDescendants(target);
 					quotaCache.invalidateAll();
 				});
 	}
