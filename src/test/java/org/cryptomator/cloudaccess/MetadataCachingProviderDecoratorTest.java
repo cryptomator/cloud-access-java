@@ -45,8 +45,8 @@ public class MetadataCachingProviderDecoratorTest {
 
 	private final CloudPath rootDir = CloudPath.of("");
 	private final CloudItemMetadata dir1Metadata = new CloudItemMetadata("dir1", rootDir.resolve("dir1"), CloudItemType.FOLDER);
-	private final CloudItemMetadata file1Metadata = new CloudItemMetadata("file1.jpg", rootDir.resolve("file1.c9r"), CloudItemType.FILE);
-	private final CloudItemMetadata file2Metadata = new CloudItemMetadata("file2.mp4", rootDir.resolve("file2.c9r"), CloudItemType.FILE);
+	private final CloudItemMetadata file1Metadata = new CloudItemMetadata("file1.jpg", rootDir.resolve("file1.jpg"), CloudItemType.FILE);
+	private final CloudItemMetadata file2Metadata = new CloudItemMetadata("file2.mp4", rootDir.resolve("file2.mp4"), CloudItemType.FILE);
 	private final CloudItemMetadata dir2Metadata = new CloudItemMetadata("dir2", rootDir.resolve("dir1/dir2"), CloudItemType.FOLDER);
 	private final CloudItemMetadata file3Metadata = new CloudItemMetadata("file3.txt", rootDir.resolve("dir1/file3.txt"), CloudItemType.FILE);
 	private final CloudItemMetadata file4Metadata = new CloudItemMetadata("file4.png", rootDir.resolve("file4.png"), CloudItemType.FILE);
@@ -276,13 +276,14 @@ public class MetadataCachingProviderDecoratorTest {
 	public void testWriteToFile() {
 		var updatedFile1Metadata = new CloudItemMetadata(file1Metadata.getName(), file1Metadata.getPath(), CloudItemType.FILE, Optional.of(Instant.EPOCH), Optional.of(15l));
 
-		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.empty()), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
+		Mockito.when(cloudProvider.write(Mockito.eq(file1Metadata.getPath()), Mockito.eq(false), Mockito.any(InputStream.class), Mockito.eq(15l), Mockito.eq(Optional.of(Instant.EPOCH)), Mockito.eq(ProgressListener.NO_PROGRESS_AWARE)))
 				.thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), 15l, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
+		var futureResult = decorator.write(file1Metadata.getPath(), false, new ByteArrayInputStream("TOPSECRET!".getBytes(UTF_8)), 15l, Optional.of(Instant.EPOCH), ProgressListener.NO_PROGRESS_AWARE);
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Assertions.assertEquals(0l, decorator.itemMetadataCache.size());
+		Assertions.assertEquals(1l, decorator.itemMetadataCache.size());
+		Assertions.assertEquals(updatedFile1Metadata, decorator.itemMetadataCache.getIfPresent(updatedFile1Metadata.getPath()).toCompletableFuture().join());
 	}
 
 	@Test
