@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
@@ -29,7 +30,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
 		this(delegate, Duration.ofSeconds( //
-				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS)
+				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS) //
 		));
 	}
 
@@ -103,9 +104,11 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		return delegate.write(file, replace, data, size, lastModified, progressListener) //
 				.whenComplete((nullReturn, exception) -> {
-					if (exception != null) {
-						itemMetadataCache.invalidate(file);
+					if (exception == null) {
+						itemMetadataCache.put(file, CompletableFuture.completedFuture(new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, lastModified, Optional.of(size))));
 						quotaCache.invalidateAll();
+					} else {
+						itemMetadataCache.invalidate(file);
 					}
 				});
 	}
