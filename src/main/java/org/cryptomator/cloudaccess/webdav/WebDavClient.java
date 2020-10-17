@@ -12,6 +12,7 @@ import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+import org.cryptomator.cloudaccess.api.exceptions.CloudTimeoutException;
 import org.cryptomator.cloudaccess.api.exceptions.InsufficientStorageException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.cryptomator.cloudaccess.api.exceptions.ParentFolderDoesNotExistException;
@@ -23,6 +24,7 @@ import org.xml.sax.SAXException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -53,6 +55,8 @@ public class WebDavClient {
 			checkPropfindExecutionSucceeded(response.code());
 
 			return processGet(getEntriesFromResponse(response), path);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
@@ -80,6 +84,8 @@ public class WebDavClient {
 			try (final var responseBody = response.body()) {
 				return new PropfindResponseParser().parseQuta(responseBody.byteStream());
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
@@ -93,6 +99,8 @@ public class WebDavClient {
 			final var nodes = getEntriesFromResponse(response);
 
 			return processDirList(nodes, folder);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
@@ -202,6 +210,8 @@ public class WebDavClient {
 						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 				}
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -247,6 +257,8 @@ public class WebDavClient {
 						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 				}
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		} finally {
@@ -278,7 +290,8 @@ public class WebDavClient {
 						throw new ForbiddenException();
 					case HttpURLConnection.HTTP_BAD_METHOD:
 						throw new TypeMismatchException();
-					case HttpURLConnection.HTTP_CONFLICT:
+					case HttpURLConnection.HTTP_CONFLICT: // fall through
+					case HttpURLConnection.HTTP_NOT_FOUND: // necessary due to a bug in Nextcloud, see https://github.com/nextcloud/server/issues/23519
 						throw new ParentFolderDoesNotExistException();
 					case HTTP_INSUFFICIENT_STORAGE:
 						throw new InsufficientStorageException();
@@ -286,6 +299,8 @@ public class WebDavClient {
 						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 				}
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -324,6 +339,8 @@ public class WebDavClient {
 						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 				}
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}
@@ -348,6 +365,8 @@ public class WebDavClient {
 						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 				}
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
 		} catch (IOException e) {
 			throw new CloudProviderException(e);
 		}

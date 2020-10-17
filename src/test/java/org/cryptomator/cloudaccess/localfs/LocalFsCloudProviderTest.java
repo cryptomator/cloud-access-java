@@ -189,7 +189,7 @@ public class LocalFsCloudProviderTest {
 	public void testDeleteFile() throws IOException {
 		Files.createFile(root.resolve("file"));
 
-		var result = provider.delete(CloudPath.of("/file"));
+		var result = provider.deleteFile(CloudPath.of("/file"));
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertTrue(Files.notExists(root.resolve("file")));
@@ -201,7 +201,7 @@ public class LocalFsCloudProviderTest {
 		Files.createDirectory(root.resolve("folder"));
 		Files.createFile(root.resolve("folder/file"));
 
-		var result = provider.delete(CloudPath.of("/folder"));
+		var result = provider.deleteFolder(CloudPath.of("/folder"));
 		Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> result.toCompletableFuture().get());
 
 		Assertions.assertTrue(Files.notExists(root.resolve("folder")));

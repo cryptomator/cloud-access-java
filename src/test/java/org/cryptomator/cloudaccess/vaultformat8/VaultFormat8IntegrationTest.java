@@ -64,14 +64,14 @@ public class VaultFormat8IntegrationTest {
 
 	@Test
 	public void testInstantiateFormat8GCMCloudAccessWithoutVaultConfigFile() {
-		localProvider.delete(CloudPath.of("/vaultconfig.jwt"));
+		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
 		var exception = Assertions.assertThrows(CloudProviderException.class, () -> CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]));
 		Assertions.assertTrue(exception.getCause() instanceof NotFoundException);
 	}
 
 	@Test
 	public void testInstantiateFormat8GCMCloudAccessWithWrongVaultVersion() {
-		localProvider.delete(CloudPath.of("/vaultconfig.jwt"));
+		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
 		byte[] masterkey = new byte[64];
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
@@ -87,7 +87,7 @@ public class VaultFormat8IntegrationTest {
 
 	@Test
 	public void testInstantiateFormat8GCMCloudAccessWithWrongCiphermode() {
-		localProvider.delete(CloudPath.of("/vaultconfig.jwt"));
+		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
 		byte[] masterkey = new byte[64];
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
@@ -103,7 +103,7 @@ public class VaultFormat8IntegrationTest {
 
 	@Test
 	public void testInstantiateFormat8GCMCloudAccessWithWrongKey() {
-		localProvider.delete(CloudPath.of("/vaultconfig.jwt"));
+		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
 		byte[] masterkey = new byte[64];
 		Arrays.fill(masterkey, (byte) 15);
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);

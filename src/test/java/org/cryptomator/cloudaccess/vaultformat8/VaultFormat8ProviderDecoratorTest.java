@@ -249,9 +249,9 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileNameCryptor.encryptFilename(BaseEncoding.base64Url(), "File 4", dirIdRoot.getBytes())).thenReturn("file4");
 
 		Mockito.when(cloudProvider.itemMetadata(dataDir.resolve("00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(file4Metadata));
-		Mockito.when(cloudProvider.delete(CloudPath.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFile(CloudPath.of("path/to/vault/d/00/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/file4.c9r"))).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(CloudPath.of("/File 4"));
+		var futureResult = decorator.deleteFile(CloudPath.of("/File 4"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 	}
 
@@ -267,14 +267,14 @@ public class VaultFormat8ProviderDecoratorTest {
 
 		var dir2ItemList = new CloudItemList(List.of(), Optional.empty());
 		Mockito.when(cloudProvider.listExhaustively(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(dir2ItemList));
-		Mockito.when(cloudProvider.delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
-		Mockito.when(cloudProvider.delete(dir2Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dir2Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(CloudPath.of("/Directory 1/Directory 2/"));
+		var futureResult = decorator.deleteFolder(CloudPath.of("/Directory 1/Directory 2/"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Mockito.verify(cloudProvider).delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"));
-		Mockito.verify(cloudProvider).delete(dir2Metadata.getPath());
+		Mockito.verify(cloudProvider).deleteFolder(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"));
+		Mockito.verify(cloudProvider).deleteFolder(dir2Metadata.getPath());
 	}
 
 	@Test
@@ -294,16 +294,16 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(cloudProvider.listExhaustively(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"))).thenReturn(CompletableFuture.completedFuture(dir1ItemList));
 		Mockito.when(cloudProvider.listExhaustively(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(dir2ItemList));
 
-		Mockito.when(cloudProvider.delete(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"))).thenReturn(CompletableFuture.completedFuture(null));
-		Mockito.when(cloudProvider.delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
-		Mockito.when(cloudProvider.delete(dir1Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"))).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"))).thenReturn(CompletableFuture.completedFuture(null));
+		Mockito.when(cloudProvider.deleteFolder(dir1Metadata.getPath())).thenReturn(CompletableFuture.completedFuture(null));
 
-		var futureResult = decorator.delete(CloudPath.of("/Directory 1"));
+		var futureResult = decorator.deleteFolder(CloudPath.of("/Directory 1"));
 		Assertions.assertTimeoutPreemptively(Duration.ofMillis(100), () -> futureResult.toCompletableFuture().get());
 
-		Mockito.verify(cloudProvider).delete(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"));
-		Mockito.verify(cloudProvider).delete(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"));
-		Mockito.verify(cloudProvider).delete(dir1Metadata.getPath());
+		Mockito.verify(cloudProvider).deleteFolder(dataDir.resolve("11/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"));
+		Mockito.verify(cloudProvider).deleteFolder(dataDir.resolve("22/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"));
+		Mockito.verify(cloudProvider).deleteFolder(dir1Metadata.getPath());
 	}
 
 	@DisplayName("create(\"/Directory 3/\")")

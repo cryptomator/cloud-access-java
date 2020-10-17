@@ -195,8 +195,25 @@ public class LocalFsCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(CloudPath node) {
-		Path path = resolve(node);
+	public CompletionStage<Void> deleteFile(CloudPath file) {
+		Path path = resolve(file);
+		Lock l = lock.writeLock();
+		l.lock();
+		try {
+			Files.delete(path);
+			return CompletableFuture.completedFuture(null);
+		} catch (NoSuchFileException e) {
+			return CompletableFuture.failedFuture(new NotFoundException(e));
+		} catch (IOException e) {
+			return CompletableFuture.failedFuture(new CloudProviderException(e));
+		} finally {
+			l.unlock();
+		}
+	}
+
+	@Override
+	public CompletionStage<Void> deleteFolder(CloudPath folder) {
+		Path path = resolve(folder);
 		Lock l = lock.writeLock();
 		l.lock();
 		try {

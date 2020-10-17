@@ -177,20 +177,20 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	}
 
 	@Override
-	public CompletionStage<Void> delete(CloudPath node) {
-		return itemMetadata(node).thenCompose(cloudNode -> {
-			if (cloudNode.getItemType() == CloudItemType.FILE) {
-				return getC9rPath(node).thenCompose(ciphertextPath -> {
+	public CompletionStage<Void> deleteFile(CloudPath file) {
+		return getC9rPath(file) //
+				.thenCompose(ciphertextPath -> {
 					fileHeaderCache.evict(ciphertextPath);
-					return delegate.delete(ciphertextPath);
+					return delegate.deleteFile(ciphertextPath);
 				});
-			} else {
-				return deleteCiphertextDir(getDirPathFromClearTextDir(node)) //
-						.thenCompose(ignored -> getC9rPath(node)) //
-						.thenCompose(delegate::delete) //
-						.thenRun(() -> dirIdCache.evictIncludingDescendants(node));
-			}
-		});
+	}
+
+	@Override
+	public CompletionStage<Void> deleteFolder(CloudPath folder) {
+		return deleteCiphertextDir(getDirPathFromClearTextDir(folder)) //
+				.thenCompose(ignored -> getC9rPath(folder)) //
+				.thenCompose(delegate::deleteFolder) //
+				.thenRun(() -> dirIdCache.evictIncludingDescendants(folder));
 	}
 
 	private CompletionStage<Void> deleteCiphertextDir(CompletionStage<CloudPath> dirPath) {
@@ -203,7 +203,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 					var futures = result.map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
 					return CompletableFuture.allOf(futures);
 				}).thenCombine(dirPath, (unused, path) -> path) //
-				.thenCompose(delegate::delete);
+				.thenCompose(delegate::deleteFolder);
 	}
 
 	@Override

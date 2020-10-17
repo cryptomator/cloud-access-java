@@ -181,7 +181,7 @@ public interface CloudProvider {
 	}
 
 	/**
-	 * Recursively delete a file or folder.
+	 * Delete a file.
 	 * <p>
 	 * The returned CompletionStage might complete exceptionally with one of the following exceptions:
 	 * <ul>
@@ -189,10 +189,24 @@ public interface CloudProvider {
 	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
 	 * </ul>
 	 *
-	 * @param node The remote path of the file or folder to delete.
-	 * @return CompletionStage completing successfully if node was deleted.
+	 * @param file The remote path of the file to delete.
+	 * @return CompletionStage completing successfully if file was deleted.
 	 */
-	CompletionStage<Void> delete(CloudPath node);
+	CompletionStage<Void> deleteFile(CloudPath file);
+
+	/**
+	 * Recursively delete a folder.
+	 * <p>
+	 * The returned CompletionStage might complete exceptionally with one of the following exceptions:
+	 * <ul>
+	 *     <li>{@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException} If no item exists for the given path</li>
+	 *     <li>{@link CloudProviderException} in case of generic I/O errors</li>
+	 * </ul>
+	 *
+	 * @param folder The remote path of the folder to delete.
+	 * @return CompletionStage completing successfully if folder was deleted.
+	 */
+	CompletionStage<Void> deleteFolder(CloudPath folder);
 
 	/**
 	 * Move a file or folder to a different location.
