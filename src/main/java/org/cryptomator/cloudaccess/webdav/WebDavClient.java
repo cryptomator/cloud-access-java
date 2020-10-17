@@ -290,7 +290,8 @@ public class WebDavClient {
 						throw new ForbiddenException();
 					case HttpURLConnection.HTTP_BAD_METHOD:
 						throw new TypeMismatchException();
-					case HttpURLConnection.HTTP_CONFLICT:
+					case HttpURLConnection.HTTP_CONFLICT: // fall through
+					case HttpURLConnection.HTTP_NOT_FOUND: // necessary due to a bug in Nextcloud, see https://github.com/nextcloud/server/issues/23519
 						throw new ParentFolderDoesNotExistException();
 					case HTTP_INSUFFICIENT_STORAGE:
 						throw new InsufficientStorageException();
