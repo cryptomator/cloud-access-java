@@ -76,8 +76,8 @@ public class VaultFormat8IntegrationTest {
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
 				.withJWTId(UUID.randomUUID().toString())
-				.withClaim("version", 9)
-				.withClaim("ciphermode", "SIV_GCM")
+				.withClaim("format", 9)
+				.withClaim("cipherCombo", "SIV_GCM")
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -92,8 +92,8 @@ public class VaultFormat8IntegrationTest {
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
 				.withJWTId(UUID.randomUUID().toString())
-				.withClaim("version", 8)
-				.withClaim("ciphermode", "FOO")
+				.withClaim("format", 8)
+				.withClaim("cipherCombo", "FOO")
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -109,8 +109,8 @@ public class VaultFormat8IntegrationTest {
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
 				.withJWTId(UUID.randomUUID().toString())
-				.withClaim("version", 8)
-				.withClaim("ciphermode", "FOO")
+				.withClaim("format", 8)
+				.withClaim("cipherCombo", "FOO")
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();

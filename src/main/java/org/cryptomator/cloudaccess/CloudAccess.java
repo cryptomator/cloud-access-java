@@ -73,8 +73,8 @@ public class CloudAccess {
 		var vaultConfigPath = pathToVault.resolve("vaultconfig.jwt");
 		var algorithm = Algorithm.HMAC256(rawKey);
 		var verifier = JWT.require(algorithm)
-				.withClaim("version", 8)
-				.withClaim("ciphermode", "SIV_GCM")
+				.withClaim("format", 8)
+				.withClaim("cipherCombo", "SIV_GCM")
 				.build();
 
 		var read = cloudProvider.read(vaultConfigPath, ProgressListener.NO_PROGRESS_AWARE);
@@ -85,7 +85,7 @@ public class CloudAccess {
 		} catch (SignatureVerificationException e) {
 			throw new VaultKeyVerificationFailedException(e);
 		} catch (JWTVerificationException e) {
-			if (e.getMessage().equals("The Claim 'version' value doesn't match the required one.")) {
+			if (e.getMessage().equals("The Claim 'format' value doesn't match the required one.")) {
 				throw new VaultVersionVerificationFailedException(e);
 			} else {
 				throw new VaultVerificationFailedException(e);
