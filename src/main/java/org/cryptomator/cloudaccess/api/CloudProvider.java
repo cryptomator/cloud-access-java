@@ -2,6 +2,7 @@ package org.cryptomator.cloudaccess.api;
 
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
 import java.io.InputStream;
 import java.time.Instant;
@@ -33,6 +34,27 @@ public interface CloudProvider {
 	 * @return CompletionStage with the metadata for a file or folder. If the fetch fails, it completes exceptionally.
 	 */
 	CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node);
+
+	/**
+	 * Convenience method to check whether the given node exists by attempting to fetch its metadata.
+	 * <p>
+	 * The returned CompletionState might fail with a {@link CloudProviderException} in case of generic I/O errors.
+	 *
+	 * @param node The remote path of the file or folder, whose metadata to fetch.
+	 * @return <code>true</code> if metadata is returned, <code>false</code> in case of a {@link org.cryptomator.cloudaccess.api.exceptions.NotFoundException}
+	 * @since 1.1.3
+	 */
+	default CompletionStage<Boolean> exists(CloudPath node) {
+		return itemMetadata(node).handle((result, exception) -> {
+			if (result != null) {
+				return CompletableFuture.completedFuture(true);
+			} else if (exception instanceof NotFoundException) {
+				return CompletableFuture.completedFuture(false);
+			} else {
+				return CompletableFuture.<Boolean>failedFuture(exception);
+			}
+		}).thenCompose(Function.identity());
+	}
 
 	/**
 	 * Fetches the available, used and or total quota for a folder
