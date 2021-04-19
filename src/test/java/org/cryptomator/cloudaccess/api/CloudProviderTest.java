@@ -1,6 +1,7 @@
 package org.cryptomator.cloudaccess.api;
 
 import org.cryptomator.cloudaccess.api.exceptions.AlreadyExistsException;
+import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
@@ -80,6 +81,36 @@ public class CloudProviderTest {
 		var result = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> futureResult.toCompletableFuture().get());
 
 		Assertions.assertEquals(path, result);
+	}
+
+	@Test
+	@DisplayName("exists() for existing node")
+	public void testExists1() {
+		var provider = Mockito.mock(CloudProvider.class);
+		var path = Mockito.mock(CloudPath.class, "/path/to/node");
+		var metadata = Mockito.mock(CloudItemMetadata.class);
+		Mockito.when(provider.itemMetadata(path)).thenReturn(CompletableFuture.completedFuture(metadata));
+		Mockito.when(provider.exists(Mockito.any())).thenCallRealMethod();
+
+		var futureResult = provider.exists(path);
+		var result = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> futureResult.toCompletableFuture().get());
+
+		Assertions.assertTrue(result);
+	}
+
+	@Test
+	@DisplayName("exists() for non-existing node")
+	public void testExists2() {
+		var provider = Mockito.mock(CloudProvider.class);
+		var path = Mockito.mock(CloudPath.class, "/path/to/node");
+		var e = new NotFoundException("/path/to/node");
+		Mockito.when(provider.itemMetadata(path)).thenReturn(CompletableFuture.failedFuture(e));
+		Mockito.when(provider.exists(Mockito.any())).thenCallRealMethod();
+
+		var futureResult = provider.exists(path);
+		var result = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(1), () -> futureResult.toCompletableFuture().get());
+
+		Assertions.assertFalse(result);
 	}
 
 }

@@ -75,6 +75,7 @@ public class CloudAccess {
 		var verifier = JWT.require(algorithm)
 				.withClaim("format", 8)
 				.withClaim("cipherCombo", "SIV_GCM")
+				.withClaim("shorteningThreshold", Integer.MAX_VALUE) // no shortening supported atm
 				.build();
 
 		var read = cloudProvider.read(vaultConfigPath, ProgressListener.NO_PROGRESS_AWARE);
