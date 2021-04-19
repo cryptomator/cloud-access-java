@@ -12,7 +12,10 @@ import org.cryptomator.cloudaccess.api.exceptions.VaultKeyVerificationFailedExce
 import org.cryptomator.cloudaccess.api.exceptions.VaultVerificationFailedException;
 import org.cryptomator.cloudaccess.api.exceptions.VaultVersionVerificationFailedException;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,47 +34,63 @@ public class VaultFormat8IntegrationTest {
 	private static final Duration TIMEOUT = Duration.ofMillis(100);
 
 	private CloudProvider localProvider;
-	private CloudProvider encryptedProvider;
 
 	@BeforeEach
 	public void setup(@TempDir Path tmpDir) throws IOException {
 		this.localProvider = CloudAccess.toLocalFileSystem(tmpDir);
-		var in = getClass().getResourceAsStream("/vaultconfig.jwt");
-		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
-		this.encryptedProvider = CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]);
+	}
+
+	@Nested
+	@DisplayName("with valid /vaultconfig.jwt")
+	public class WithInitializedVaultConfig {
+
+		private CloudProvider encryptedProvider;
+
+		@BeforeEach
+		public void setup() throws IOException {
+			var in = getClass().getResourceAsStream("/vaultconfig.jwt");
+			localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+			this.encryptedProvider = CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]);
+		}
+
+		@Test
+		@DisplayName("read and write through encryption decorator")
+		public void testWriteThenReadFile() throws IOException {
+			var path = CloudPath.of("/file.txt");
+			var content = new byte[100_000];
+			new Random(42l).nextBytes(content);
+
+			// write 100k
+			var futureMetadata = encryptedProvider.write(path, true, new ByteArrayInputStream(content), content.length, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
+			Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureMetadata.toCompletableFuture().get());
+
+			// read all bytes
+			var futureInputStream1 = encryptedProvider.read(path, ProgressListener.NO_PROGRESS_AWARE);
+			var inputStream1 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream1.toCompletableFuture().get());
+			Assertions.assertArrayEquals(content, inputStream1.readAllBytes());
+
+			// read partially
+			var futureInputStream2 = encryptedProvider.read(path, 2000, 15000, ProgressListener.NO_PROGRESS_AWARE);
+			var inputStream2 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream2.toCompletableFuture().get());
+			Assertions.assertArrayEquals(Arrays.copyOfRange(content, 2000, 17000), inputStream2.readAllBytes());
+		}
+
 	}
 
 	@Test
-	public void testWriteThenReadFile() throws IOException {
-		var path = CloudPath.of("/file.txt");
-		var content = new byte[100_000];
-		new Random(42l).nextBytes(content);
-
-		// write 100k
-		var futureMetadata = encryptedProvider.write(path, true, new ByteArrayInputStream(content), content.length, Optional.empty(), ProgressListener.NO_PROGRESS_AWARE);
-		Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureMetadata.toCompletableFuture().get());
-
-		// read all bytes
-		var futureInputStream1 = encryptedProvider.read(path, ProgressListener.NO_PROGRESS_AWARE);
-		var inputStream1 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream1.toCompletableFuture().get());
-		Assertions.assertArrayEquals(content, inputStream1.readAllBytes());
-
-		// read partially
-		var futureInputStream2 = encryptedProvider.read(path, 2000, 15000, ProgressListener.NO_PROGRESS_AWARE);
-		var inputStream2 = Assertions.assertTimeoutPreemptively(TIMEOUT, () -> futureInputStream2.toCompletableFuture().get());
-		Assertions.assertArrayEquals(Arrays.copyOfRange(content, 2000, 17000), inputStream2.readAllBytes());
-	}
-
-	@Test
+	@DisplayName("init with missing /vaultconfig.jwt fails")
 	public void testInstantiateFormat8GCMCloudAccessWithoutVaultConfigFile() {
-		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
+		Assumptions.assumeFalse(localProvider.exists(CloudPath.of("/vaultconfig.jwt")).toCompletableFuture().join());
+
 		var exception = Assertions.assertThrows(CloudProviderException.class, () -> CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]));
 		Assertions.assertTrue(exception.getCause() instanceof NotFoundException);
 	}
 
 	@Test
+	@DisplayName("init with wrong format")
 	public void testInstantiateFormat8GCMCloudAccessWithWrongVaultVersion() {
-		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
+		Assumptions.assumeFalse(localProvider.exists(CloudPath.of("/vaultconfig.jwt")).toCompletableFuture().join());
+
 		byte[] masterkey = new byte[64];
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
@@ -86,8 +105,10 @@ public class VaultFormat8IntegrationTest {
 	}
 
 	@Test
+	@DisplayName("init with invalid cipherCombo fails")
 	public void testInstantiateFormat8GCMCloudAccessWithWrongCiphermode() {
-		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
+		Assumptions.assumeFalse(localProvider.exists(CloudPath.of("/vaultconfig.jwt")).toCompletableFuture().join());
+
 		byte[] masterkey = new byte[64];
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
 		var token = JWT.create()
@@ -102,8 +123,10 @@ public class VaultFormat8IntegrationTest {
 	}
 
 	@Test
+	@DisplayName("init with wrong key")
 	public void testInstantiateFormat8GCMCloudAccessWithWrongKey() {
-		localProvider.deleteFile(CloudPath.of("/vaultconfig.jwt"));
+		Assumptions.assumeFalse(localProvider.exists(CloudPath.of("/vaultconfig.jwt")).toCompletableFuture().join());
+
 		byte[] masterkey = new byte[64];
 		Arrays.fill(masterkey, (byte) 15);
 		Algorithm algorithm = Algorithm.HMAC256(masterkey);
