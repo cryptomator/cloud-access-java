@@ -97,6 +97,7 @@ public class VaultFormat8IntegrationTest {
 				.withJWTId(UUID.randomUUID().toString())
 				.withClaim("format", 9)
 				.withClaim("cipherCombo", "SIV_GCM")
+				.withClaim("shorteningThreshold", Integer.MAX_VALUE)
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -115,6 +116,7 @@ public class VaultFormat8IntegrationTest {
 				.withJWTId(UUID.randomUUID().toString())
 				.withClaim("format", 8)
 				.withClaim("cipherCombo", "FOO")
+				.withClaim("shorteningThreshold", Integer.MAX_VALUE)
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
@@ -133,12 +135,32 @@ public class VaultFormat8IntegrationTest {
 		var token = JWT.create()
 				.withJWTId(UUID.randomUUID().toString())
 				.withClaim("format", 8)
-				.withClaim("cipherCombo", "FOO")
+				.withClaim("cipherCombo", "SIV_GCM")
+				.withClaim("shorteningThreshold", Integer.MAX_VALUE)
 				.sign(algorithm);
 		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
 		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
 
 		Assertions.assertThrows(VaultKeyVerificationFailedException.class, () -> CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]));
+	}
+
+	@Test
+	@DisplayName("init with shorteningThreshold")
+	public void testInstantiateFormat8GCMCloudAccessWithShortening() {
+		Assumptions.assumeFalse(localProvider.exists(CloudPath.of("/vaultconfig.jwt")).toCompletableFuture().join());
+
+		byte[] masterkey = new byte[64];
+		Algorithm algorithm = Algorithm.HMAC256(masterkey);
+		var token = JWT.create()
+				.withJWTId(UUID.randomUUID().toString())
+				.withClaim("format", 8)
+				.withClaim("cipherCombo", "SIV_GCM")
+				.withClaim("shorteningThreshold", 42)
+				.sign(algorithm);
+		var in = new ByteArrayInputStream(token.getBytes(StandardCharsets.US_ASCII));
+		localProvider.write(CloudPath.of("/vaultconfig.jwt"), false, in, in.available(), Optional.empty(), ProgressListener.NO_PROGRESS_AWARE).toCompletableFuture().join();
+
+		Assertions.assertThrows(VaultVerificationFailedException.class, () -> CloudAccess.vaultFormat8GCMCloudAccess(localProvider, CloudPath.of("/"), new byte[64]));
 	}
 
 }
