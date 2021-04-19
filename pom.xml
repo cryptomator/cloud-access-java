@@ -45,9 +45,8 @@
         <jwt.version>3.12.0</jwt.version>
         <cryptolib.version>1.4.1</cryptolib.version>
 
-        <okhttp.version>4.7.2</okhttp.version>
-        <okhttp-digest.version>2.4</okhttp-digest.version>
-        <okhttp.mockwebserver.version>4.7.2</okhttp.mockwebserver.version>
+        <okhttp.version>4.9.1</okhttp.version>
+        <okhttp-digest.version>2.5</okhttp-digest.version>
         <kxml2.version>2.3.0</kxml2.version>
 
         <slf4j.version>1.7.30</slf4j.version>
@@ -111,9 +110,14 @@
             <version>${okhttp.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.burgstaller</groupId>
+            <groupId>io.github.rburgst</groupId>
             <artifactId>okhttp-digest</artifactId>
             <version>${okhttp-digest.version}</version>
+        </dependency>
+        <dependency> <!-- TMP fix for CVE-2020-29582 in okhttp -->
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>1.4.32</version>
         </dependency>
 
         <!-- Test -->
@@ -138,7 +142,7 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
-            <version>${okhttp.mockwebserver.version}</version>
+            <version>${okhttp.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -203,7 +207,7 @@
 					<plugin>
 						<groupId>org.owasp</groupId>
 						<artifactId>dependency-check-maven</artifactId>
-						<version>6.1.0</version>
+						<version>6.1.5</version>
 						<configuration>
 							<cveValidForHours>24</cveValidForHours>
 							<failBuildOnCVSS>0</failBuildOnCVSS>
