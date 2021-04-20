@@ -64,21 +64,6 @@
         </license>
     </licenses>
 
-    <repositories>
-        <repository>
-            <id>bintray</id>
-            <name>bintray</name>
-            <url>https://jcenter.bintray.com</url>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>bintray-jcenter</id>
-            <url>https://api.bintray.com/maven/cryptomator/maven/cloud-access/;publish=1</url>
-        </repository>
-    </distributionManagement>
-
     <dependencies>
         <dependency>
             <groupId>com.google.guava</groupId>
