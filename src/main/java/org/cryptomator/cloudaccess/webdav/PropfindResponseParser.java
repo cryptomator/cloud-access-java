@@ -28,6 +28,7 @@ class PropfindResponseParser {
 	private static final String TAG_RESPONSE = "response";
 	private static final String TAG_HREF = "href";
 	private static final String TAG_COLLECTION = "collection";
+	private static final String TAG_ETAG = "getetag";
 	private static final String TAG_LAST_MODIFIED = "getlastmodified";
 	private static final String TAG_CONTENT_LENGTH = "getcontentlength";
 	private static final String TAG_QUOTA_AVAILABLE = "quota-available-bytes";
@@ -68,6 +69,22 @@ class PropfindResponseParser {
 		return parseHandler.quota;
 	}
 
+	private Optional<Instant> parseDate(final String text) {
+		try {
+			return Optional.of(Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(text)));
+		} catch (DateTimeException e) {
+			return Optional.empty();
+		}
+	}
+
+	private Optional<Long> parseLong(final String text) {
+		try {
+			return Optional.of(Long.parseLong(text));
+		} catch (NumberFormatException e) {
+			return Optional.empty();
+		}
+	}
+
 	private class ParseItemMetadataHandler extends DefaultHandler {
 
 		public final List<PropfindEntryItemData> entries = new ArrayList<>();
@@ -77,6 +94,7 @@ class PropfindResponseParser {
 		private String contentLength;
 		private String status;
 		private boolean isCollection;
+		private String etag;
 
 		@Override
 		public void startElement(String uri, String localName, String qName, Attributes attributes) {
@@ -91,6 +109,7 @@ class PropfindResponseParser {
 				case TAG_HREF:
 				case TAG_LAST_MODIFIED:
 				case TAG_CONTENT_LENGTH:
+				case TAG_ETAG:
 				case TAG_STATUS:
 					textBuffer = new StringBuilder();
 					break;
@@ -124,6 +143,9 @@ class PropfindResponseParser {
 				case TAG_CONTENT_LENGTH:
 					contentLength = textBuffer.toString();
 					break;
+				case TAG_ETAG:
+					etag = textBuffer.toString();
+					break;
 				case TAG_STATUS:
 					status = textBuffer.toString();
 					break;
@@ -143,11 +165,13 @@ class PropfindResponseParser {
 				return; // no-op
 			}
 
-			var entry = new PropfindEntryItemData();
-			entry.setLastModified(parseDate(lastModified));
-			entry.setSize(parseLong(contentLength));
-			entry.setPath(href);
-			entry.setCollection(isCollection);
+			var entry = new PropfindEntryItemData.Builder()
+					.withPath(href)
+					.withCollection(isCollection)
+					.withLastModified(parseDate(lastModified))
+					.withSize(parseLong(contentLength))
+					.withEtag(etag)
+					.build();
 
 			entries.add(entry);
 		}
@@ -214,31 +238,15 @@ class PropfindResponseParser {
 			var available = parseLong(quotaAvailable);
 			var used = parseLong(quotaUsed);
 
-			if(available.isEmpty() || used.isEmpty()) {
+			if (available.isEmpty() || used.isEmpty()) {
 				throw new QuotaNotAvailableException();
-			} else if(available.get() < 0 || used.get() < 0) {
+			} else if (available.get() < 0 || used.get() < 0) {
 				throw new QuotaNotAvailableException();
 			} else {
 				quota = new Quota(available.get(), Optional.empty(), used);
 			}
 		}
 
-	}
-
-	private Optional<Instant> parseDate(final String text) {
-		try {
-			return Optional.of(Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(text)));
-		} catch (DateTimeException e) {
-			return Optional.empty();
-		}
-	}
-
-	private Optional<Long> parseLong(final String text) {
-		try {
-			return Optional.of(Long.parseLong(text));
-		} catch (NumberFormatException e) {
-			return Optional.empty();
-		}
 	}
 
 

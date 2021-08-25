@@ -29,37 +29,74 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final Comparator<PropfindEntryItemData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryItemData::getDepth);
-
+	private static final String NEXTCLOUD_WEBDAV_PATH = "/remote.php/webdav";
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
+	private WebDavTreeNode root = new WebDavTreeNode("");
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
-	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
-		LOG.trace("itemMetadata {}", path);
-		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
+	private void initialListInfinitDepthRequest() {
+		try (final var response = executePropfindRequest(CloudPath.of("/"), PropfindDepth.INFINITY)) {
 			checkPropfindExecutionSucceeded(response.code());
 
-			return processGet(getEntriesFromResponse(response), path);
+			root = new WebDavTreeNode("");
+
+			for (PropfindEntryItemData propfindEntryItemData : getEntriesFromResponse(response)) {
+				var pathSegments = propfindEntryItemData.getPath().split("/");
+
+				var parent = root;
+
+				for (String pathSegment : pathSegments) {
+					var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
+					if (optionalChild.isPresent()) {
+						parent = optionalChild.get();
+					} else {
+						var child = new WebDavTreeNode(pathSegment);
+						parent.addChild(child);
+						parent = child;
+					}
+				}
+
+				// set data to leaf
+				parent.setData(propfindEntryItemData);
+			}
 		} catch (InterruptedIOException e) {
 			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
 			throw new CloudProviderException(e);
 		}
+	}
+
+	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
+		LOG.trace("itemMetadata {}", path);
+		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath());
+		return toCloudItem(getItemFromCache(fullPath).getData(), path);
+	}
+
+	private WebDavTreeNode getItemFromCache(CloudPath fullCloudPath) {
+		var parent = root;
+		for (String pathSegment : fullCloudPath.toAbsolutePath().toString().split("/")) {
+			var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
+			if (optionalChild.isPresent()) {
+				parent = optionalChild.get();
+			} else {
+				throw new NotFoundException();
+			}
+		}
+		return parent;
 	}
 
 	Quota quota(final CloudPath folder) throws CloudProviderException {
@@ -93,17 +130,13 @@ public class WebDavClient {
 
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
-		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
-			checkPropfindExecutionSucceeded(response.code());
-
-			final var nodes = getEntriesFromResponse(response);
-
-			return processDirList(nodes, folder);
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
+		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + folder.toAbsolutePath());
+		var items = getItemFromCache(fullPath)
+				.getChildren()
+				.stream()
+				.map(WebDavTreeNode::getData).map(node -> toCloudItem(node, folder))
+				.collect(Collectors.toList());
+		return new CloudItemList(items);
 	}
 
 	private void checkPropfindExecutionSucceeded(int responseCode) {
@@ -128,6 +161,7 @@ public class WebDavClient {
 				+ "<d:resourcetype />\n" //
 				+ "<d:getcontentlength />\n" //
 				+ "<d:getlastmodified />\n" //
+				+ "<d:getetag />\n" //
 				+ "</d:prop>\n" //
 				+ "</d:propfind>";
 
@@ -144,28 +178,6 @@ public class WebDavClient {
 		try (final var responseBody = response.body()) {
 			return new PropfindResponseParser().parseItemData(responseBody.byteStream());
 		}
-	}
-
-	private CloudItemMetadata processGet(final List<PropfindEntryItemData> entryData, final CloudPath path) {
-		entryData.sort(ASCENDING_BY_DEPTH);
-		return entryData.size() >= 1 ? toCloudItem(entryData.get(0), path) : null;
-	}
-
-	private CloudItemList processDirList(final List<PropfindEntryItemData> entryData, final CloudPath folder) {
-		var result = new CloudItemList(new ArrayList<>());
-
-		if (entryData.isEmpty()) {
-			return result;
-		}
-
-		entryData.sort(ASCENDING_BY_DEPTH);
-		// after sorting the first entry is the parent
-		// because it's depth is 1 smaller than the depth
-		// ot the other entries, thus we skip the first entry
-		for (PropfindEntryItemData childEntry : entryData.subList(1, entryData.size())) {
-			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
-		}
-		return result;
 	}
 
 	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath path) {
@@ -401,7 +413,7 @@ public class WebDavClient {
 
 	void tryAuthenticatedRequest() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
-		itemMetadata(CloudPath.of("/"));
+		//itemMetadata(CloudPath.of("/"));
 	}
 
 	// visible for testing
@@ -434,6 +446,7 @@ public class WebDavClient {
 
 			webDavClient.checkServerCompatibility();
 			webDavClient.tryAuthenticatedRequest();
+			webDavClient.initialListInfinitDepthRequest();
 
 			return webDavClient;
 		}
