@@ -41,7 +41,7 @@ public class WebDavClient {
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private WebDavTreeNode root = new WebDavTreeNode("");
+	private WebDavTreeNode<PropfindEntryItemData> root = new WebDavTreeNode<>("");
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
@@ -52,7 +52,7 @@ public class WebDavClient {
 		try (final var response = executePropfindRequest(CloudPath.of("/"), PropfindDepth.INFINITY)) {
 			checkPropfindExecutionSucceeded(response.code());
 
-			root = new WebDavTreeNode("");
+			root = new WebDavTreeNode<>("");
 
 			for (PropfindEntryItemData propfindEntryItemData : getEntriesFromResponse(response)) {
 				var pathSegments = propfindEntryItemData.getPath().split("/");
@@ -64,7 +64,7 @@ public class WebDavClient {
 					if (optionalChild.isPresent()) {
 						parent = optionalChild.get();
 					} else {
-						var child = new WebDavTreeNode(pathSegment);
+						var child = new WebDavTreeNode<PropfindEntryItemData>(pathSegment);
 						parent.addChild(child);
 						parent = child;
 					}
@@ -86,7 +86,7 @@ public class WebDavClient {
 		return toCloudItem(getItemFromCache(fullPath).getData(), path);
 	}
 
-	private WebDavTreeNode getItemFromCache(CloudPath fullCloudPath) {
+	private WebDavTreeNode<PropfindEntryItemData> getItemFromCache(CloudPath fullCloudPath) {
 		var parent = root;
 		for (String pathSegment : fullCloudPath.toAbsolutePath().toString().split("/")) {
 			var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
@@ -342,7 +342,7 @@ public class WebDavClient {
 					case HttpURLConnection.HTTP_FORBIDDEN:
 						throw new ForbiddenException();
 					case HttpURLConnection.HTTP_BAD_METHOD:
-						throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
+						throw new AlreadyExistsException(String.format("Folder %s already exists", path));
 					case HttpURLConnection.HTTP_CONFLICT:
 						throw new ParentFolderDoesNotExistException();
 					case HTTP_INSUFFICIENT_STORAGE:
