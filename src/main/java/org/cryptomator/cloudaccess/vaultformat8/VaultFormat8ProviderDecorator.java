@@ -12,12 +12,11 @@ import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.Quota;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
-import org.cryptomator.cryptolib.Cryptors;
-import org.cryptomator.cryptolib.DecryptingReadableByteChannel;
-import org.cryptomator.cryptolib.EncryptingReadableByteChannel;
 import org.cryptomator.cryptolib.api.AuthenticationFailedException;
 import org.cryptomator.cryptolib.api.Cryptor;
 import org.cryptomator.cryptolib.api.FileHeader;
+import org.cryptomator.cryptolib.common.DecryptingReadableByteChannel;
+import org.cryptomator.cryptolib.common.EncryptingReadableByteChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,7 +155,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 			var src = Channels.newChannel(data);
 			var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
 			var encryptedIn = Channels.newInputStream(encryptingChannel);
-			long numBytes = Cryptors.ciphertextSize(size, cryptor) + cryptor.fileHeaderCryptor().headerSize();
+			long numBytes = cryptor.fileContentCryptor().ciphertextSize(size) + cryptor.fileHeaderCryptor().headerSize();
 			return delegate.write(ciphertextPath, replace, encryptedIn, numBytes, lastModified, progressListener);
 		});
 	}
@@ -247,7 +246,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		var cleartextSize = ciphertextMetadata.getSize().map(n -> {
 			switch (ciphertextMetadata.getItemType()) {
 				case FILE:
-					return Cryptors.cleartextSize(n - cryptor.fileHeaderCryptor().headerSize(), cryptor);
+					return cryptor.fileContentCryptor().cleartextSize(n - cryptor.fileHeaderCryptor().headerSize());
 				case FOLDER:
 					return 0L;
 				case UNKNOWN: // Fall through

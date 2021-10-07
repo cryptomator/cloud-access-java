@@ -349,6 +349,7 @@ public class VaultFormat8ProviderDecoratorTest {
 		Mockito.when(fileHeaderCryptor.headerSize()).thenReturn(5);
 		Mockito.when(fileContentCryptor.cleartextChunkSize()).thenReturn(10);
 		Mockito.when(fileContentCryptor.ciphertextChunkSize()).thenReturn(10);
+		Mockito.when(fileContentCryptor.ciphertextSize(Mockito.anyLong())).thenCallRealMethod();
 		Mockito.when(fileContentCryptor.encryptChunk(Mockito.any(ByteBuffer.class), Mockito.anyLong(), Mockito.any(FileHeader.class))).thenAnswer(invocation -> {
 			ByteBuffer input = invocation.getArgument(0);
 			String inStr = UTF_8.decode(input).toString();

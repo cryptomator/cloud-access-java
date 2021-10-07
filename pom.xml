@@ -41,18 +41,18 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <guava.version>30.1.1-jre</guava.version>
-        <jwt.version>3.12.0</jwt.version>
-        <cryptolib.version>1.4.1</cryptolib.version>
+        <guava.version>31.0.1-jre</guava.version>
+        <jwt.version>3.18.2</jwt.version>
+        <cryptolib.version>2.0.2</cryptolib.version>
 
         <okhttp.version>4.9.1</okhttp.version>
         <okhttp-digest.version>2.5</okhttp-digest.version>
         <kxml2.version>2.3.0</kxml2.version>
 
-        <slf4j.version>1.7.30</slf4j.version>
+        <slf4j.version>1.7.32</slf4j.version>
 
-		<junit.jupiter.version>5.7.1</junit.jupiter.version>
-		<mockito.version>3.7.7</mockito.version>
+		<junit.jupiter.version>5.8.1</junit.jupiter.version>
+		<mockito.version>3.12.4</mockito.version>
 		<hamcrest.version>2.2</hamcrest.version>
     </properties>
 
