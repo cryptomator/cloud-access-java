@@ -44,7 +44,7 @@ public class CloudPath implements Comparable<CloudPath>, Iterable<CloudPath> {
 
 	public static CloudPath of(String first, String... more) {
 		if (more == null) {
-			return new CloudPath(first.startsWith(SEPARATOR), splitStreamAndCollect(first, new String[] {}));
+			return new CloudPath(first.startsWith(SEPARATOR), splitStreamAndCollect(first));
 		} else {
 			return new CloudPath(first.startsWith(SEPARATOR), splitStreamAndCollect(first, more));
 		}
@@ -197,7 +197,7 @@ public class CloudPath implements Comparable<CloudPath>, Iterable<CloudPath> {
 	}
 
 	public Iterator<CloudPath> iterator() {
-		return new Iterator<CloudPath>() {
+		return new Iterator<>() {
 
 			private int idx = 0;
 

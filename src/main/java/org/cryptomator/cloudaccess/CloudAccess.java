@@ -16,7 +16,9 @@ import org.cryptomator.cloudaccess.localfs.LocalFsCloudProvider;
 import org.cryptomator.cloudaccess.vaultformat8.VaultFormat8ProviderDecorator;
 import org.cryptomator.cloudaccess.webdav.WebDavCloudProvider;
 import org.cryptomator.cloudaccess.webdav.WebDavCredential;
-import org.cryptomator.cryptolib.Cryptors;
+import org.cryptomator.cryptolib.api.Cryptor;
+import org.cryptomator.cryptolib.api.CryptorProvider;
+import org.cryptomator.cryptolib.api.Masterkey;
 
 import java.io.IOException;
 import java.net.URL;
@@ -24,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.Duration;
 
 public class CloudAccess {
 
@@ -54,7 +55,8 @@ public class CloudAccess {
 
 		try {
 			var csprng = SecureRandom.getInstanceStrong();
-			var cryptor = Cryptors.version2(csprng).createFromRawKey(rawKey);
+			var key = new Masterkey(rawKey);
+			var cryptor = CryptorProvider.forScheme(CryptorProvider.Scheme.SIV_GCM).provide(key, csprng);
 
 			verifyVaultFormat8GCMConfig(cloudProvider, pathToVault, rawKey);
 
