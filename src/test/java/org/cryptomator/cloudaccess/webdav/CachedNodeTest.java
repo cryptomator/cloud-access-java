@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-public class WebDavTreeNodeTest {
+public class CachedNodeTest {
 
-	private WebDavTreeNode root = WebDavTreeNode.detached("");
+	private CachedNode root = CachedNode.detached("");
 
 	@Test
 	public void testAddChild() {
-		var detachedFoo = WebDavTreeNode.detached("foo");
+		var detachedFoo = CachedNode.detached("foo");
 
 		var foo = root.addChild(detachedFoo);
 
@@ -24,7 +24,7 @@ public class WebDavTreeNodeTest {
 
 	@Test
 	public void testAddParentAsChild() {
-		var foo = root.addChild(WebDavTreeNode.detached("foo"));
+		var foo = root.addChild(CachedNode.detached("foo"));
 
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			foo.addChild(root);
@@ -33,7 +33,7 @@ public class WebDavTreeNodeTest {
 
 	@Test
 	public void testSetAndGetData() {
-		var node = WebDavTreeNode.detached("foo");
+		var node = CachedNode.detached("foo");
 		var data = new PropfindEntryItemData.Builder().withEtag("foo").build();
 
 		node.setData(data);
@@ -44,15 +44,15 @@ public class WebDavTreeNodeTest {
 	@Nested
 	public class WithSomeChildren {
 
-		private WebDavTreeNode foo;
-		private WebDavTreeNode fooBar;
-		private WebDavTreeNode fooBaz;
+		private CachedNode foo;
+		private CachedNode fooBar;
+		private CachedNode fooBaz;
 
 		@BeforeEach
 		public void setup() {
-			this.foo = root.addChild(WebDavTreeNode.detached("foo"));
-			this.fooBar = foo.addChild(WebDavTreeNode.detached("bar"));
-			this.fooBaz = foo.addChild(WebDavTreeNode.detached("baz"));
+			this.foo = root.addChild(CachedNode.detached("foo"));
+			this.fooBar = foo.addChild(CachedNode.detached("bar"));
+			this.fooBaz = foo.addChild(CachedNode.detached("baz"));
 		}
 
 		@Test
@@ -64,7 +64,7 @@ public class WebDavTreeNodeTest {
 
 		@Test
 		public void testGetChildren() {
-			var newNode = WebDavTreeNode.detached("new");
+			var newNode = CachedNode.detached("new");
 
 			var children = foo.getChildren();
 

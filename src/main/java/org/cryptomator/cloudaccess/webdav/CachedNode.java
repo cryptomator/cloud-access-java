@@ -8,11 +8,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-class WebDavTreeNode {
+class CachedNode {
 
 	private final String name;
-	private final WebDavTreeNode parent;
-	private final Map<String, WebDavTreeNode> children;
+	private final CachedNode parent;
+	private final Map<String, CachedNode> children;
 	private boolean dirty;
 	private Cachable<?> data;
 
@@ -23,22 +23,22 @@ class WebDavTreeNode {
 
 	}
 
-	public static WebDavTreeNode detached(String name) {
-		return new WebDavTreeNode(null, name, null, new HashMap<>());
+	public static CachedNode detached(String name) {
+		return new CachedNode(null, name, null, new HashMap<>());
 	}
 
-	private WebDavTreeNode(WebDavTreeNode parent, String name, Cachable<?> data, Map<String, WebDavTreeNode> children) {
+	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children) {
 		this.parent = parent;
 		this.name = Objects.requireNonNull(name);
 		this.children = Objects.requireNonNull(children);
 		this.data = data;
 	}
 
-	public WebDavTreeNode getParent() {
+	public CachedNode getParent() {
 		return parent;
 	}
 
-	public boolean isAncestor(WebDavTreeNode node) {
+	public boolean isAncestor(CachedNode node) {
 		if (parent == null) {
 			return false;
 		} else if (parent.equals(node)) {
@@ -48,19 +48,19 @@ class WebDavTreeNode {
 		}
 	}
 
-	public WebDavTreeNode addChild(WebDavTreeNode node) {
+	public CachedNode addChild(CachedNode node) {
 		Preconditions.checkArgument(!this.isAncestor(node), "can not add ancestor as child");
-		var child = new WebDavTreeNode(this, node.name, node.data, node.children);
+		var child = new CachedNode(this, node.name, node.data, node.children);
 		children.put(child.name, child);
 		return child;
 	}
 
-	public Collection<WebDavTreeNode> getChildren() {
+	public Collection<CachedNode> getChildren() {
 		// prevent modifications that bypass safety checks provided by #addChild(...)
 		return Collections.unmodifiableCollection(children.values());
 	}
 
-	public WebDavTreeNode getChild(String named) {
+	public CachedNode getChild(String named) {
 		return children.get(named);
 	}
 
@@ -105,7 +105,7 @@ class WebDavTreeNode {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		WebDavTreeNode that = (WebDavTreeNode) o;
+		CachedNode that = (CachedNode) o;
 		// beware of infinite recursion: identity must not deeply depend on parent AND children
 		return Objects.equals(name, that.name) && Objects.equals(parent, that.parent) && Objects.equals(data, that.data);
 	}

@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-class PropfindEntryItemData implements WebDavTreeNode.Cachable<PropfindEntryItemData> {
+class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData> {
 
 	private final String path;
 	private final boolean collection;

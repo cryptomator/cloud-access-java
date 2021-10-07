@@ -41,7 +41,7 @@ public class WebDavClient {
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private WebDavTreeNode root = WebDavTreeNode.detached("");
+	private CachedNode root = CachedNode.detached("");
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
@@ -52,7 +52,7 @@ public class WebDavClient {
 		try (final var response = executePropfindRequest(CloudPath.of("/"), PropfindDepth.INFINITY)) {
 			checkPropfindExecutionSucceeded(response.code());
 
-			root = WebDavTreeNode.detached("");
+			root = CachedNode.detached("");
 
 			for (PropfindEntryItemData propfindEntryItemData : getEntriesFromResponse(response)) {
 				var pathSegments = propfindEntryItemData.getPath().split("/");
@@ -64,7 +64,7 @@ public class WebDavClient {
 					if (optionalChild.isPresent()) {
 						parent = optionalChild.get();
 					} else {
-						var child = WebDavTreeNode.detached(pathSegment);
+						var child = CachedNode.detached(pathSegment);
 						parent.addChild(child);
 						parent = child;
 					}
@@ -86,7 +86,7 @@ public class WebDavClient {
 		return toCloudItem(getItemFromCache(fullPath).getData(PropfindEntryItemData.class), path);
 	}
 
-	private WebDavTreeNode getItemFromCache(CloudPath fullCloudPath) {
+	private CachedNode getItemFromCache(CloudPath fullCloudPath) {
 		var parent = root;
 		for (String pathSegment : fullCloudPath.toAbsolutePath().toString().split("/")) {
 			var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
