@@ -41,7 +41,7 @@ public class WebDavClient {
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private WebDavTreeNode<PropfindEntryItemData> root = new WebDavTreeNode<>("");
+	private WebDavTreeNode root = WebDavTreeNode.detached("");
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
@@ -52,7 +52,7 @@ public class WebDavClient {
 		try (final var response = executePropfindRequest(CloudPath.of("/"), PropfindDepth.INFINITY)) {
 			checkPropfindExecutionSucceeded(response.code());
 
-			root = new WebDavTreeNode<>("");
+			root = WebDavTreeNode.detached("");
 
 			for (PropfindEntryItemData propfindEntryItemData : getEntriesFromResponse(response)) {
 				var pathSegments = propfindEntryItemData.getPath().split("/");
@@ -64,7 +64,7 @@ public class WebDavClient {
 					if (optionalChild.isPresent()) {
 						parent = optionalChild.get();
 					} else {
-						var child = new WebDavTreeNode<PropfindEntryItemData>(pathSegment);
+						var child = WebDavTreeNode.detached(pathSegment);
 						parent.addChild(child);
 						parent = child;
 					}
@@ -83,10 +83,10 @@ public class WebDavClient {
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
 		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath());
-		return toCloudItem(getItemFromCache(fullPath).getData(), path);
+		return toCloudItem(getItemFromCache(fullPath).getData(PropfindEntryItemData.class), path);
 	}
 
-	private WebDavTreeNode<PropfindEntryItemData> getItemFromCache(CloudPath fullCloudPath) {
+	private WebDavTreeNode getItemFromCache(CloudPath fullCloudPath) {
 		var parent = root;
 		for (String pathSegment : fullCloudPath.toAbsolutePath().toString().split("/")) {
 			var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
@@ -134,7 +134,7 @@ public class WebDavClient {
 		var items = getItemFromCache(fullPath)
 				.getChildren()
 				.stream()
-				.map(WebDavTreeNode::getData).map(node -> toCloudItem(node, folder))
+				.map(c -> c.getData(PropfindEntryItemData.class)).map(node -> toCloudItem(node, folder))
 				.collect(Collectors.toList());
 		return new CloudItemList(items);
 	}

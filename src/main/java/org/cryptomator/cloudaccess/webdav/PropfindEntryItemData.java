@@ -6,10 +6,11 @@ import com.google.common.collect.Streams;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-class PropfindEntryItemData {
+class PropfindEntryItemData implements WebDavTreeNode.Cachable<PropfindEntryItemData> {
 
 	private final String path;
 	private final boolean collection;
@@ -51,6 +52,21 @@ class PropfindEntryItemData {
 
 	public String geteTag() {
 		return eTag;
+	}
+
+	@Override
+	public boolean isSameVersion(PropfindEntryItemData other) {
+		return Objects.equals(eTag, other.eTag);
+	}
+
+	@Override
+	public String toString() {
+		return "PropfindEntryItemData{"
+				+ "collection=" + collection
+				+ ", lastModified=" + lastModified
+				+ ", size=" + size
+				+ ", eTag='" + eTag + '\''
+				+ '}';
 	}
 
 	static class Builder {
