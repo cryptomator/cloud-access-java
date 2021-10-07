@@ -55,6 +55,10 @@ class CachedNode {
 		return child;
 	}
 
+	public CachedNode deleteChild(String name) {
+		return children.remove(name);
+	}
+
 	public Collection<CachedNode> getChildren() {
 		// prevent modifications that bypass safety checks provided by #addChild(...)
 		return Collections.unmodifiableCollection(children.values());
