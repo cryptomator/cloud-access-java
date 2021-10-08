@@ -71,7 +71,7 @@ public class WebDavClient {
 				}
 
 				// set data to leaf
-				parent.setData(propfindEntryItemData);
+				parent.update(propfindEntryItemData);
 			}
 		} catch (InterruptedIOException e) {
 			throw new CloudTimeoutException(e);

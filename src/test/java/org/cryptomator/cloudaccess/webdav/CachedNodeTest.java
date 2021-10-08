@@ -1,11 +1,11 @@
 package org.cryptomator.cloudaccess.webdav;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class CachedNodeTest {
 
@@ -18,6 +18,7 @@ public class CachedNodeTest {
 		var foo = root.addChild(detachedFoo);
 
 		Assertions.assertNotEquals(foo, detachedFoo);
+		Assertions.assertTrue(foo.isDirty());
 		Assertions.assertEquals(root, foo.getParent());
 		Assertions.assertEquals(foo, root.getChild("foo"));
 	}
@@ -32,13 +33,14 @@ public class CachedNodeTest {
 	}
 
 	@Test
-	public void testSetAndGetData() {
+	public void testUpdateData() {
 		var node = CachedNode.detached("foo");
-		var data = new PropfindEntryItemData.Builder().withEtag("foo").build();
+		var etag = Mockito.mock(CachedNode.Cachable.class);
 
-		node.setData(data);
+		node.update(etag);
 
-		Assertions.assertEquals(data, node.getData());
+		Assertions.assertEquals(etag, node.getData());
+		Assertions.assertFalse(node.isDirty());
 	}
 
 	@Nested
@@ -82,19 +84,39 @@ public class CachedNodeTest {
 			Assertions.assertEquals(fooBar, node);
 		}
 
-		@Test
-		public void testMarkDirty() {
-			Assumptions.assumeFalse(root.isDirty());
-			Assumptions.assumeFalse(foo.isDirty());
-			Assumptions.assumeFalse(fooBar.isDirty());
-			Assumptions.assumeFalse(fooBaz.isDirty());
+		@Nested
+		public class WithUpdatedData {
 
-			fooBar.markDirty();
+			@BeforeEach
+			public void setup() {
+				var etag1 = Mockito.mock(CachedNode.Cachable.class);
+				var etag2 = Mockito.mock(CachedNode.Cachable.class);
+				var etag3 = Mockito.mock(CachedNode.Cachable.class);
+				var etag4 = Mockito.mock(CachedNode.Cachable.class);
+				root.update(etag1);
+				foo.update(etag2);
+				fooBar.update(etag3);
+				fooBaz.update(etag4);
+			}
 
-			Assertions.assertTrue(root.isDirty());
-			Assertions.assertTrue(foo.isDirty());
-			Assertions.assertTrue(fooBar.isDirty());
-			Assertions.assertFalse(fooBaz.isDirty());
+			@Test
+			public void testNonDirty() {
+				Assertions.assertFalse(root.isDirty());
+				Assertions.assertFalse(foo.isDirty());
+				Assertions.assertFalse(fooBar.isDirty());
+				Assertions.assertFalse(fooBaz.isDirty());
+			}
+
+			@Test
+			public void testMarkDirty() {
+				fooBar.markDirty();
+
+				Assertions.assertFalse(root.isDirty());
+				Assertions.assertFalse(foo.isDirty());
+				Assertions.assertTrue(fooBar.isDirty());
+				Assertions.assertFalse(fooBaz.isDirty());
+			}
+
 		}
 
 		@Test

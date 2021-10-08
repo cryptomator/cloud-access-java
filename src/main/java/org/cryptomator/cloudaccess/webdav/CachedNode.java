@@ -8,6 +8,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * A node in a tree of cached data. A node can be marked dirty if
+ * <ul>
+ *     <li>either no data has been associated with this node yet</li>
+ *     <li>or the node's data is known to be outdated and this node has been {@link #markDirty() marked dirty} explicitly</li>
+ * </ul>
+ *
+ * A dirty node can still be read but its data should be considered unreliable and
+ * should be {@link #update(Cachable) updated} as soon as possible.
+ */
 class CachedNode {
 
 	private final String name;
@@ -31,7 +41,12 @@ class CachedNode {
 		this.parent = parent;
 		this.name = Objects.requireNonNull(name);
 		this.children = Objects.requireNonNull(children);
+		this.dirty = data == null;
 		this.data = data;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public CachedNode getParent() {
@@ -76,33 +91,27 @@ class CachedNode {
 		return data;
 	}
 
-	public void setData(Cachable<?> data) {
+	/**
+	 * Sets the cached data and drops the dirty bit.
+	 * @param data
+	 * @see #markDirty()
+	 */
+	public void update(Cachable<?> data) {
 		this.data = data;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	@Deprecated // TODO: needed?
-	public boolean isRootNode() {
-		return (parent == null);
-	}
-
-	@Deprecated // TODO: needed?
-	public boolean isLeafNode() {
-		return children.size() == 0;
+		this.dirty = false;
 	}
 
 	public boolean isDirty() {
 		return dirty;
 	}
 
+	/**
+	 * Marks the cached data as out of date until it gets {@link #update(Cachable) updated}.
+	 *
+	 * @see #update(Cachable)
+	 */
 	public void markDirty() {
 		this.dirty = true;
-		if (parent != null) {
-			parent.markDirty();
-		}
 	}
 
 	@Override
