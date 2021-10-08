@@ -1,9 +1,9 @@
 package org.cryptomator.cloudaccess.webdav;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class NodeCacheTest {
 
@@ -16,6 +16,11 @@ public class NodeCacheTest {
 		cache.getCachedNode("/").orElseThrow().addChild(CachedNode.detached("foo"));
 		cache.getCachedNode("/foo").orElseThrow().addChild(CachedNode.detached("bar"));
 		cache.getCachedNode("/foo").orElseThrow().addChild(CachedNode.detached("baz"));
+
+		cache.getCachedNode("/").get().update(Mockito.mock(CachedNode.Cachable.class));
+		cache.getCachedNode("/foo").get().update(Mockito.mock(CachedNode.Cachable.class));
+		cache.getCachedNode("/foo/bar").get().update(Mockito.mock(CachedNode.Cachable.class));
+		cache.getCachedNode("/foo/baz").get().update(Mockito.mock(CachedNode.Cachable.class));
 	}
 
 	@Test
@@ -35,7 +40,7 @@ public class NodeCacheTest {
 
 	@Test
 	public void testMove() {
-		cache.move("/foo/baz", "/");
+		cache.move("/foo/baz", "/baz");
 
 		Assertions.assertTrue(cache.getCachedNode("/").orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode("/foo").orElseThrow().isDirty());
