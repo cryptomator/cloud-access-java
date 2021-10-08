@@ -33,4 +33,14 @@ public class NodeCacheTest {
 		Assertions.assertTrue(cache.getCachedNode("/foo/bar").isEmpty());
 	}
 
+	@Test
+	public void testMove() {
+		cache.move("/foo/baz", "/");
+
+		Assertions.assertTrue(cache.getCachedNode("/").orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode("/foo").orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode("/baz").orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode("/foo/bar").orElseThrow().isDirty());
+	}
+
 }
