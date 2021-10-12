@@ -1,5 +1,6 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import com.google.common.base.Preconditions;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -31,72 +32,55 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final String NEXTCLOUD_WEBDAV_PATH = "/remote.php/webdav";
+	private static final String NEXTCLOUD_WEBDAV_PATH = "/cloud/remote.php/webdav";
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-	private CachedNode root = CachedNode.detached("");
+
+	private final Function<String, PropfindEntryItemData> singlePropfindItemLoader = path -> {
+		try (final var response = executePropfindRequest(CloudPath.of(path), PropfindDepth.ZERO)) {
+			checkPropfindExecutionSucceeded(response.code());
+			var entries = getEntriesFromResponse(response);
+			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
+			return entries.get(0);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	};
+	private final Function<String, List<PropfindEntryItemData>> multiPropfindItemLoader = path -> {
+		try (final var response = executePropfindRequest(CloudPath.of(path), PropfindDepth.ONE)) {
+			checkPropfindExecutionSucceeded(response.code());
+			return getEntriesFromResponse(response);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	};
+
+	private Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider = Optional.empty();
 
 	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
 		this.httpClient = httpClient;
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
-	private void initialListInfinitDepthRequest() {
-		try (final var response = executePropfindRequest(CloudPath.of("/"), PropfindDepth.INFINITY)) {
-			checkPropfindExecutionSucceeded(response.code());
-
-			root = CachedNode.detached("");
-
-			for (PropfindEntryItemData propfindEntryItemData : getEntriesFromResponse(response)) {
-				var pathSegments = propfindEntryItemData.getPath().split("/");
-
-				var parent = root;
-
-				for (String pathSegment : pathSegments) {
-					var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
-					if (optionalChild.isPresent()) {
-						parent = optionalChild.get();
-					} else {
-						var child = CachedNode.detached(pathSegment);
-						parent.addChild(child);
-						parent = child;
-					}
-				}
-
-				// set data to leaf
-				parent.update(propfindEntryItemData);
-			}
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
-	}
-
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
 		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath());
-		return toCloudItem(getItemFromCache(fullPath).getData(PropfindEntryItemData.class), path);
-	}
-
-	private CachedNode getItemFromCache(CloudPath fullCloudPath) {
-		var parent = root;
-		for (String pathSegment : fullCloudPath.toAbsolutePath().toString().split("/")) {
-			var optionalChild = parent.getChildren().stream().filter(child -> child.getName().equals(pathSegment)).findFirst();
-			if (optionalChild.isPresent()) {
-				parent = optionalChild.get();
-			} else {
-				throw new NotFoundException();
-			}
-		}
-		return parent;
+		var propfindEntryItemData = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.itemMetadata(fullPath.toAbsolutePath().toString(), singlePropfindItemLoader))
+				.orElse(singlePropfindItemLoader.apply(fullPath.toAbsolutePath().toString()));
+		return toCloudItem(propfindEntryItemData, path);
 	}
 
 	Quota quota(final CloudPath folder) throws CloudProviderException {
@@ -109,13 +93,13 @@ public class WebDavClient {
 				+ "</d:prop>\n" //
 				+ "</d:propfind>";
 
-		final var builder = new Request.Builder() //
+		final var quotaRequest = new Request.Builder() //
 				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
 				.url(absoluteURLFrom(folder)) //
 				.header("Depth", PropfindDepth.ZERO.value) //
 				.header("Content-Type", "text/xml");
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(quotaRequest)) {
 			checkPropfindExecutionSucceeded(response.code());
 
 			try (final var responseBody = response.body()) {
@@ -131,12 +115,10 @@ public class WebDavClient {
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
 		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + folder.toAbsolutePath());
-		var items = getItemFromCache(fullPath)
-				.getChildren()
-				.stream()
-				.map(c -> c.getData(PropfindEntryItemData.class)).map(node -> toCloudItem(node, folder))
-				.collect(Collectors.toList());
-		return new CloudItemList(items);
+		var propfindEntryItemDataList = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.list(fullPath.toAbsolutePath().toString(), multiPropfindItemLoader))
+				.orElse(multiPropfindItemLoader.apply(fullPath.toAbsolutePath().toString()));
+		return new CloudItemList(propfindEntryItemDataList.stream().map(node -> toCloudItem(node, folder)).collect(Collectors.toList()));
 	}
 
 	private void checkPropfindExecutionSucceeded(int responseCode) {
@@ -165,13 +147,13 @@ public class WebDavClient {
 				+ "</d:prop>\n" //
 				+ "</d:propfind>";
 
-		final var builder = new Request.Builder() //
+		final var propfindRequest = new Request.Builder() //
 				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
 				.url(absoluteURLFrom(path)) //
 				.header("Depth", propfindDepth.value) //
 				.header("Content-Type", "text/xml");
 
-		return httpClient.execute(builder);
+		return httpClient.execute(propfindRequest);
 	}
 
 	private List<PropfindEntryItemData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
@@ -190,7 +172,7 @@ public class WebDavClient {
 
 	CloudPath move(final CloudPath from, final CloudPath to, boolean replace) throws CloudProviderException {
 		LOG.trace("move {} to {} (replace: {})", from, to, replace ? "true" : "false");
-		final var builder = new Request.Builder() //
+		final var moveRequest = new Request.Builder() //
 				.method("MOVE", null) //
 				.url(absoluteURLFrom(from)) //
 				.header("Destination", absoluteURLFrom(to).toExternalForm()) //
@@ -198,11 +180,17 @@ public class WebDavClient {
 				.header("Depth", "infinity");
 
 		if (!replace) {
-			builder.header("Overwrite", "F");
+			moveRequest.header("Overwrite", "F");
+		}
+		if (cachingSupported()) {
+			moveRequest.header("If-Match", String.format("\"%s\"", "*"));
 		}
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(moveRequest)) {
 			if (response.isSuccessful()) {
+				var fullPathFrom = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + from.toAbsolutePath()).toString();
+				var fullPathTo = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + to.toAbsolutePath()).toString();
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.move(fullPathFrom, fullPathTo));
 				return to;
 			} else {
 				switch (response.code()) {
@@ -287,14 +275,21 @@ public class WebDavClient {
 		}
 
 		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data, size), progressListener);
-		final var requestBuilder = new Request.Builder() //
+		final var writeRequest = new Request.Builder() //
 				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
 
-		lastModified.ifPresent(instant -> requestBuilder.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
+		if (cachingSupported()) {
+			writeRequest.header("If-Match", String.format("\"%s\"", "*"));
+		}
 
-		try (final var response = httpClient.execute(requestBuilder)) {
-			if (!response.isSuccessful()) {
+		lastModified.ifPresent(instant -> writeRequest.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
+
+		try (final var response = httpClient.execute(writeRequest)) {
+			if (response.isSuccessful()) {
+				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + file.toAbsolutePath()).toString();
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(fullPath));
+			} else {
 				switch (response.code()) {
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
@@ -328,12 +323,14 @@ public class WebDavClient {
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
 		LOG.trace("createFolder {}", path);
-		final var builder = new Request.Builder() //
+		final var createFolderRequest = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(createFolderRequest)) {
 			if (response.isSuccessful()) {
+				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath()).toString();
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.createFolder(fullPath));
 				return path;
 			} else {
 				switch (response.code()) {
@@ -360,12 +357,19 @@ public class WebDavClient {
 
 	void delete(final CloudPath path) throws CloudProviderException {
 		LOG.trace("delete {}", path);
-		final var builder = new Request.Builder() //
+		final var deleteRequest = new Request.Builder() //
 				.delete() //
 				.url(absoluteURLFrom(path));
 
-		try (final var response = httpClient.execute(builder)) {
-			if (!response.isSuccessful()) {
+		if (cachingSupported()) {
+			deleteRequest.header("If-Match", String.format("\"%s\"", "*"));
+		}
+
+		try (final var response = httpClient.execute(deleteRequest)) {
+			if (response.isSuccessful()) {
+				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath()).toString();
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(fullPath));
+			} else {
 				switch (response.code()) {
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
@@ -413,7 +417,13 @@ public class WebDavClient {
 
 	void tryAuthenticatedRequest() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
-		//itemMetadata(CloudPath.of("/"));
+		itemMetadata(CloudPath.of("/"));
+		// TODO check if we can use our CachingProvider by checking the response for ETag and find a better place
+		cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider());
+	}
+
+	private boolean cachingSupported() {
+		return cachedPropfindEntryProvider.isPresent();
 	}
 
 	// visible for testing
@@ -446,7 +456,6 @@ public class WebDavClient {
 
 			webDavClient.checkServerCompatibility();
 			webDavClient.tryAuthenticatedRequest();
-			webDavClient.initialListInfinitDepthRequest();
 
 			return webDavClient;
 		}
