@@ -37,6 +37,10 @@ class CachedNode {
 		return new CachedNode(null, name, null, new HashMap<>());
 	}
 
+	public static CachedNode detached(String name, Cachable<?> data) {
+		return new CachedNode(null, name, data, new HashMap<>());
+	}
+
 	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children) {
 		this.parent = parent;
 		this.name = Objects.requireNonNull(name);

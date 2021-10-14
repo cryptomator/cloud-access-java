@@ -39,13 +39,12 @@ import java.util.stream.IntStream;
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final String NEXTCLOUD_WEBDAV_PATH = "/cloud/remote.php/webdav";
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
 
-	private final Function<String, PropfindEntryItemData> singlePropfindItemLoader = path -> {
-		try (final var response = executePropfindRequest(CloudPath.of(path), PropfindDepth.ZERO)) {
+	private final Function<CloudPath, PropfindEntryItemData> singlePropfindItemLoader = path -> {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
 			checkPropfindExecutionSucceeded(response.code());
 			var entries = getEntriesFromResponse(response);
 			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
@@ -56,8 +55,8 @@ public class WebDavClient {
 			throw new CloudProviderException(e);
 		}
 	};
-	private final Function<String, List<PropfindEntryItemData>> multiPropfindItemLoader = path -> {
-		try (final var response = executePropfindRequest(CloudPath.of(path), PropfindDepth.ONE)) {
+	private final Function<CloudPath, List<PropfindEntryItemData>> multiPropfindItemLoader = path -> {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ONE)) {
 			checkPropfindExecutionSucceeded(response.code());
 			return getEntriesFromResponse(response);
 		} catch (InterruptedIOException e) {
@@ -76,10 +75,9 @@ public class WebDavClient {
 
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
-		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath());
 		var propfindEntryItemData = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.itemMetadata(fullPath.toAbsolutePath().toString(), singlePropfindItemLoader))
-				.orElse(singlePropfindItemLoader.apply(fullPath.toAbsolutePath().toString()));
+				.map(cachedProvider -> cachedProvider.itemMetadata(path, singlePropfindItemLoader))
+				.orElseGet(() -> singlePropfindItemLoader.apply(path));
 		return toCloudItem(propfindEntryItemData, path);
 	}
 
@@ -114,10 +112,9 @@ public class WebDavClient {
 
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
-		var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + folder.toAbsolutePath());
 		var propfindEntryItemDataList = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.list(fullPath.toAbsolutePath().toString(), multiPropfindItemLoader))
-				.orElse(multiPropfindItemLoader.apply(fullPath.toAbsolutePath().toString()));
+				.map(cachedProvider -> cachedProvider.list(folder, multiPropfindItemLoader))
+				.orElseGet(() -> multiPropfindItemLoader.apply(folder));
 		return new CloudItemList(propfindEntryItemDataList.stream().map(node -> toCloudItem(node, folder)).collect(Collectors.toList()));
 	}
 
@@ -182,15 +179,13 @@ public class WebDavClient {
 		if (!replace) {
 			moveRequest.header("Overwrite", "F");
 		}
-		if (cachingSupported()) {
+		/*if (cachingSupported()) {
 			moveRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}
+		}*/
 
 		try (final var response = httpClient.execute(moveRequest)) {
 			if (response.isSuccessful()) {
-				var fullPathFrom = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + from.toAbsolutePath()).toString();
-				var fullPathTo = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + to.toAbsolutePath()).toString();
-				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.move(fullPathFrom, fullPathTo));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.move(from, to));
 				return to;
 			} else {
 				switch (response.code()) {
@@ -203,6 +198,7 @@ public class WebDavClient {
 					case HttpURLConnection.HTTP_CONFLICT:
 						throw new ParentFolderDoesNotExistException();
 					case HttpURLConnection.HTTP_PRECON_FAILED:
+						// FIXME has now different cases
 						throw new AlreadyExistsException(absoluteURLFrom(to).toExternalForm());
 					case HTTP_INSUFFICIENT_STORAGE:
 						throw new InsufficientStorageException();
@@ -279,18 +275,20 @@ public class WebDavClient {
 				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
 
-		if (cachingSupported()) {
+		/*if (cachingSupported()) {
 			writeRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}
+		}*/
 
 		lastModified.ifPresent(instant -> writeRequest.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
 
 		try (final var response = httpClient.execute(writeRequest)) {
 			if (response.isSuccessful()) {
-				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + file.toAbsolutePath()).toString();
-				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(fullPath));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(file));
 			} else {
 				switch (response.code()) {
+					case HttpURLConnection.HTTP_PRECON_FAILED:
+						// TODO
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:
@@ -327,13 +325,19 @@ public class WebDavClient {
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
 
+		/*if (cachingSupported()) {
+			createFolderRequest.header("If-Match", String.format("\"%s\"", "*"));
+		}*/
+
 		try (final var response = httpClient.execute(createFolderRequest)) {
 			if (response.isSuccessful()) {
-				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath()).toString();
-				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.createFolder(fullPath));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.createFolder(path));
 				return path;
 			} else {
 				switch (response.code()) {
+					case HttpURLConnection.HTTP_PRECON_FAILED:
+						// TODO
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:
@@ -361,16 +365,18 @@ public class WebDavClient {
 				.delete() //
 				.url(absoluteURLFrom(path));
 
-		if (cachingSupported()) {
+		/*if (cachingSupported()) {
 			deleteRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}
+		}*/
 
 		try (final var response = httpClient.execute(deleteRequest)) {
 			if (response.isSuccessful()) {
-				var fullPath = CloudPath.of(NEXTCLOUD_WEBDAV_PATH + path.toAbsolutePath()).toString();
-				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(fullPath));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(path));
 			} else {
 				switch (response.code()) {
+					case HttpURLConnection.HTTP_PRECON_FAILED:
+						// TODO
+						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:
