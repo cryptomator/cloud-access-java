@@ -32,7 +32,6 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -42,29 +41,6 @@ public class WebDavClient {
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
-
-	private final Function<CloudPath, PropfindEntryItemData> singlePropfindItemLoader = path -> {
-		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
-			checkPropfindExecutionSucceeded(response.code());
-			var entries = getEntriesFromResponse(response);
-			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
-			return entries.get(0);
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
-	};
-	private final Function<CloudPath, List<PropfindEntryItemData>> multiPropfindItemLoader = path -> {
-		try (final var response = executePropfindRequest(path, PropfindDepth.ONE)) {
-			checkPropfindExecutionSucceeded(response.code());
-			return getEntriesFromResponse(response);
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
-	};
 
 	private Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider = Optional.empty();
 
@@ -76,9 +52,22 @@ public class WebDavClient {
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
 		var propfindEntryItemData = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.itemMetadata(path, singlePropfindItemLoader))
-				.orElseGet(() -> singlePropfindItemLoader.apply(path));
+				.map(cachedProvider -> cachedProvider.itemMetadata(path, this::loadPropfindItem))
+				.orElseGet(() -> loadPropfindItem(path));
 		return toCloudItem(propfindEntryItemData, path);
+	}
+
+	private PropfindEntryItemData loadPropfindItem(CloudPath path) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
+			checkPropfindExecutionSucceeded(response.code());
+			var entries = getEntriesFromResponse(response);
+			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
+			return entries.get(0);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
 	}
 
 	Quota quota(final CloudPath folder) throws CloudProviderException {
@@ -113,9 +102,20 @@ public class WebDavClient {
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
 		var propfindEntryItemDataList = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.list(folder, multiPropfindItemLoader))
-				.orElseGet(() -> multiPropfindItemLoader.apply(folder));
+				.map(cachedProvider -> cachedProvider.list(folder, this::loadPropfindItems))
+				.orElseGet(() -> loadPropfindItems(folder));
 		return new CloudItemList(propfindEntryItemDataList.stream().map(node -> toCloudItem(node, folder)).collect(Collectors.toList()));
+	}
+
+	private List<PropfindEntryItemData> loadPropfindItems(CloudPath path) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ONE)) {
+			checkPropfindExecutionSucceeded(response.code());
+			return getEntriesFromResponse(response);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
 	}
 
 	private void checkPropfindExecutionSucceeded(int responseCode) {

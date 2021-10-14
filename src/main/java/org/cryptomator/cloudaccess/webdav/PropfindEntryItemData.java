@@ -78,7 +78,7 @@ class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData
 	public PropfindEntryItemData withPath(String newPath) {
 		return new PropfindEntryItemData.Builder() //
 				.withCollection(isCollection()) //
-				.withEtag(geteTag()) //
+				.withEtag(getETag()) //
 				.withSize(getSize()) //
 				.withLastModified(getLastModified()) //
 				.withPath(newPath) //
