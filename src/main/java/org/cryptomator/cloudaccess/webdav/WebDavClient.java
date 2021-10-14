@@ -421,11 +421,16 @@ public class WebDavClient {
 		}
 	}
 
-	void tryAuthenticatedRequest() throws UnauthorizedException {
+	PropfindEntryItemData tryAuthenticatedRequest() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
-		itemMetadata(CloudPath.of("/"));
-		// TODO check if we can use our CachingProvider by checking the response for ETag and find a better place
-		cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider());
+		return loadPropfindItem(CloudPath.of("/"));
+	}
+
+	void canUseCaching(PropfindEntryItemData propfindEntryItemData) throws UnauthorizedException {
+		LOG.trace("canUseCaching");
+		if (propfindEntryItemData.getETag() != null) {
+			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider());
+		}
 	}
 
 	private boolean cachingSupported() {
@@ -461,7 +466,8 @@ public class WebDavClient {
 			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential, config), webDavCredential);
 
 			webDavClient.checkServerCompatibility();
-			webDavClient.tryAuthenticatedRequest();
+			var propfindEntryItemData = webDavClient.tryAuthenticatedRequest();
+			webDavClient.canUseCaching(propfindEntryItemData);
 
 			return webDavClient;
 		}

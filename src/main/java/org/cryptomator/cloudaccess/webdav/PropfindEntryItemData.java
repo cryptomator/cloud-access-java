@@ -50,7 +50,7 @@ class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData
 		return Streams.findLast(Splitter.on("/").omitEmptyStrings().splitToStream(path)).orElse("");
 	}
 
-	public String geteTag() {
+	public String getETag() {
 		return eTag;
 	}
 
