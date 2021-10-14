@@ -69,6 +69,22 @@ class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData
 				+ '}';
 	}
 
+	/**
+	 * Creates a copy of this instance with the new path
+	 *
+	 * @param newPath The path for the copy
+	 * @return The copy
+	 */
+	public PropfindEntryItemData withPath(String newPath) {
+		return new PropfindEntryItemData.Builder() //
+				.withCollection(isCollection()) //
+				.withEtag(geteTag()) //
+				.withSize(getSize()) //
+				.withLastModified(getLastModified()) //
+				.withPath(newPath) //
+				.build();
+	}
+
 	static class Builder {
 
 		private static final Pattern URI_PATTERN = Pattern.compile("^[a-z]+://[^/]+/(.*)$");

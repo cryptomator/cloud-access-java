@@ -78,7 +78,7 @@ public class WebDavCloudProviderTestIT {
 
 		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
 
-		Assertions.assertEquals(nodeList.getItems(), expectedList);
+		Assertions.assertEquals(expectedList, nodeList.getItems());
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());

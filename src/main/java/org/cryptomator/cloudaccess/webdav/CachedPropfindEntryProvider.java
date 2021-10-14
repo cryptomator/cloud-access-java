@@ -1,70 +1,37 @@
 package org.cryptomator.cloudaccess.webdav;
 
-import com.google.common.base.Splitter;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class CachedPropfindEntryProvider {
+class CachedPropfindEntryProvider {
 
-	private static final char PATH_SEP = '/';
-	private final NodeCache cache;
+	private final NodeCache cache = new NodeCache();
 
-	public CachedPropfindEntryProvider() {
-		cache = new NodeCache();
-	}
-
-	PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, PropfindEntryItemData> loader) {
-		var cachedNode = cache.getCachedNode(path.toAbsolutePath().toString());
+	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, PropfindEntryItemData> loader) {
+		var cachedNode = cache.getCachedNode(path);
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
 			return cachedNode.get().getData(PropfindEntryItemData.class);
 		} else {
 			try {
 				var loaded = loader.apply(path);
-				addCachedNodeIncludingAncestors(path.toAbsolutePath().toString());
-				cache.getCachedNode(path.toAbsolutePath().toString()).get().update(loaded); // FIXME
+				cache.getOrCreateCachedNode(path).update(loaded);
 				return loaded;
 			} catch (NotFoundException e) {
-				if(cachedNode.isPresent()) {
-					cache.delete(path.toAbsolutePath().toString());
-				}
+				cache.delete(path);
 				throw e;
 			}
 		}
 	}
 
-	private Iterable<String> getPathElements(String path) {
-		return Splitter.on(PATH_SEP).omitEmptyStrings().split(path);
-	}
-
-	private CachedNode addCachedNodeIncludingAncestors(String path) {
-		var pathElements = getPathElements(path).iterator();
-		return getOrCreateCachedNode(cache.getCachedNode("/").orElse(CachedNode.detached("")), pathElements, "");
-	}
-
-	private CachedNode getOrCreateCachedNode(CachedNode base, Iterator<String> remainingPathElements, String path) {
-		if (base == null || !remainingPathElements.hasNext()) {
-			return base;
-		} else {
-			var childName = remainingPathElements.next();
-			var next = base.getChild(childName);
-			// Create cache node if not existent
-			if(next == null) {
-				next = base.addChild(CachedNode.detached(childName));
-				cache.getCachedNode(path).get().addChild(next); // FIXME should not fail but implement it better
-			}
-			return getOrCreateCachedNode(next, remainingPathElements, path+"/"+childName);
-		}
-	}
-
-	List<PropfindEntryItemData> list(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) throws CloudProviderException {
-		var cachedNode = cache.getCachedNode(path.toAbsolutePath().toString());
+	public List<PropfindEntryItemData> list(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) throws CloudProviderException {
+		var cachedNode = cache.getCachedNode(path);
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
+			// FIXME: this approach assumes that when a folder is non-dirty, all children are cached. Is this a safe assumption?
 			return cachedNode.get()
 					.getChildren()
 					.stream()
@@ -72,34 +39,31 @@ public class CachedPropfindEntryProvider {
 					.collect(Collectors.toList());
 		} else {
 			var loaded = loader.apply(path);
-
-			addCachedNodeIncludingAncestors(path.toAbsolutePath().toString());
-			// propfind response also responds with the queried folder, so lets update the cached value
-			if(loaded.size() > 0) {
-				cache.getCachedNode(path.toAbsolutePath().toString()).get().update(loaded.get(0)); // FIXME
+			for (var data : loaded) {
+				var p = CloudPath.of(data.getPath());
+				cache.getOrCreateCachedNode(p).update(data);
 			}
-			// add all children
-			for(PropfindEntryItemData propfindEntryItemData: loaded.stream().skip(1).collect(Collectors.toList())) {
-				cache.getCachedNode(path.toAbsolutePath().toString()).get().addChild(CachedNode.detached(propfindEntryItemData.getName(), propfindEntryItemData)); // FIXME
-			}
-
 			return loaded;
 		}
 	}
 
-	void move(CloudPath from, CloudPath to) {
-		cache.move(from.toAbsolutePath().toString(), to.toAbsolutePath().toString());
+	public void move(CloudPath from, CloudPath to) {
+		cache.move(from, to);
+		var movedNode = cache.getCachedNode(to).orElseThrow();
+		var oldMetaData = movedNode.getData(PropfindEntryItemData.class);
+		var newMetadata = oldMetaData.withPath(to.toString());
+		movedNode.update(newMetadata);
 	}
 
-	void write(CloudPath path) {
-		cache.markDirty(path.toAbsolutePath().toString());
+	public void write(CloudPath path) {
+		cache.markDirty(path);
 	}
 
-	void createFolder(CloudPath path) {
-		cache.markDirty(path.toAbsolutePath().toString());
+	public void createFolder(CloudPath path) {
+		cache.markDirty(path);
 	}
 
-	void delete(CloudPath path) {
-		cache.delete(path.toAbsolutePath().toString());
+	public void delete(CloudPath path) {
+		cache.delete(path);
 	}
 }
