@@ -14,8 +14,12 @@ class CachedPropfindEntryProvider {
 
 	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, PropfindEntryItemData> loader) {
 		var cachedNode = cache.getCachedNode(path);
+		var cachedParent = cache.getCachedNode(path.getParent());
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
 			return cachedNode.get().getData(PropfindEntryItemData.class);
+		} else if (cachedParent.isPresent() && !cachedParent.get().isDirty()) {
+			// node is not found, despite parent being up-to-date -> node does not exist
+			throw new NotFoundException(path.toString());
 		} else {
 			try {
 				var loaded = loader.apply(path);
