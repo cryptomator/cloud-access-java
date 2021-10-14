@@ -88,8 +88,9 @@ class NodeCache {
 	 *
 	 * @param oldPath The path of the node to be moved
 	 * @param newPath The target path
+	 * @return The moved node. Empty if this node has not been cached
 	 */
-	public void move(CloudPath oldPath, CloudPath newPath) {
+	public Optional<CachedNode> move(CloudPath oldPath, CloudPath newPath) {
 		var newParent = newPath.getParent();
 		var node = getCachedNode(oldPath);
 		node.ifPresent(n -> {
@@ -98,6 +99,7 @@ class NodeCache {
 		});
 		markDirty(oldPath);
 		markDirty(newParent);
+		return node;
 	}
 
 }

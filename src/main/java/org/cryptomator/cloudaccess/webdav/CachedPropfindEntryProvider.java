@@ -48,11 +48,12 @@ class CachedPropfindEntryProvider {
 	}
 
 	public void move(CloudPath from, CloudPath to) {
-		cache.move(from, to);
-		var movedNode = cache.getCachedNode(to).orElseThrow();
-		var oldMetaData = movedNode.getData(PropfindEntryItemData.class);
-		var newMetadata = oldMetaData.withPath(to.toString());
-		movedNode.update(newMetadata);
+		var moved = cache.move(from, to);
+		moved.ifPresent(node -> {
+			var oldMetaData = node.getData(PropfindEntryItemData.class);
+			var newMetadata = oldMetaData.withPath(to.toString());
+			node.update(newMetadata);
+		});
 	}
 
 	public void write(CloudPath path) {
