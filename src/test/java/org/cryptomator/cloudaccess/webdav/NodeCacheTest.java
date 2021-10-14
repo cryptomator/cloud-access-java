@@ -26,12 +26,25 @@ public class NodeCacheTest {
 	}
 
 	@Test
-	public void testContainsFooBar() {
+	@DisplayName("getCachedNode() returns existing cached node")
+	public void testGetFooBar() {
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/bar")).isPresent());
 	}
 
 	@Test
-	@DisplayName("delete() is noop for non-existing nodes")
+	@DisplayName("getCachedNode() returns ø for non-cached node")
+	public void testGetNonExisting() {
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/non/existing")).isEmpty());
+	}
+
+	@Test
+	@DisplayName("getOrCreateCachedNode() returns newly created cached node")
+	public void testGetOrCreateNonExisting() {
+		Assertions.assertNotNull(cache.getOrCreateCachedNode(CloudPath.of("/non/existing")));
+	}
+
+	@Test
+	@DisplayName("delete() is noop for non-cached nodes")
 	public void testDeleteNonExisting() {
 		Assertions.assertDoesNotThrow(() -> {
 			cache.delete(CloudPath.of("/non/existing"));
@@ -59,6 +72,18 @@ public class NodeCacheTest {
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/baz")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
+	}
+
+	@Test
+	@DisplayName("move() marks source and target ancestors dirty even for non-cached nodes")
+	public void testMoveNonExisting() {
+		cache.move(CloudPath.of("/foo/bar/non/existing"), CloudPath.of("/dst"));
+
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/baz")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/dst")).isEmpty());
 	}
 
 }
