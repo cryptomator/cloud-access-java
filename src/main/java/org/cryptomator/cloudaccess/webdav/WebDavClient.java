@@ -54,7 +54,8 @@ public class WebDavClient {
 		var propfindEntryItemData = cachedPropfindEntryProvider
 				.map(cachedProvider -> cachedProvider.itemMetadata(path, this::loadPropfindItem))
 				.orElseGet(() -> loadPropfindItem(path));
-		return toCloudItem(propfindEntryItemData, path);
+		var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
+		return toCloudItem(propfindEntryItemData, parentPath);
 	}
 
 	private PropfindEntryItemData loadPropfindItem(CloudPath path) {
@@ -103,7 +104,12 @@ public class WebDavClient {
 		LOG.trace("list {}", folder);
 		var propfindEntryItemDataList = cachedPropfindEntryProvider
 				.map(cachedProvider -> cachedProvider.list(folder, this::loadPropfindItems))
-				.orElseGet(() -> loadPropfindItems(folder));
+				.orElseGet(() -> {
+					var loaded = loadPropfindItems(folder);
+					// skip parent folder as it is in the result as well
+					loaded.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+					return loaded.stream().skip(1).collect(Collectors.toList());
+				});
 		return new CloudItemList(propfindEntryItemDataList.stream().map(node -> toCloudItem(node, folder)).collect(Collectors.toList()));
 	}
 
@@ -159,11 +165,11 @@ public class WebDavClient {
 		}
 	}
 
-	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath path) {
+	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath parentPath) {
 		if (data.isCollection()) {
-			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
+			return new CloudItemMetadata(data.getName(), parentPath.resolve(data.getName()), CloudItemType.FOLDER);
 		} else {
-			return new CloudItemMetadata(data.getName(), path, CloudItemType.FILE, data.getLastModified(), data.getSize());
+			return new CloudItemMetadata(data.getName(), parentPath.resolve(data.getName()), CloudItemType.FILE, data.getLastModified(), data.getSize());
 		}
 	}
 

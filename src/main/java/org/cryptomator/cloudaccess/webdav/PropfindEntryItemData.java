@@ -6,6 +6,7 @@ import com.google.common.collect.Streams;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -140,6 +141,13 @@ class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData
 
 		PropfindEntryItemData build() {
 			return new PropfindEntryItemData(this);
+		}
+	}
+
+	static class AscendingByDepthComparator implements Comparator<PropfindEntryItemData> {
+		@Override
+		public int compare(PropfindEntryItemData p1, PropfindEntryItemData p2) {
+			return (int) (p1.getDepth() - p2.getDepth());
 		}
 	}
 }

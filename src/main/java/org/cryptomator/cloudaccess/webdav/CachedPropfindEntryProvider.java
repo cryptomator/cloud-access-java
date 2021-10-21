@@ -43,11 +43,17 @@ class CachedPropfindEntryProvider {
 					.collect(Collectors.toList());
 		} else {
 			var loaded = loader.apply(path);
-			for (var data : loaded) {
-				var p = CloudPath.of(data.getPath());
+			loaded.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+			if(loaded.size() > 0) {
+				var parent = loaded.get(0);
+				cache.getOrCreateCachedNode(path).update(parent);
+			}
+			var children = loaded.stream().skip(1).collect(Collectors.toList());
+			for (var data : children) {
+				var p = path.resolve(data.getName());
 				cache.getOrCreateCachedNode(p).update(data);
 			}
-			return loaded;
+			return children;
 		}
 	}
 
