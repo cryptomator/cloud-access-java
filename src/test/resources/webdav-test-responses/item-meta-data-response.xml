@@ -8,6 +8,7 @@
                 <d:resourcetype/>
                 <d:getcontentlength>6837751</d:getcontentlength>
                 <d:getlastmodified>Wed, 19 Feb 2020 10:24:12 GMT</d:getlastmodified>
+                <d:getetag>"163993302a578022a390c82080312f9b4"</d:getetag>
             </d:prop>
             <d:status>HTTP/1.1 200 OK</d:status>
         </d:propstat>

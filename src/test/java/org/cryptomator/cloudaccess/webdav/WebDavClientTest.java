@@ -14,7 +14,6 @@ import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +33,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Disabled
 public class WebDavClientTest {
 
 	private final WebDavCompatibleHttpClient webDavCompatibleHttpClient = Mockito.mock(WebDavCompatibleHttpClient.class);
@@ -43,13 +41,16 @@ public class WebDavClientTest {
 	private final CloudItemMetadata testFileIntro = new CloudItemMetadata("Nextcloud intro.mp4", CloudPath.of("/Nextcloud intro.mp4"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(462413L));
 	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
 	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
+	private final URL baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
+	private final WebDavCredential webDavCredential = WebDavCredential.from(baseUrl, "foo", "bar");
+	private CachedPropfindEntryProvider cachedPropfindEntryProvider = Mockito.mock(CachedPropfindEntryProvider.class);
 	private WebDavClient webDavClient;
-	private URL baseUrl;
+
+	public WebDavClientTest() throws MalformedURLException {
+	}
 
 	@BeforeEach
 	public void setup() throws MalformedURLException {
-		baseUrl = new URL("https://www.nextcloud.com/cloud/remote.php/webdav");
-		final var webDavCredential = WebDavCredential.from(baseUrl, "foo", "bar");
 		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential);
 	}
 
@@ -76,6 +77,42 @@ public class WebDavClientTest {
 		final var itemMetadata = webDavClient.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"));
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
+	}
+
+	@Test
+	@DisplayName("get metadata of /Nextcloud Manual.pdf from cache")
+	public void testItemMetadataFromCache() {
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+
+		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any()))
+				.thenReturn(new PropfindEntryItemData.Builder()
+						.withPath(testFileManual.getPath().toString())
+						.withLastModified(testFileManual.getLastModifiedDate())
+						.withSize(testFileManual.getSize())
+						.withCollection(false)
+						.build());
+
+		final var itemMetadata = webDavClient.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"));
+
+		Assertions.assertEquals(testFileManual, itemMetadata);
+
+		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any());
+	}
+
+	@Test
+	@DisplayName("get metadata of /Nextcloud Manual.pdf from server when cache returns null")
+	public void testItemMetadataFromFunctionAsCacheReturnsNull() throws IOException {
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+
+		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any()))
+				.thenReturn(null);
+		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "item-meta-data-response.xml"));
+
+		final var itemMetadata = webDavClient.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"));
+
+		Assertions.assertEquals(testFileManual, itemMetadata);
+
+		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any());
 	}
 
 	@Test
@@ -110,6 +147,54 @@ public class WebDavClientTest {
 		Assertions.assertEquals(expectedList, nodeList.getItems());
 
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
+	}
+
+	@Test
+	@DisplayName("list / from cache")
+	public void testListFromCache() {
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+
+		Mockito.when(cachedPropfindEntryProvider.list(ArgumentMatchers.eq(CloudPath.of("/")), ArgumentMatchers.any()))
+				.thenReturn(List.of(new PropfindEntryItemData.Builder()
+								.withPath(testFolderDocuments.getPath().toString())
+								.withLastModified(testFolderDocuments.getLastModifiedDate())
+								.withSize(testFolderDocuments.getSize())
+								.withCollection(true)
+								.build(),
+						new PropfindEntryItemData.Builder()
+								.withPath(testFileManual.getPath().toString())
+								.withLastModified(testFileManual.getLastModifiedDate())
+								.withSize(testFileManual.getSize())
+								.withCollection(false)
+								.build(),
+						new PropfindEntryItemData.Builder()
+								.withPath(testFileIntro.getPath().toString())
+								.withLastModified(testFileIntro.getLastModifiedDate())
+								.withSize(testFileIntro.getSize())
+								.withCollection(false)
+								.build(),
+						new PropfindEntryItemData.Builder()
+								.withPath(testFilePng.getPath().toString())
+								.withLastModified(testFilePng.getLastModifiedDate())
+								.withSize(testFilePng.getSize())
+								.withCollection(false)
+								.build(),
+						new PropfindEntryItemData.Builder()
+								.withPath(testFolderPhotos.getPath().toString())
+								.withLastModified(testFolderPhotos.getLastModifiedDate())
+								.withSize(testFolderPhotos.getSize())
+								.withCollection(true)
+								.build()));
+
+		final var nodeList = webDavClient.list(CloudPath.of("/"));
+
+		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
+
+		Assertions.assertEquals(expectedList, nodeList.getItems());
+
+		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
+
+		Mockito.verify(cachedPropfindEntryProvider).list(ArgumentMatchers.eq(CloudPath.of("/")), ArgumentMatchers.any());
 	}
 
 	@Test

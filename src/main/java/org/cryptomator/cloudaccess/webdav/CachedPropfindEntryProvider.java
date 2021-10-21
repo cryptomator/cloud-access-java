@@ -10,7 +10,15 @@ import java.util.stream.Collectors;
 
 class CachedPropfindEntryProvider {
 
-	private final NodeCache cache = new NodeCache();
+	private final NodeCache cache;
+
+	CachedPropfindEntryProvider() {
+		this.cache = new NodeCache();
+	}
+
+	CachedPropfindEntryProvider(NodeCache cache) {
+		this.cache = cache;
+	}
 
 	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, PropfindEntryItemData> loader) {
 		var cachedNode = cache.getCachedNode(path);

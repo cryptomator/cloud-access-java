@@ -49,6 +49,12 @@ public class WebDavClient {
 		this.baseUrl = webDavCredential.getBaseUrl();
 	}
 
+	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential, final CachedPropfindEntryProvider cachedPropfindEntryProvider) {
+		this.httpClient = httpClient;
+		this.baseUrl = webDavCredential.getBaseUrl();
+		this.cachedPropfindEntryProvider = Optional.of(cachedPropfindEntryProvider);
+	}
+
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
 		var propfindEntryItemData = cachedPropfindEntryProvider
