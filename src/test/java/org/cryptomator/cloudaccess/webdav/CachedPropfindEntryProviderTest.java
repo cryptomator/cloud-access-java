@@ -12,7 +12,7 @@ import org.mockito.Mockito;
 import java.util.Optional;
 import java.util.function.Function;
 
-class CachedPropfindEntryProviderTest {
+public class CachedPropfindEntryProviderTest {
 
 	private final PropfindEntryItemData testFileManual = new PropfindEntryItemData.Builder()
 			.withPath("/Nextcloud Manual.pdf")
@@ -26,7 +26,7 @@ class CachedPropfindEntryProviderTest {
 	private CachedPropfindEntryProvider cachedPropfindEntryProvider;
 
 	@BeforeEach
-	void setUp() {
+	public void setUp() {
 		cachedPropfindEntryProvider = new CachedPropfindEntryProvider(cache);
 	}
 
