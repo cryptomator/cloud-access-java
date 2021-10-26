@@ -13,9 +13,10 @@ class CachedPropfindEntryProvider {
 	private final NodeCache cache;
 
 	CachedPropfindEntryProvider() {
-		this.cache = new NodeCache();
+		this(new NodeCache());
 	}
 
+	// visible for testing
 	CachedPropfindEntryProvider(NodeCache cache) {
 		this.cache = cache;
 	}
