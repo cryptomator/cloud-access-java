@@ -95,7 +95,8 @@ class NodeCache {
 		var node = getCachedNode(oldPath);
 		node.ifPresent(n -> {
 			delete(n);
-			getCachedNode(newParent).ifPresent(p -> p.addChild(n));
+			var newNode = CachedNode.detached(newPath.getFileName().toString(), n.getData());
+			getCachedNode(newParent).ifPresent(p -> p.addChild(newNode));
 		});
 		markDirty(oldPath);
 		markDirty(newParent);

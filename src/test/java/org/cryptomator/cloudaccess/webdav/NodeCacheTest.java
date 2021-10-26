@@ -73,6 +73,7 @@ public class NodeCacheTest {
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/baz")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/baz")).isEmpty());
 	}
 
 	@Test
@@ -86,6 +87,19 @@ public class NodeCacheTest {
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/baz")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/dst")).isEmpty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/bar/non/existing")).isEmpty());
+	}
+
+	@Test
+	@DisplayName("move() which just renames marks source and target ancestors dirty but not the moved node itself")
+	public void testRename() {
+		var moved = cache.move(CloudPath.of("/foo/baz"), CloudPath.of("/foo/bar"));
+
+		Assertions.assertTrue(moved.isPresent());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/baz")).isEmpty());
 	}
 
 }
