@@ -34,19 +34,15 @@ class CachedNode {
 	}
 
 	public static CachedNode detached(String name) {
-		return new CachedNode(null, name, null, new HashMap<>());
+		return new CachedNode(null, name, null, new HashMap<>(), true);
 	}
 
-	public static CachedNode detached(String name, Cachable<?> data) {
-		return new CachedNode(null, name, data, new HashMap<>());
-	}
-
-	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children) {
+	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children, boolean dirty) {
 		this.parent = parent;
 		this.name = Objects.requireNonNull(name);
 		this.children = Objects.requireNonNull(children);
-		this.dirty = data == null;
 		this.data = data;
+		this.dirty = dirty;
 	}
 
 	public String getName() {
@@ -73,7 +69,7 @@ class CachedNode {
 
 	public CachedNode addChild(CachedNode node, String name) {
 		Preconditions.checkArgument(!this.isAncestor(node), "can not add ancestor as child");
-		var child = new CachedNode(this, name, node.data, node.children);
+		var child = new CachedNode(this, name, node.data, node.children, node.isDirty());
 		children.put(child.name, child);
 		return child;
 	}

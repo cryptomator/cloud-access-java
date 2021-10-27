@@ -65,7 +65,10 @@ public class CachedPropfindEntryProviderTest {
 	@Test
 	@DisplayName("get metadata of /Nextcloud Manual.pdf from cache")
 	public void testItemMetadataFromCache() {
-		Mockito.when(cache.getCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Optional.of(CachedNode.detached("/Nextcloud Manual.pdf", testFileManual)));
+		var manual = CachedNode.detached("/Nextcloud Manual.pdf");
+		manual.update(testFileManual);
+
+		Mockito.when(cache.getCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Optional.of(manual));
 
 		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), singleItemLoader);
 
@@ -121,12 +124,24 @@ public class CachedPropfindEntryProviderTest {
 	@Test
 	@DisplayName("list / from loader cache")
 	public void testListFromCache() {
-		var root = CachedNode.detached("/", testFolderRoot);
-		root.addChild(CachedNode.detached("/Documents", testFolderDocuments));
-		root.addChild(CachedNode.detached("/Nextcloud Manual.pdf", testFileManual));
-		root.addChild(CachedNode.detached("/Nextcloud intro.mp4", testFileIntro));
-		root.addChild(CachedNode.detached("/Nextcloud.png", testFilePng));
-		root.addChild(CachedNode.detached("/Photos", testFolderPhotos));
+		var root = CachedNode.detached("/");
+		root.update(testFolderRoot);
+		var documents = CachedNode.detached("/Documents");
+		documents.update(testFolderDocuments);
+		var manual = CachedNode.detached("/Nextcloud Manual.pdf");
+		manual.update(testFileManual);
+		var intro = CachedNode.detached("/Nextcloud intro.mp4");
+		intro.update(testFileIntro);
+		var png = CachedNode.detached("/Nextcloud.png");
+		png.update(testFilePng);
+		var photos = CachedNode.detached("/Photos");
+		photos.update(testFolderPhotos);
+
+		root.addChild(documents);
+		root.addChild(manual);
+		root.addChild(intro);
+		root.addChild(png);
+		root.addChild(photos);
 
 		Mockito.when(cache.getCachedNode(CloudPath.of("/"))).thenReturn(Optional.of(root));
 
