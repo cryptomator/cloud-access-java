@@ -1,10 +1,12 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import com.google.common.base.Preconditions;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -21,9 +23,9 @@ class CachedPropfindEntryProvider {
 		this.cache = cache;
 	}
 
-	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, PropfindEntryItemData> loader) {
+	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) {
 		var cachedNode = cache.getCachedNode(path);
-		var cachedParent = cache.getCachedNode(path.getParent());
+		Optional<CachedNode> cachedParent = path.getParent() != null ? cache.getCachedNode(path.getParent()) : Optional.empty();
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
 			return cachedNode.get().getData(PropfindEntryItemData.class);
 		} else if (cachedParent.isPresent() && !cachedParent.get().isDirty()) {
@@ -31,9 +33,9 @@ class CachedPropfindEntryProvider {
 			throw new NotFoundException(path.toString());
 		} else {
 			try {
-				var loaded = loader.apply(path);
-				cache.getOrCreateCachedNode(path).update(loaded);
-				return loaded;
+				var entries = getPropfindEntryItemData(path, loader);
+				Preconditions.checkArgument(entries.size() >= 1, "got not more than one item");
+				return entries.get(0);
 			} catch (NotFoundException e) {
 				cache.delete(path);
 				throw e;
@@ -50,19 +52,25 @@ class CachedPropfindEntryProvider {
 					.map(c -> c.getData(PropfindEntryItemData.class))
 					.collect(Collectors.toList());
 		} else {
-			var loaded = loader.apply(path);
-			loaded.sort(new PropfindEntryItemData.AscendingByDepthComparator());
-			if(loaded.size() > 0) {
-				var parent = loaded.get(0);
-				cache.getOrCreateCachedNode(path).update(parent);
-			}
-			var children = loaded.stream().skip(1).collect(Collectors.toList());
-			for (var data : children) {
-				var p = path.resolve(data.getName());
-				cache.getOrCreateCachedNode(p).update(data);
-			}
-			return children;
+			// skip(1) to remove the parent from the list
+			return getPropfindEntryItemData(path, loader).stream().skip(1).collect(Collectors.toList());
 		}
+	}
+
+	private List<PropfindEntryItemData> getPropfindEntryItemData(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) {
+		var loaded = loader.apply(path);
+		loaded.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+		if (loaded.size() > 0) {
+			var parent = loaded.get(0);
+			cache.getOrCreateCachedNode(path).update(parent);
+			cache.getOrCreateCachedNode(path).setChildrenFetched();
+		}
+		var children = loaded.stream().skip(1).collect(Collectors.toList());
+		for (var data : children) {
+			var p = path.resolve(data.getName());
+			cache.getOrCreateCachedNode(p).update(data);
+		}
+		return loaded;
 	}
 
 	public void move(CloudPath from, CloudPath to) {

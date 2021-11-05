@@ -70,7 +70,7 @@ public class CachedPropfindEntryProviderTest {
 
 		Mockito.when(cache.getCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Optional.of(manual));
 
-		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), singleItemLoader);
+		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), multiItemLoader);
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
 	}
@@ -78,16 +78,15 @@ public class CachedPropfindEntryProviderTest {
 	@Test
 	@DisplayName("get metadata of /Nextcloud Manual.pdf from loader because not cached")
 	public void testItemMetadataFromLoaderBecauseNotCached() {
-		Mockito.when(singleItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(testFileManual);
+		Mockito.when(multiItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Arrays.asList(testFileManual));
 		Mockito.when(cache.getOrCreateCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(CachedNode.detached("/Nextcloud Manual.pdf"));
 
-		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), singleItemLoader);
+		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), multiItemLoader);
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
 
-		Mockito.verify(singleItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
-		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
-		// FIXME check if update is called
+		Mockito.verify(multiItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
+		Mockito.verify(cache, Mockito.times(2)).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
 	}
 
 	@Test
@@ -95,37 +94,37 @@ public class CachedPropfindEntryProviderTest {
 	public void testItemMetadataFromLoaderBecauseCachedButDirty() {
 		Mockito.when(cache.getCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Optional.of(CachedNode.detached("/Nextcloud Manual.pdf")));
 
-		Mockito.when(singleItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(testFileManual);
+		Mockito.when(multiItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Arrays.asList(testFileManual));
 		Mockito.when(cache.getOrCreateCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(CachedNode.detached("/Nextcloud Manual.pdf"));
 
-		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), singleItemLoader);
+		final var itemMetadata = cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), multiItemLoader);
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
 
-		Mockito.verify(singleItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
-		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
-		// FIXME check if update is called
+		Mockito.verify(multiItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
+		Mockito.verify(cache, Mockito.times(2)).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
 	}
 
 	@Test
 	@DisplayName("get metadata of /Nextcloud Manual.pdf from loader not found throws NotFoundException")
 	public void testItemMetadataFromLoaderNotFoundThrowsNotFoundException() {
 		Mockito.when(cache.getCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(Optional.of(CachedNode.detached("/Nextcloud Manual.pdf")));
-		Mockito.when(singleItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenThrow(NotFoundException.class);
+		Mockito.when(multiItemLoader.apply(CloudPath.of("/Nextcloud Manual.pdf"))).thenThrow(NotFoundException.class);
 
 		Assertions.assertThrows(NotFoundException.class, () -> {
-			cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), singleItemLoader);
+			cachedPropfindEntryProvider.itemMetadata(CloudPath.of("/Nextcloud Manual.pdf"), multiItemLoader);
 		});
 
-		Mockito.verify(singleItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
+		Mockito.verify(multiItemLoader).apply(CloudPath.of("/Nextcloud Manual.pdf"));
 		Mockito.verify(cache).delete(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
 	}
 
 	@Test
-	@DisplayName("list / from loader cache")
+	@DisplayName("list / from cache")
 	public void testListFromCache() {
 		var root = CachedNode.detached("/");
 		root.update(testFolderRoot);
+		root.setChildrenFetched();
 		var documents = CachedNode.detached("/Documents");
 		documents.update(testFolderDocuments);
 		var manual = CachedNode.detached("/Nextcloud Manual.pdf");
@@ -166,7 +165,7 @@ public class CachedPropfindEntryProviderTest {
 		Assertions.assertEquals(List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos), itemsMetadata);
 
 		Mockito.verify(multiItemLoader).apply(CloudPath.of("/"));
-		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/")));
+		Mockito.verify(cache, Mockito.times(2)).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/")));
 		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Documents")));
 		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
 		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud intro.mp4")));

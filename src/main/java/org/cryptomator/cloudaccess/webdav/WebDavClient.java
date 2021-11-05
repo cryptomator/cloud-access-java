@@ -55,28 +55,6 @@ public class WebDavClient {
 		this.cachedPropfindEntryProvider = Optional.of(cachedPropfindEntryProvider);
 	}
 
-	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
-		LOG.trace("itemMetadata {}", path);
-		var propfindEntryItemData = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.itemMetadata(path, this::loadPropfindItem))
-				.orElseGet(() -> loadPropfindItem(path));
-		var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
-		return toCloudItem(propfindEntryItemData, parentPath);
-	}
-
-	private PropfindEntryItemData loadPropfindItem(CloudPath path) {
-		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
-			checkPropfindExecutionSucceeded(response.code());
-			var entries = getEntriesFromResponse(response);
-			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
-			return entries.get(0);
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
-	}
-
 	Quota quota(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("quota {}", folder);
 		final var body = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" //
@@ -99,6 +77,28 @@ public class WebDavClient {
 			try (final var responseBody = response.body()) {
 				return new PropfindResponseParser().parseQuta(responseBody.byteStream());
 			}
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
+	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
+		LOG.trace("itemMetadata {}", path);
+		var propfindEntryItemData = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.itemMetadata(path, this::loadPropfindItems))
+				.orElseGet(() -> loadPropfindItem(path));
+		var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
+		return toCloudItem(propfindEntryItemData, parentPath);
+	}
+
+	private PropfindEntryItemData loadPropfindItem(CloudPath path) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
+			checkPropfindExecutionSucceeded(response.code());
+			var entries = getEntriesFromResponse(response);
+			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
+			return entries.get(0);
 		} catch (InterruptedIOException e) {
 			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
