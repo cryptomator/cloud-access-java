@@ -24,18 +24,6 @@ public class CachedNodeTest {
 	}
 
 	@Test
-	public void testAddChildWithSpecificName() {
-		var detachedFoo = CachedNode.detached("foo");
-
-		var bar = root.addChild(detachedFoo, "bar");
-
-		Assertions.assertNotEquals(bar, detachedFoo);
-		Assertions.assertTrue(bar.isDirty());
-		Assertions.assertEquals(root, bar.getParent());
-		Assertions.assertEquals(bar, root.getChild("bar"));
-	}
-
-	@Test
 	public void testAddParentAsChild() {
 		var foo = root.addChild(CachedNode.detached("foo"));
 

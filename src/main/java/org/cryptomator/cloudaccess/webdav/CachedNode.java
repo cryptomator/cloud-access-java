@@ -24,6 +24,7 @@ class CachedNode {
 	private final CachedNode parent;
 	private final Map<String, CachedNode> children;
 	private boolean dirty;
+	private boolean childrenFetched;
 	private Cachable<?> data;
 
 	@FunctionalInterface
@@ -34,13 +35,14 @@ class CachedNode {
 	}
 
 	public static CachedNode detached(String name) {
-		return new CachedNode(null, name, null, new HashMap<>(), true);
+		return new CachedNode(null, name, null, new HashMap<>(), false, true);
 	}
 
-	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children, boolean dirty) {
+	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children, boolean childrenFetched, boolean dirty) {
 		this.parent = parent;
 		this.name = Objects.requireNonNull(name);
 		this.children = Objects.requireNonNull(children);
+		this.childrenFetched = childrenFetched;
 		this.data = data;
 		this.dirty = dirty;
 	}
@@ -64,12 +66,8 @@ class CachedNode {
 	}
 
 	public CachedNode addChild(CachedNode node) {
-		return addChild(node, node.name);
-	}
-
-	public CachedNode addChild(CachedNode node, String name) {
 		Preconditions.checkArgument(!this.isAncestor(node), "can not add ancestor as child");
-		var child = new CachedNode(this, name, node.data, node.children, node.isDirty());
+		var child = new CachedNode(this, node.name, node.data, node.children, node.childrenFetched, node.isDirty());
 		children.put(child.name, child);
 		return child;
 	}
@@ -116,6 +114,14 @@ class CachedNode {
 	 */
 	public void markDirty() {
 		this.dirty = true;
+	}
+
+	public boolean isChildrenFetched() {
+		return childrenFetched;
+	}
+
+	public void setChildrenFetched() {
+		childrenFetched = true;
 	}
 
 	@Override

@@ -43,8 +43,7 @@ class CachedPropfindEntryProvider {
 
 	public List<PropfindEntryItemData> list(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) throws CloudProviderException {
 		var cachedNode = cache.getCachedNode(path);
-		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
-			// FIXME: this approach assumes that when a folder is non-dirty, all children are cached. Is this a safe assumption?
+		if (cachedNode.isPresent() && !cachedNode.get().isDirty() && cachedNode.get().isChildrenFetched()) {
 			return cachedNode.get()
 					.getChildren()
 					.stream()
