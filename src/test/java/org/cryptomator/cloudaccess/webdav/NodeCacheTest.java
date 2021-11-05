@@ -91,6 +91,25 @@ public class NodeCacheTest {
 	}
 
 	@Test
+	@DisplayName("move() moves all descendants as well")
+	public void testMoveIncludingDescendants() {
+		cache.getCachedNode(CloudPath.of("")).orElseThrow().addChild(CachedNode.detached("dst"));
+		cache.getCachedNode(CloudPath.of("foo/baz")).orElseThrow().addChild(CachedNode.detached("qux"));
+
+		cache.getOrCreateCachedNode(CloudPath.of("/dst")).update(Mockito.mock(CachedNode.Cachable.class));
+		cache.getOrCreateCachedNode(CloudPath.of("/foo/baz/qux")).update(Mockito.mock(CachedNode.Cachable.class));
+
+		var moved = cache.move(CloudPath.of("/foo"), CloudPath.of("/dst"));
+
+		Assertions.assertTrue(moved.isPresent());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/bar")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/baz")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/baz/qux")).orElseThrow().isDirty());
+		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).isEmpty());
+	}
+
+	@Test
 	@DisplayName("move() which just renames marks source and target ancestors dirty but not the moved node itself")
 	public void testRename() {
 		var moved = cache.move(CloudPath.of("/foo/baz"), CloudPath.of("/foo/bar"));
