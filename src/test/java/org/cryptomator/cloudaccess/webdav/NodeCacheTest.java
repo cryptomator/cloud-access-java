@@ -102,6 +102,9 @@ public class NodeCacheTest {
 		var moved = cache.move(CloudPath.of("/foo"), CloudPath.of("/dst"));
 
 		Assertions.assertTrue(moved.isPresent());
+		Assertions.assertEquals("dst", moved.get().getName());
+		Assertions.assertNotNull(moved.get().getChild("bar"));
+		Assertions.assertNotNull(moved.get().getChild("baz"));
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/bar")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/baz")).orElseThrow().isDirty());
@@ -115,6 +118,7 @@ public class NodeCacheTest {
 		var moved = cache.move(CloudPath.of("/foo/baz"), CloudPath.of("/foo/bar"));
 
 		Assertions.assertTrue(moved.isPresent());
+		Assertions.assertEquals("bar", moved.get().getName());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());

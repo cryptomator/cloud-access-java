@@ -66,8 +66,12 @@ class CachedNode {
 	}
 
 	public CachedNode addChild(CachedNode node) {
+		return addChild(node, node.name);
+	}
+
+	public CachedNode addChild(CachedNode node, String name) {
 		Preconditions.checkArgument(!this.isAncestor(node), "can not add ancestor as child");
-		var child = new CachedNode(this, node.name, node.data, node.children, node.childrenFetched, node.isDirty());
+		var child = new CachedNode(this, name, node.data, node.children, node.childrenFetched, node.isDirty());
 		children.put(child.name, child);
 		return child;
 	}

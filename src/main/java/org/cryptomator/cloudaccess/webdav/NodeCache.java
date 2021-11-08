@@ -99,7 +99,7 @@ class NodeCache {
 		});
 		markDirty(oldPath);
 		markDirty(newParent);
-		return node;
+		return getCachedNode(newPath);
 	}
 
 }
