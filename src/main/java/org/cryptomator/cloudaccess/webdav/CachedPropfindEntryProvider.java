@@ -28,7 +28,7 @@ class CachedPropfindEntryProvider {
 		Optional<CachedNode> cachedParent = path.getParent() != null ? cache.getCachedNode(path.getParent()) : Optional.empty();
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
 			return cachedNode.get().getData(PropfindEntryItemData.class);
-		} else if (cachedParent.isPresent() && !cachedParent.get().isDirty()) {
+		} else if (cachedNode.isEmpty() && cachedParent.isPresent() && !cachedParent.get().isDirty() && cachedParent.get().isChildrenFetched()) {
 			// node is not found, despite parent being up-to-date -> node does not exist
 			throw new NotFoundException(path.toString());
 		} else {
