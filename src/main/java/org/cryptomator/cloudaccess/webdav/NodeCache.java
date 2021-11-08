@@ -91,10 +91,14 @@ class NodeCache {
 	 * @return The moved node. Empty if this node has not been cached
 	 */
 	public Optional<CachedNode> move(CloudPath oldPath, CloudPath newPath) {
+		var newParent = newPath.getParent();
 		var node = getCachedNode(oldPath);
-		node.ifPresent(this::delete);
+		node.ifPresent(n -> {
+			delete(n);
+			getCachedNode(newParent).ifPresent(p -> p.addChild(n, newPath.getFileName().toString()));
+		});
 		markDirty(oldPath);
-		markDirty(newPath);
+		markDirty(newParent);
 		return node;
 	}
 

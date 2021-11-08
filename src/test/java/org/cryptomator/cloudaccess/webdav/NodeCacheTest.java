@@ -71,9 +71,9 @@ public class NodeCacheTest {
 		Assertions.assertTrue(moved.isPresent());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/baz")).orElseThrow().isDirty());
 		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/baz")).isEmpty());
-		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/baz")).isEmpty());
 	}
 
 	@Test
@@ -91,8 +91,9 @@ public class NodeCacheTest {
 	}
 
 	@Test
-	@DisplayName("move() without descendants")
-	public void testMoveWithoutDescendants() {
+	@DisplayName("move() moves all descendants as well")
+	public void testMoveIncludingDescendants() {
+		cache.getCachedNode(CloudPath.of("")).orElseThrow().addChild(CachedNode.detached("dst"));
 		cache.getCachedNode(CloudPath.of("foo/baz")).orElseThrow().addChild(CachedNode.detached("qux"));
 
 		cache.getOrCreateCachedNode(CloudPath.of("/dst")).update(Mockito.mock(CachedNode.Cachable.class));
@@ -102,9 +103,10 @@ public class NodeCacheTest {
 
 		Assertions.assertTrue(moved.isPresent());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
-		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/dst")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/bar")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/baz")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/dst/baz/qux")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).isEmpty());
-		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/dst")).orElseThrow().getChildren().isEmpty());
 	}
 
 	@Test
@@ -115,7 +117,7 @@ public class NodeCacheTest {
 		Assertions.assertTrue(moved.isPresent());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo")).orElseThrow().isDirty());
-		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
+		Assertions.assertFalse(cache.getCachedNode(CloudPath.of("/foo/bar")).orElseThrow().isDirty());
 		Assertions.assertTrue(cache.getCachedNode(CloudPath.of("/foo/baz")).isEmpty());
 	}
 
