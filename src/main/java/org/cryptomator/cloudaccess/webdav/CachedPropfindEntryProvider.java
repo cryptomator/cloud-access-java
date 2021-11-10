@@ -23,7 +23,7 @@ class CachedPropfindEntryProvider {
 		this.cache = cache;
 	}
 
-	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) {
+	public PropfindEntryItemData itemMetadata(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> parentLoader, Function<CloudPath, List<PropfindEntryItemData>> pathLoader) {
 		var cachedNode = cache.getCachedNode(path);
 		Optional<CachedNode> cachedParent = path.getParent() != null ? cache.getCachedNode(path.getParent()) : Optional.empty();
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty()) {
@@ -31,26 +31,54 @@ class CachedPropfindEntryProvider {
 		} else if (cachedNode.isEmpty() && cachedParent.isPresent() && !cachedParent.get().isDirty() && cachedParent.get().isChildrenFetched()) {
 			// node is not found, despite parent being up-to-date -> node does not exist
 			throw new NotFoundException(path.toString());
+		} else if (path.getParent() == null || (cachedParent.isPresent() && !cachedParent.get().isDirty() && cachedParent.get().isChildrenFetched())) {
+			// parent is available, request path
+			return loadPath(path, pathLoader);
 		} else {
-			try {
-				var entries = getPropfindEntryItemData(path, loader);
-				Preconditions.checkArgument(entries.size() >= 1, "got not more than one item");
-				return entries.get(0);
-			} catch (NotFoundException e) {
-				cache.delete(path);
-				throw e;
+			/* parent is not available, request parent to avoid listings against `/foo/bar/baz` while `/foo/bar/` has not yet been queried which can lead to spam requests
+			as `isChildrenFetched` is in this case not set in the parent and would also not be set using a PROPFIND on the child. Therefore listing on the parent. */
+			return loadParent(path, parentLoader);
+		}
+	}
+
+	private PropfindEntryItemData loadPath(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> pathLoader) {
+		try {
+			var entries = getPropfindEntryItemData(path, pathLoader);
+			Preconditions.checkArgument(entries.size() >= 1, "got not more than one item");
+			return entries.get(0);
+		} catch (NotFoundException e) {
+			cache.deleteAndMarkDirtyIfPresent(path);
+			throw e;
+		}
+	}
+
+	private PropfindEntryItemData loadParent(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> parentLoader) {
+		try {
+			var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
+			var entries = getPropfindEntryItemData(parentPath, parentLoader);
+			var actualQueriedNode = entries.stream().filter(entry -> entry.getName().equals(path.getFileName().toString())).collect(Collectors.toList());
+			if (actualQueriedNode.isEmpty()) {
+				throw new NotFoundException(path.toString());
 			}
+			return actualQueriedNode.get(0);
+		} catch (NotFoundException e) {
+			cache.deleteAndMarkDirtyIfPresent(path);
+			throw e;
 		}
 	}
 
 	public List<PropfindEntryItemData> list(CloudPath path, Function<CloudPath, List<PropfindEntryItemData>> loader) throws CloudProviderException {
 		var cachedNode = cache.getCachedNode(path);
+		Optional<CachedNode> cachedParent = path.getParent() != null ? cache.getCachedNode(path.getParent()) : Optional.empty();
 		if (cachedNode.isPresent() && !cachedNode.get().isDirty() && cachedNode.get().isChildrenFetched()) {
 			return cachedNode.get()
 					.getChildren()
 					.stream()
 					.map(c -> c.getData(PropfindEntryItemData.class))
 					.collect(Collectors.toList());
+		} else if (cachedNode.isEmpty() && cachedParent.isPresent() && !cachedParent.get().isDirty() && cachedParent.get().isChildrenFetched()) {
+			// node is not found, despite parent being up-to-date -> node does not exist
+			throw new NotFoundException(path.toString());
 		} else {
 			// skip(1) to remove the parent from the list
 			return getPropfindEntryItemData(path, loader).stream().skip(1).collect(Collectors.toList());

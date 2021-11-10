@@ -76,6 +76,18 @@ class NodeCache {
 		markDirty(path);
 	}
 
+	/**
+	 * Detaches the node from the tree and marks all ancestors dirty but marks ancestors dirty only if the node is present.
+	 *
+	 * @param path The path of the node
+	 */
+	public void deleteAndMarkDirtyIfPresent(CloudPath path) {
+		getCachedNode(path).ifPresent(node -> {
+			delete(node);
+			markDirty(path);
+		});
+	}
+
 	private void delete(CachedNode node) {
 		var parent = node.getParent();
 		Preconditions.checkArgument(parent != null, "Can not delete root");

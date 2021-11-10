@@ -84,7 +84,7 @@ public class WebDavClientTest {
 	public void testItemMetadataFromCache() {
 		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
 
-		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any()))
+		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any()))
 				.thenReturn(new PropfindEntryItemData.Builder()
 						.withPath(testFileManual.getPath().toString())
 						.withLastModified(testFileManual.getLastModifiedDate())
@@ -96,7 +96,7 @@ public class WebDavClientTest {
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
 
-		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any());
+		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any());
 	}
 
 	@Test
@@ -104,7 +104,7 @@ public class WebDavClientTest {
 	public void testItemMetadataFromFunctionAsCacheReturnsNull() throws IOException {
 		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
 
-		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any()))
+		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any()))
 				.thenReturn(null);
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any())).thenReturn(getInterceptedResponse(baseUrl, "item-meta-data-response.xml"));
 
@@ -112,7 +112,7 @@ public class WebDavClientTest {
 
 		Assertions.assertEquals(testFileManual, itemMetadata);
 
-		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any());
+		Mockito.verify(cachedPropfindEntryProvider).itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any());
 	}
 
 	@Test

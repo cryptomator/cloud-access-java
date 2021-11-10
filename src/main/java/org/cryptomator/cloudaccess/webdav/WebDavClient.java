@@ -86,10 +86,10 @@ public class WebDavClient {
 
 	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
 		LOG.trace("itemMetadata {}", path);
-		var propfindEntryItemData = cachedPropfindEntryProvider
-				.map(cachedProvider -> cachedProvider.itemMetadata(path, this::loadPropfindItems))
-				.orElseGet(() -> loadPropfindItem(path));
 		var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
+		var propfindEntryItemData = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.itemMetadata(path, unused -> loadPropfindItems(parentPath), this::loadPropfindItems))
+				.orElseGet(() -> loadPropfindItem(path));
 		return toCloudItem(propfindEntryItemData, parentPath);
 	}
 
