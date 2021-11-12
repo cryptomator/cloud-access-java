@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess.webdav;
+package org.cryptomator.cloudaccess;
 
 import com.google.common.base.Preconditions;
 import org.cryptomator.cloudaccess.api.CloudPath;
@@ -6,7 +6,7 @@ import org.cryptomator.cloudaccess.api.CloudPath;
 import java.util.Iterator;
 import java.util.Optional;
 
-class NodeCache {
+public class NodeCache {
 
 	private final CachedNode root = CachedNode.detached("");
 

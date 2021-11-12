@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess.webdav;
+package org.cryptomator.cloudaccess;
 
 import java.util.Comparator;
 

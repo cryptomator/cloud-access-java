@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess.webdav;
+package org.cryptomator.cloudaccess;
 
 import com.google.common.base.Preconditions;
 
@@ -18,7 +18,7 @@ import java.util.Objects;
  * A dirty node can still be read but its data should be considered unreliable and
  * should be {@link #update(Cachable) updated} as soon as possible.
  */
-class CachedNode {
+public class CachedNode {
 
 	private final String name;
 	private final CachedNode parent;
@@ -28,7 +28,7 @@ class CachedNode {
 	private Cachable<?> data;
 
 	@FunctionalInterface
-	interface Cachable<T extends Cachable<T>> {
+	public interface Cachable<T extends Cachable<T>> {
 
 		boolean isSameVersion(T other);
 

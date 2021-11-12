@@ -1,5 +1,7 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import org.cryptomator.cloudaccess.CachedNode;
+import org.cryptomator.cloudaccess.NodeCache;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 import org.junit.jupiter.api.Assertions;

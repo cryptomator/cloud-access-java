@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess.webdav;
+package org.cryptomator.cloudaccess;
 
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.junit.jupiter.api.Assertions;

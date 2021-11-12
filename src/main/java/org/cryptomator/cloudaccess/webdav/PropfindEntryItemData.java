@@ -2,6 +2,7 @@ package org.cryptomator.cloudaccess.webdav;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Streams;
+import org.cryptomator.cloudaccess.CachedNode;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;

@@ -1,6 +1,8 @@
 package org.cryptomator.cloudaccess.webdav;
 
 import com.google.common.base.Preconditions;
+import org.cryptomator.cloudaccess.CachedNode;
+import org.cryptomator.cloudaccess.NodeCache;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
