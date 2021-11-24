@@ -295,7 +295,8 @@ public class WebDavClient {
 
 		try (final var response = httpClient.execute(writeRequest)) {
 			if (response.isSuccessful()) {
-				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(file));
+				var eTag = Optional.ofNullable(response.header("ETag"));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(file, size, lastModified, eTag));
 			} else {
 				switch (response.code()) {
 					case HttpURLConnection.HTTP_PRECON_FAILED:

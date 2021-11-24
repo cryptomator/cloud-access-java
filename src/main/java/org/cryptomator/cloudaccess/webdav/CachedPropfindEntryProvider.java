@@ -7,6 +7,7 @@ import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -112,8 +113,20 @@ class CachedPropfindEntryProvider {
 		});
 	}
 
-	public void write(CloudPath path) {
-		cache.markDirty(path);
+	public void write(CloudPath path, long size, Optional<Instant> lastModified, Optional<String> eTag) {
+		if(eTag.isPresent()) {
+			var data = new PropfindEntryItemData.Builder()
+					.withPath(path.toString())
+					.withCollection(false)
+					.withSize(Optional.of(size))
+					.withLastModified(lastModified)
+					.withEtag(eTag.get())
+					.build();
+			cache.getOrCreateCachedNode(path).update(data);
+			cache.markDirty(path.getParent());
+		} else {
+			cache.markDirty(path);
+		}
 	}
 
 	public void createFolder(CloudPath path) {

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -247,9 +248,20 @@ public class CachedPropfindEntryProviderTest {
 	}
 
 	@Test
+	@DisplayName("write /Nextcloud Manual.pdf with ETag marks only parent dirty")
+	public void testWriteMarksPartentsDirtyWithEmptyEtag() {
+		Mockito.when(cache.getOrCreateCachedNode(CloudPath.of("/Nextcloud Manual.pdf"))).thenReturn(CachedNode.detached("/Nextcloud Manual.pdf"));
+
+		cachedPropfindEntryProvider.write(CloudPath.of("/Nextcloud Manual.pdf"), 15, Optional.of(Instant.now()), Optional.of("ETag3000"));
+
+		Mockito.verify(cache).markDirty(CloudPath.of("/"));
+		Mockito.verify(cache).getOrCreateCachedNode(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")));
+	}
+
+	@Test
 	@DisplayName("write /Nextcloud Manual.pdf marks cache dirty")
 	public void testWriteMarksDirty() {
-		cachedPropfindEntryProvider.write(CloudPath.of("/Nextcloud Manual.pdf"));
+		cachedPropfindEntryProvider.write(CloudPath.of("/Nextcloud Manual.pdf"), 15, Optional.empty(), Optional.empty());
 		Mockito.verify(cache).markDirty(CloudPath.of("/Nextcloud Manual.pdf"));
 	}
 

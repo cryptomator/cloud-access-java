@@ -16,7 +16,6 @@ import org.cryptomator.cloudaccess.localfs.LocalFsCloudProvider;
 import org.cryptomator.cloudaccess.vaultformat8.VaultFormat8ProviderDecorator;
 import org.cryptomator.cloudaccess.webdav.WebDavCloudProvider;
 import org.cryptomator.cloudaccess.webdav.WebDavCredential;
-import org.cryptomator.cryptolib.api.Cryptor;
 import org.cryptomator.cryptolib.api.CryptorProvider;
 import org.cryptomator.cryptolib.api.Masterkey;
 
@@ -62,7 +61,7 @@ public class CloudAccess {
 
 			VaultFormat8ProviderDecorator provider = new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 			provider.initialize();
-			return new MetadataCachingProviderDecorator(provider);
+			return new MetadataRequestAggregator(provider);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		} catch (InterruptedException e) {
