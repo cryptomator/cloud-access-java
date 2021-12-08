@@ -32,6 +32,7 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -439,10 +440,12 @@ public class WebDavClient {
 		return loadPropfindItem(CloudPath.of("/"));
 	}
 
-	void canUseCaching(PropfindEntryItemData propfindEntryItemData) throws UnauthorizedException {
+	void canUseCaching(PropfindEntryItemData propfindEntryItemData, WebDavProviderConfig config) throws UnauthorizedException {
 		LOG.trace("canUseCaching");
 		if (propfindEntryItemData.getETag() != null) {
-			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider());
+			Function<CloudPath, PropfindEntryItemData> rootPoller = this::loadPropfindItem;
+			Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater = this::loadPropfindItems;
+			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(config, rootPoller, cacheUpdater));
 		}
 	}
 
@@ -480,7 +483,7 @@ public class WebDavClient {
 
 			webDavClient.checkServerCompatibility();
 			var propfindEntryItemData = webDavClient.tryAuthenticatedRequest();
-			webDavClient.canUseCaching(propfindEntryItemData);
+			webDavClient.canUseCaching(propfindEntryItemData, config);
 
 			return webDavClient;
 		}

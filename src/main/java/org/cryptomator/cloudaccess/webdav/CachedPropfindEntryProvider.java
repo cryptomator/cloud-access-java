@@ -6,19 +6,37 @@ import org.cryptomator.cloudaccess.NodeCache;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class CachedPropfindEntryProvider {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CachedPropfindEntryProvider.class);
+
 	private final NodeCache cache;
 
-	CachedPropfindEntryProvider() {
+	private Function<CloudPath, PropfindEntryItemData> rootPoller;
+	private Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater;
+
+	CachedPropfindEntryProvider(WebDavProviderConfig config, Function<CloudPath, PropfindEntryItemData> rootPoller, Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater) {
 		this(new NodeCache());
+
+		this.rootPoller = rootPoller;
+		this.cacheUpdater = cacheUpdater;
+
+		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+		RemoteChangeDetector remoteChangeDetector = new RemoteChangeDetector();
+		executor.scheduleWithFixedDelay(remoteChangeDetector, config.getRemoteChangePollerInitialDelaySeconds(), config.getRemoteChangePollerPeriodSeconds(), TimeUnit.SECONDS);
 	}
 
 	// visible for testing
@@ -114,7 +132,7 @@ class CachedPropfindEntryProvider {
 	}
 
 	public void write(CloudPath path, long size, Optional<Instant> lastModified, Optional<String> eTag) {
-		if(eTag.isPresent()) {
+		if (eTag.isPresent()) {
 			var data = new PropfindEntryItemData.Builder()
 					.withPath(path.toString())
 					.withCollection(false)
@@ -135,5 +153,68 @@ class CachedPropfindEntryProvider {
 
 	public void delete(CloudPath path) {
 		cache.delete(path);
+	}
+
+	private class RemoteChangeDetector extends TimerTask {
+
+		@Override
+		public void run() {
+			LOG.trace("run executed");
+			var rootPath = CloudPath.of("/");
+			var root = cache.getCachedNode(rootPath);
+			if (root.isPresent()) {
+				var rootItemData = rootPoller.apply(rootPath);
+				if (!rootItemData.isSameVersion(root.get().getData(PropfindEntryItemData.class))) {
+					root.get().update(rootItemData);
+					updateChildren(rootPath);
+				}
+			}
+		}
+
+		private void updateChildren(CloudPath node) {
+			LOG.trace("updateChildren {}", node);
+			var cacheNode = cache.getCachedNode(node);
+			if (cacheNode.isPresent()) {
+				var localChildren = cacheNode.get().getChildren();
+				var remoteChildren = cacheUpdater.apply(node);
+
+				// delete parent
+				remoteChildren.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+				if(remoteChildren.size() > 0) {
+					remoteChildren.remove(0);
+				}
+
+				// if local exists but not remote --> remove including descendant ✓
+				// if local exists but different or no ETAG --> update, check descendant up to unchaged or not exist in cache ✓
+				// if local exists and same ETAG --> ignore further sub-tree ✓
+				// if remote exists but not local --> create ✓
+
+				for (CachedNode localChild : localChildren) {
+					var remoteItemMetadata = remoteChildren.stream().filter(remote -> remote.getName().equals(localChild.getName())).findAny();
+					if (remoteItemMetadata.isPresent()) {
+						var localData = localChild.getData(PropfindEntryItemData.class);
+						if (localData != null) {
+							if (!localData.isSameVersion(remoteItemMetadata.get())) {
+								cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+								if (localData.isCollection()) {
+									updateChildren(node.resolve(localChild.getName()));
+								}
+							} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
+						} else {
+							cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+						}
+					} else {
+						cache.delete(node.resolve(localChild.getName()));
+					}
+				}
+
+				for (PropfindEntryItemData remoteChild : remoteChildren) {
+					var localNode = localChildren.stream().filter(local -> local.getName().equals(remoteChild.getName())).findAny();
+					if (localNode.isEmpty()) {
+						cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
+					}
+				}
+			}
+		}
 	}
 }
