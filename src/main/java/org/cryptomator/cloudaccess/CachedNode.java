@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A node in a tree of cached data. A node can be marked dirty if
@@ -35,7 +36,7 @@ public class CachedNode {
 	}
 
 	public static CachedNode detached(String name) {
-		return new CachedNode(null, name, null, new HashMap<>(), false, true);
+		return new CachedNode(null, name, null, new ConcurrentHashMap<>(), false, true);
 	}
 
 	private CachedNode(CachedNode parent, String name, Cachable<?> data, Map<String, CachedNode> children, boolean childrenFetched, boolean dirty) {
