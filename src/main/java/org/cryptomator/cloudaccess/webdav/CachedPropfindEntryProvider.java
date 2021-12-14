@@ -34,8 +34,8 @@ class CachedPropfindEntryProvider {
 		this.rootPoller = rootPoller;
 		this.cacheUpdater = cacheUpdater;
 
-		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		RemoteChangeDetector remoteChangeDetector = new RemoteChangeDetector();
+		var executor = Executors.newSingleThreadScheduledExecutor();
+		var remoteChangeDetector = new RemoteChangeDetector();
 		executor.scheduleWithFixedDelay(remoteChangeDetector, config.getRemoteChangePollerInitialDelaySeconds(), config.getRemoteChangePollerPeriodSeconds(), TimeUnit.SECONDS);
 	}
 
@@ -160,14 +160,20 @@ class CachedPropfindEntryProvider {
 		@Override
 		public void run() {
 			LOG.trace("run executed");
-			var rootPath = CloudPath.of("/");
-			var root = cache.getCachedNode(rootPath);
-			if (root.isPresent()) {
-				var rootItemData = rootPoller.apply(rootPath);
-				if (!rootItemData.isSameVersion(root.get().getData(PropfindEntryItemData.class))) {
-					root.get().update(rootItemData);
-					updateChildren(rootPath);
+
+			try {
+				var rootPath = CloudPath.of("/");
+				var root = cache.getCachedNode(rootPath);
+				if (root.isPresent()) {
+					var rootItemData = rootPoller.apply(rootPath);
+					var localData = root.get().getData(PropfindEntryItemData.class);
+					if (localData == null || !rootItemData.isSameVersion(localData)) {
+						root.get().update(rootItemData);
+						updateChildren(rootPath);
+					}
 				}
+			} catch (Exception e) {
+				LOG.error("Problem occoured during RemoteChangeDetector running", e);
 			}
 		}
 
@@ -202,6 +208,9 @@ class CachedPropfindEntryProvider {
 							} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
 						} else {
 							cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+							if(remoteItemMetadata.get().isCollection()) {
+								updateChildren(node.resolve(localChild.getName()));
+							}
 						}
 					} else {
 						cache.delete(node.resolve(localChild.getName()));
@@ -214,6 +223,8 @@ class CachedPropfindEntryProvider {
 						cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
 					}
 				}
+
+				cacheNode.get().setChildrenFetched();
 			}
 		}
 	}
