@@ -157,7 +157,6 @@ public class MetadataRequestAggregator implements CloudProvider {
 		for (var path : cloudItemListRequestAggregator.asMap().keySet()) {
 			if (path.getKey().equals(cleartextPath)) {
 				cloudItemListRequestAggregator.invalidate(path);
-				return;
 			}
 		}
 	}
