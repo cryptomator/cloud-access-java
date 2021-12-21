@@ -24,8 +24,8 @@ public class MetadataRequestAggregator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
-	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> itemMetadataRequestAggregator;
-	final Cache<Map.Entry<CloudPath, Optional<String>>, CompletionStage<CloudItemList>> cloudItemListRequestAggregator;
+	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
+	final Cache<Map.Entry<CloudPath, Optional<String>>, CompletionStage<CloudItemList>> cachedItemListRequests;
 
 	final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
 
