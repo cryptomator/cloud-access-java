@@ -59,7 +59,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		this.config = VaultFormat8ProviderConfig.createFromSystemProperties();
 		this.dirIdCache = new DirectoryIdCache();
 		this.fileHeaderCache = CacheBuilder.newBuilder() //
-				.expireAfterAccess(Duration.ofMillis(config.getFileHeaderCacheTimeoutMillis())) //
+				.expireAfterWrite(Duration.ofMillis(config.getFileHeaderCacheTimeoutMillis())) //
 				.build(CacheLoader.from(this::readFileHeader));
 	}
 
