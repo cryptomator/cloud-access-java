@@ -39,15 +39,15 @@ public class MetadataRequestAggregator implements CloudProvider {
 
 	public MetadataRequestAggregator(CloudProvider delegate, Duration cacheEntryMaxAge) {
 		this.delegate = delegate;
-		this.itemMetadataRequestAggregator = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
-		this.cloudItemListRequestAggregator = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
+		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
+		this.cachedItemListRequests = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
 		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
 	}
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		try {
-			return itemMetadataRequestAggregator.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
+			return cachedItemMetadataRequests.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
 				if (throwable != null && !(throwable instanceof NotFoundException)) {
 					invalidateAggregators(node);
@@ -75,7 +75,7 @@ public class MetadataRequestAggregator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		try {
-			return cloudItemListRequestAggregator.get(Map.entry(folder, pageToken), () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> {
+			return cachedItemListRequests.get(Map.entry(folder, pageToken), () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
 				if (throwable != null && !(throwable instanceof NotFoundException)) {
 					invalidateAggregators(folder);
@@ -139,24 +139,24 @@ public class MetadataRequestAggregator implements CloudProvider {
 	}
 
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
-		for (var path : itemMetadataRequestAggregator.asMap().keySet()) {
+		for (var path : cachedItemMetadataRequests.asMap().keySet()) {
 			if (path.startsWith(cleartextPath)) {
-				itemMetadataRequestAggregator.invalidate(path);
+				cachedItemMetadataRequests.invalidate(path);
 			}
 		}
-		for (var path : cloudItemListRequestAggregator.asMap().keySet()) {
+		for (var path : cachedItemListRequests.asMap().keySet()) {
 			if (path.getKey().startsWith(cleartextPath)) {
-				cloudItemListRequestAggregator.invalidate(path);
+				cachedItemListRequests.invalidate(path);
 			}
 		}
 	}
 
 	private void invalidateAggregators(CloudPath cleartextPath) {
-		itemMetadataRequestAggregator.invalidate(cleartextPath);
+		cachedItemMetadataRequests.invalidate(cleartextPath);
 
-		for (var path : cloudItemListRequestAggregator.asMap().keySet()) {
+		for (var path : cachedItemListRequests.asMap().keySet()) {
 			if (path.getKey().equals(cleartextPath)) {
-				cloudItemListRequestAggregator.invalidate(path);
+				cachedItemListRequests.invalidate(path);
 			}
 		}
 	}
