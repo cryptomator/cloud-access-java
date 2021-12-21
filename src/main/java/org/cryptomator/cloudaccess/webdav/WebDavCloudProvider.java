@@ -16,10 +16,9 @@ import java.util.concurrent.CompletionStage;
 public class WebDavCloudProvider implements CloudProvider {
 
 	private final WebDavClient webDavClient;
-	private final WebDavProviderConfig config;
 
 	private WebDavCloudProvider(final WebDavCredential webDavCredential) {
-		config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
+		var config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
 		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential, config);
 	}
 

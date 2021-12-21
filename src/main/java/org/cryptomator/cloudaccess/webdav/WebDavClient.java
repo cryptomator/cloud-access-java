@@ -192,9 +192,6 @@ public class WebDavClient {
 		if (!replace) {
 			moveRequest.header("Overwrite", "F");
 		}
-		/*if (cachingSupported()) {
-			moveRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}*/
 
 		try (final var response = httpClient.execute(moveRequest)) {
 			if (response.isSuccessful()) {
@@ -288,10 +285,6 @@ public class WebDavClient {
 				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
 
-		/*if (cachingSupported()) {
-			writeRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}*/
-
 		lastModified.ifPresent(instant -> writeRequest.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
 
 		try (final var response = httpClient.execute(writeRequest)) {
@@ -300,9 +293,6 @@ public class WebDavClient {
 				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(file, size, lastModified, eTag));
 			} else {
 				switch (response.code()) {
-					case HttpURLConnection.HTTP_PRECON_FAILED:
-						// TODO
-						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:
@@ -339,19 +329,12 @@ public class WebDavClient {
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
 
-		/*if (cachingSupported()) {
-			createFolderRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}*/
-
 		try (final var response = httpClient.execute(createFolderRequest)) {
 			if (response.isSuccessful()) {
 				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.createFolder(path));
 				return path;
 			} else {
 				switch (response.code()) {
-					case HttpURLConnection.HTTP_PRECON_FAILED:
-						// TODO
-						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:
@@ -388,9 +371,6 @@ public class WebDavClient {
 				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(path));
 			} else {
 				switch (response.code()) {
-					case HttpURLConnection.HTTP_PRECON_FAILED:
-						// TODO
-						throw new CloudProviderException("Response code isn't between 200 and 300: " + response.code());
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
 					case HttpURLConnection.HTTP_FORBIDDEN:

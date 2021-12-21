@@ -127,8 +127,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return futureCleartextStream.thenApply(in -> {
 			long skip = offset % cryptor.fileContentCryptor().cleartextChunkSize();
 			var offsetIn = new OffsetInputStream(in, skip);
-			var limitedIn = ByteStreams.limit(offsetIn, count);
-			return limitedIn;
+			return ByteStreams.limit(offsetIn, count);
 		});
 	}
 
