@@ -22,7 +22,7 @@ class DirectoryIdCache {
 		cache.putAll(ROOT_MAPPINGS);
 	}
 
-	public synchronized CompletionStage<byte[]> get(CloudPath cleartextPath, BiFunction<CloudPath, byte[], CompletionStage<byte[]>> onMiss) {
+	public CompletionStage<byte[]> get(CloudPath cleartextPath, BiFunction<CloudPath, byte[], CompletionStage<byte[]>> onMiss) {
 		try {
 			return cache.get(cleartextPath, () -> {
 				var parentPath = cleartextPath.getNameCount() == 1 ? CloudPath.of("") : cleartextPath.getParent();
@@ -33,11 +33,11 @@ class DirectoryIdCache {
 		}
 	}
 
-	public synchronized void evict(CloudPath cleartextPath) {
+	public void evict(CloudPath cleartextPath) {
 		cache.invalidate(cleartextPath);
 	}
 
-	public synchronized void evictIncludingDescendants(CloudPath cleartextPath) {
+	public void evictIncludingDescendants(CloudPath cleartextPath) {
 		for (var path : cache.asMap().keySet()) {
 			if (path.startsWith(cleartextPath)) {
 				cache.invalidate(path);
