@@ -64,8 +64,8 @@ public class WebDavCloudProviderCachedPropfindEntriesTestIT {
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav/Nextcloud%20Manual.pdf", rq.getPath());
+		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 	}
 
