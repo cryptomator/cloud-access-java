@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 public class MetadataRequestAggregator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
+	private final static int DEFAULT_AGGREGATE_REQUESTS_MAX_AGE = 1;
 
 	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
 	final Cache<Map.Entry<CloudPath, Optional<String>>, CompletionStage<CloudItemList>> cachedItemListRequests;
@@ -32,15 +33,17 @@ public class MetadataRequestAggregator implements CloudProvider {
 	private final CloudProvider delegate;
 
 	public MetadataRequestAggregator(CloudProvider delegate) {
-		this(delegate, Duration.ofSeconds( //
-				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS) //
-		));
+		this(
+				delegate, //
+				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS)), //
+				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.aggregateRequestsMaxAgeSeconds", DEFAULT_AGGREGATE_REQUESTS_MAX_AGE)) //
+		);
 	}
 
-	public MetadataRequestAggregator(CloudProvider delegate, Duration cacheEntryMaxAge) {
+	public MetadataRequestAggregator(CloudProvider delegate, Duration cacheEntryMaxAge, Duration aggregateRequestsMaxAge) {
 		this.delegate = delegate;
-		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
-		this.cachedItemListRequests = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(1)).build();
+		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().expireAfterWrite(aggregateRequestsMaxAge).build();
+		this.cachedItemListRequests = CacheBuilder.newBuilder().expireAfterWrite(aggregateRequestsMaxAge).build();
 		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
 	}
 
