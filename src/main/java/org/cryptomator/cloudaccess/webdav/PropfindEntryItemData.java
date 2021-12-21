@@ -97,9 +97,6 @@ class PropfindEntryItemData implements CachedNode.Cachable<PropfindEntryItemData
 		private Optional<Long> size = Optional.empty();
 		private String eTag;
 
-		Builder() {
-		}
-
 		Builder withLastModified(final Optional<Instant> lastModified) {
 			this.lastModified = lastModified;
 			return this;

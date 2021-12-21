@@ -429,10 +429,6 @@ public class WebDavClient {
 		}
 	}
 
-	private boolean cachingSupported() {
-		return cachedPropfindEntryProvider.isPresent();
-	}
-
 	// visible for testing
 	URL absoluteURLFrom(final CloudPath relativePath) {
 		var basePath = CloudPath.of(baseUrl.getPath()).toAbsolutePath();
