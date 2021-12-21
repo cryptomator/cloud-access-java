@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimerTask;
@@ -199,31 +200,43 @@ class CachedPropfindEntryProvider {
 					if (remoteItemMetadata.isPresent()) {
 						var localData = localChild.getData(PropfindEntryItemData.class);
 						if (localData != null) {
-							if (!localData.isSameVersion(remoteItemMetadata.get())) {
-								cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
-								if (localData.isCollection()) {
-									updateChildren(node.resolve(localChild.getName()));
-								}
-							} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
+							updateSubTreeIfVersionChanged(node, localData, remoteItemMetadata, localChild);
 						} else {
-							cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
-							if(remoteItemMetadata.get().isCollection()) {
-								updateChildren(node.resolve(localChild.getName()));
-							}
+							updateSubTreeIfNoDataCachedButIsFolder(node, localChild, remoteItemMetadata);
 						}
 					} else {
 						cache.delete(node.resolve(localChild.getName()));
 					}
 				}
 
-				for (PropfindEntryItemData remoteChild : remoteChildren) {
-					var localNode = localChildren.stream().filter(local -> local.getName().equals(remoteChild.getName())).findAny();
-					if (localNode.isEmpty()) {
-						cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
-					}
-				}
+				addRemoteNodesIfNotYetCached(node, localChildren, remoteChildren);
 
 				cacheNode.get().setChildrenFetched();
+			}
+		}
+
+		private void updateSubTreeIfVersionChanged(CloudPath node, PropfindEntryItemData localData, Optional<PropfindEntryItemData> remoteItemMetadata, CachedNode localChild) {
+			if (!localData.isSameVersion(remoteItemMetadata.get())) {
+				cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+				if (localData.isCollection()) {
+					updateChildren(node.resolve(localChild.getName()));
+				}
+			} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
+		}
+
+		private void updateSubTreeIfNoDataCachedButIsFolder(CloudPath node, CachedNode localChild, Optional<PropfindEntryItemData> remoteItemMetadata) {
+			cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+			if(remoteItemMetadata.get().isCollection()) {
+				updateChildren(node.resolve(localChild.getName()));
+			}
+		}
+
+		private void addRemoteNodesIfNotYetCached(CloudPath node, Collection<CachedNode> localChildren, List<PropfindEntryItemData> remoteChildren) {
+			for (PropfindEntryItemData remoteChild : remoteChildren) {
+				var localNode = localChildren.stream().filter(local -> local.getName().equals(remoteChild.getName())).findAny();
+				if (localNode.isEmpty()) {
+					cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
+				}
 			}
 		}
 	}
