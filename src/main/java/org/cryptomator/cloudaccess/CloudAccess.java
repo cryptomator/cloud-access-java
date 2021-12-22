@@ -61,7 +61,7 @@ public class CloudAccess {
 
 			VaultFormat8ProviderDecorator provider = new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
 			provider.initialize();
-			return new MetadataRequestAggregator(provider);
+			return new MetadataCachingProviderDecorator(provider);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		} catch (InterruptedException e) {

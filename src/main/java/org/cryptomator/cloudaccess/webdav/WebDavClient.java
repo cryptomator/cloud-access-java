@@ -440,6 +440,10 @@ public class WebDavClient {
 		}
 	}
 
+	boolean cachingCapability() {
+		return cachedPropfindEntryProvider.isPresent();
+	}
+
 	private enum PropfindDepth {
 		ZERO("0"), //
 		ONE("1"), //

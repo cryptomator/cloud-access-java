@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
@@ -20,10 +21,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-public class MetadataRequestAggregator implements CloudProvider {
+public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
-	private final static int DEFAULT_AGGREGATE_REQUESTS_MAX_AGE = 1;
+	private final static int CACHING_DISABLED_ONLY_AGGREGATING_REQUESTS_TIMEOUT = 0;
 
 	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
 	final Cache<Map.Entry<CloudPath, Optional<String>>, CompletionStage<CloudItemList>> cachedItemListRequests;
@@ -32,19 +33,23 @@ public class MetadataRequestAggregator implements CloudProvider {
 
 	private final CloudProvider delegate;
 
-	public MetadataRequestAggregator(CloudProvider delegate) {
+	public MetadataCachingProviderDecorator(CloudProvider delegate) {
 		this(
 				delegate, //
-				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS)), //
-				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.aggregateRequestsMaxAgeSeconds", DEFAULT_AGGREGATE_REQUESTS_MAX_AGE)) //
+				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS))
 		);
 	}
 
-	public MetadataRequestAggregator(CloudProvider delegate, Duration cacheEntryMaxAge, Duration aggregateRequestsMaxAge) {
+	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {
 		this.delegate = delegate;
-		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().expireAfterWrite(aggregateRequestsMaxAge).build();
-		this.cachedItemListRequests = CacheBuilder.newBuilder().expireAfterWrite(aggregateRequestsMaxAge).build();
-		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
+		var cacheEntryMaxAgeDependingCachingCapability = aggregateRequestsMaxAgeDependingCachingCapability(cacheEntryMaxAge);
+		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAgeDependingCachingCapability).build();
+		this.cachedItemListRequests = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAgeDependingCachingCapability).build();
+		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAgeDependingCachingCapability).build();
+	}
+
+	private Duration aggregateRequestsMaxAgeDependingCachingCapability(Duration cacheEntryMaxAge) {
+		return delegate.cachingCapability() ? Duration.ofSeconds(CACHING_DISABLED_ONLY_AGGREGATING_REQUESTS_TIMEOUT) : cacheEntryMaxAge;
 	}
 
 	@Override
@@ -53,7 +58,7 @@ public class MetadataRequestAggregator implements CloudProvider {
 			return cachedItemMetadataRequests.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
 				if (throwable != null && !(throwable instanceof NotFoundException)) {
-					invalidateAggregators(node);
+					evict(node);
 				}
 			}));
 		} catch (ExecutionException e) {
@@ -67,7 +72,7 @@ public class MetadataRequestAggregator implements CloudProvider {
 			return quotaCache.get(folder, () -> delegate.quota(folder).whenComplete((metadata, throwable) -> {
 				// immediately invalidate cache in case of exceptions (except for NOT FOUND and QUOTA NOT AVAILABLE):
 				if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
-					invalidateAggregators(folder);
+					evict(folder);
 				}
 			}));
 		} catch (ExecutionException e) {
@@ -78,10 +83,11 @@ public class MetadataRequestAggregator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		try {
-			return cachedItemListRequests.get(Map.entry(folder, pageToken), () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> {
-				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
-				if (throwable != null && !(throwable instanceof NotFoundException)) {
-					invalidateAggregators(folder);
+			return cachedItemListRequests.get(Map.entry(folder, pageToken), () -> delegate.list(folder, pageToken).whenComplete((cloudItemList, throwable) -> {
+				evictIncludingDescendants(folder);
+				if (throwable == null && !delegate.cachingCapability()) {
+					assert cloudItemList != null;
+					cloudItemList.getItems().forEach(metadata -> cachedItemMetadataRequests.put(metadata.getPath(), CompletableFuture.completedFuture(metadata)));
 				}
 			}));
 		} catch (ExecutionException e) {
@@ -94,7 +100,7 @@ public class MetadataRequestAggregator implements CloudProvider {
 		return delegate.read(file, progressListener) //
 				.whenComplete((metadata, exception) -> {
 					if (exception != null) {
-						invalidateAggregators(file);
+						evict(file);
 					}
 				});
 	}
@@ -104,7 +110,7 @@ public class MetadataRequestAggregator implements CloudProvider {
 		return delegate.read(file, offset, count, progressListener) //
 				.whenComplete((inputStream, exception) -> {
 					if (exception != null) {
-						invalidateAggregators(file);
+						evict(file);
 					}
 				});
 	}
@@ -112,25 +118,38 @@ public class MetadataRequestAggregator implements CloudProvider {
 	@Override
 	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		return delegate.write(file, replace, data, size, lastModified, progressListener).whenComplete((nullReturn, exception) -> {
-			if (exception != null) {
-				invalidateAggregators(file);
+			if (exception == null && !delegate.cachingCapability()) {
+				cachedItemMetadataRequests.put(file, CompletableFuture.completedFuture(new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, lastModified, Optional.of(size))));
+			} else if (exception != null) {
+				evict(file);
 			}
 		});
 	}
 
 	@Override
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		return delegate.createFolder(folder).whenComplete((metadata, exception) -> invalidateAggregators(folder));
+		return delegate.createFolder(folder).whenComplete((metadata, exception) -> evict(folder));
 	}
 
 	@Override
 	public CompletionStage<Void> deleteFile(CloudPath file) {
-		return delegate.deleteFile(file);
+		return delegate.deleteFile(file).whenComplete((nullReturn, exception) -> {
+			if (!delegate.cachingCapability()) {
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(file, future);
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<Void> deleteFolder(CloudPath folder) {
-		return delegate.deleteFolder(folder).whenComplete((nullReturn, exception) -> evictIncludingDescendants(folder));
+		return delegate.deleteFolder(folder).whenComplete((nullReturn, exception) -> {
+			evictIncludingDescendants(folder);
+			if (!delegate.cachingCapability()) {
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(folder, future);
+			}
+		});
 	}
 
 	@Override
@@ -139,6 +158,11 @@ public class MetadataRequestAggregator implements CloudProvider {
 			evictIncludingDescendants(source);
 			evictIncludingDescendants(target);
 		});
+	}
+
+	@Override
+	public boolean cachingCapability() {
+		return delegate.cachingCapability();
 	}
 
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
@@ -150,15 +174,19 @@ public class MetadataRequestAggregator implements CloudProvider {
 		for (var path : cachedItemListRequests.asMap().keySet()) {
 			if (path.getKey().startsWith(cleartextPath)) {
 				cachedItemListRequests.invalidate(path);
+			} else if (path.getKey().getParent().equals(cleartextPath.getParent())) {
+				cachedItemListRequests.invalidate(path);
 			}
 		}
 	}
 
-	private void invalidateAggregators(CloudPath cleartextPath) {
+	private void evict(CloudPath cleartextPath) {
 		cachedItemMetadataRequests.invalidate(cleartextPath);
 
 		for (var path : cachedItemListRequests.asMap().keySet()) {
 			if (path.getKey().equals(cleartextPath)) {
+				cachedItemListRequests.invalidate(path);
+			} else if (path.getKey().getParent().equals(cleartextPath.getParent())) {
 				cachedItemListRequests.invalidate(path);
 			}
 		}

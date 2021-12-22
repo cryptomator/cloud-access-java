@@ -222,6 +222,10 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		});
 	}
 
+	@Override
+	public boolean cachingCapability() {
+		return delegate.cachingCapability();
+	}
 	private CloudItemList toCleartextItemList(CloudItemList ciphertextItemList, CloudPath cleartextParent, byte[] parentDirId) {
 		var items = ciphertextItemList.getItems().stream().flatMap(ciphertextMetadata -> {
 			try {

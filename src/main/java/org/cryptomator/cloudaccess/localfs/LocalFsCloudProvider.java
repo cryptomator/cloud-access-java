@@ -248,4 +248,9 @@ public class LocalFsCloudProvider implements CloudProvider {
 			l.unlock();
 		}
 	}
+
+	@Override
+	public boolean cachingCapability() {
+		return true;
+	}
 }

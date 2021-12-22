@@ -76,4 +76,8 @@ public class WebDavCloudProvider implements CloudProvider {
 		return CompletableFuture.supplyAsync(() -> webDavClient.move(source, target, replace));
 	}
 
+	@Override
+	public boolean cachingCapability() {
+		return webDavClient.cachingCapability();
+	}
 }

@@ -248,5 +248,10 @@ public interface CloudProvider {
 	 */
 	CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace);
 
+	/**
+	 * Check if caching is possible and implemented
+	 * @return true if the implementation can and do cache requests itself
+	 */
+	boolean cachingCapability();
 }
 
