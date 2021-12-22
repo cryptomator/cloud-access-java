@@ -420,12 +420,12 @@ public class WebDavClient {
 		return loadPropfindItem(CloudPath.of("/"));
 	}
 
-	void canUseCaching(PropfindEntryItemData propfindEntryItemData, WebDavProviderConfig config) throws UnauthorizedException {
+	void canUseCaching(PropfindEntryItemData propfindEntryItemData) throws UnauthorizedException {
 		LOG.trace("canUseCaching");
 		if (propfindEntryItemData.getETag() != null) {
 			Function<CloudPath, PropfindEntryItemData> rootPoller = this::loadPropfindItem;
 			Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater = this::loadPropfindItems;
-			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(config, rootPoller, cacheUpdater));
+			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(rootPoller, cacheUpdater));
 		}
 	}
 
@@ -467,7 +467,7 @@ public class WebDavClient {
 
 			webDavClient.checkServerCompatibility();
 			var propfindEntryItemData = webDavClient.tryAuthenticatedRequest();
-			webDavClient.canUseCaching(propfindEntryItemData, config);
+			webDavClient.canUseCaching(propfindEntryItemData);
 
 			return webDavClient;
 		}

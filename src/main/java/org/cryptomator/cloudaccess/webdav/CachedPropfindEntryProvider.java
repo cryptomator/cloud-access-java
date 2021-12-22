@@ -25,7 +25,7 @@ class CachedPropfindEntryProvider {
 	private Function<CloudPath, PropfindEntryItemData> rootPoller;
 	private Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater;
 
-	CachedPropfindEntryProvider(WebDavProviderConfig config, Function<CloudPath, PropfindEntryItemData> rootPoller, Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater) {
+	CachedPropfindEntryProvider(Function<CloudPath, PropfindEntryItemData> rootPoller, Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater) {
 		this(new NodeCache());
 
 		this.rootPoller = rootPoller;
