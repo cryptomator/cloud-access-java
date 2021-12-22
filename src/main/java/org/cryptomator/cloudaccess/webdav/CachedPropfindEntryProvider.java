@@ -13,9 +13,6 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimerTask;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,10 +30,6 @@ class CachedPropfindEntryProvider {
 
 		this.rootPoller = rootPoller;
 		this.cacheUpdater = cacheUpdater;
-
-		var executor = Executors.newSingleThreadScheduledExecutor();
-		var remoteChangeDetector = new RemoteChangeDetector();
-		executor.scheduleWithFixedDelay(remoteChangeDetector, config.getRemoteChangePollerInitialDelaySeconds(), config.getRemoteChangePollerPeriodSeconds(), TimeUnit.SECONDS);
 	}
 
 	// visible for testing
@@ -155,88 +148,79 @@ class CachedPropfindEntryProvider {
 		cache.delete(path);
 	}
 
-	private class RemoteChangeDetector extends TimerTask {
-
-		@Override
-		public void run() {
-			LOG.trace("run executed");
-
-			try {
-				var rootPath = CloudPath.of("/");
-				var root = cache.getCachedNode(rootPath);
-				if (root.isPresent()) {
-					var rootItemData = rootPoller.apply(rootPath);
-					var localData = root.get().getData(PropfindEntryItemData.class);
-					if (localData == null || !rootItemData.isSameVersion(localData)) {
-						root.get().update(rootItemData);
-						updateChildren(rootPath);
-					}
-				}
-			} catch (Exception e) {
-				LOG.error("Problem occoured during RemoteChangeDetector running", e);
+	public void pollRemoteChanges() {
+		LOG.trace("polling remote changes");
+		var rootPath = CloudPath.of("/");
+		var root = cache.getCachedNode(rootPath);
+		if (root.isPresent()) {
+			var rootItemData = rootPoller.apply(rootPath);
+			var localData = root.get().getData(PropfindEntryItemData.class);
+			if (localData == null || !rootItemData.isSameVersion(localData)) {
+				root.get().update(rootItemData);
+				updateChildren(rootPath);
 			}
 		}
+	}
 
-		private void updateChildren(CloudPath node) {
-			LOG.trace("updateChildren {}", node);
-			var cacheNode = cache.getCachedNode(node);
-			if (cacheNode.isPresent()) {
-				var localChildren = cacheNode.get().getChildren();
-				var remoteChildren = cacheUpdater.apply(node);
+	private void updateChildren(CloudPath node) {
+		LOG.trace("updateChildren {}", node);
+		var cacheNode = cache.getCachedNode(node);
+		if (cacheNode.isPresent()) {
+			var localChildren = cacheNode.get().getChildren();
+			var remoteChildren = cacheUpdater.apply(node);
 
-				// delete parent
-				remoteChildren.sort(new PropfindEntryItemData.AscendingByDepthComparator());
-				if(remoteChildren.size() > 0) {
-					remoteChildren.remove(0);
-				}
+			// delete parent
+			remoteChildren.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+			if (remoteChildren.size() > 0) {
+				remoteChildren.remove(0);
+			}
 
-				// if local exists but not remote --> remove including descendant ✓
-				// if local exists but different or no ETAG --> update, check descendant up to unchaged or not exist in cache ✓
-				// if local exists and same ETAG --> ignore further sub-tree ✓
-				// if remote exists but not local --> create ✓
+			// if local exists but not remote --> remove including descendant ✓
+			// if local exists but different or no ETAG --> update, check descendant up to unchaged or not exist in cache ✓
+			// if local exists and same ETAG --> ignore further sub-tree ✓
+			// if remote exists but not local --> create ✓
 
-				for (CachedNode localChild : localChildren) {
-					var remoteItemMetadata = remoteChildren.stream().filter(remote -> remote.getName().equals(localChild.getName())).findAny();
-					if (remoteItemMetadata.isPresent()) {
-						var localData = localChild.getData(PropfindEntryItemData.class);
-						if (localData != null) {
-							updateSubTreeIfVersionChanged(node, localData, remoteItemMetadata, localChild);
-						} else {
-							updateSubTreeIfNoDataCachedButIsFolder(node, localChild, remoteItemMetadata);
-						}
+			for (CachedNode localChild : localChildren) {
+				var remoteItemMetadata = remoteChildren.stream().filter(remote -> remote.getName().equals(localChild.getName())).findAny();
+				if (remoteItemMetadata.isPresent()) {
+					var localData = localChild.getData(PropfindEntryItemData.class);
+					if (localData != null) {
+						updateSubTreeIfVersionChanged(node, localData, remoteItemMetadata, localChild);
 					} else {
-						cache.delete(node.resolve(localChild.getName()));
+						updateSubTreeIfNoDataCachedButIsFolder(node, localChild, remoteItemMetadata);
 					}
+				} else {
+					cache.delete(node.resolve(localChild.getName()));
 				}
-
-				addRemoteNodesIfNotYetCached(node, localChildren, remoteChildren);
-
-				cacheNode.get().setChildrenFetched();
 			}
-		}
 
-		private void updateSubTreeIfVersionChanged(CloudPath node, PropfindEntryItemData localData, Optional<PropfindEntryItemData> remoteItemMetadata, CachedNode localChild) {
-			if (!localData.isSameVersion(remoteItemMetadata.get())) {
-				cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
-				if (localData.isCollection()) {
-					updateChildren(node.resolve(localChild.getName()));
-				}
-			} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
-		}
+			addRemoteNodesIfNotYetCached(node, localChildren, remoteChildren);
 
-		private void updateSubTreeIfNoDataCachedButIsFolder(CloudPath node, CachedNode localChild, Optional<PropfindEntryItemData> remoteItemMetadata) {
+			cacheNode.get().setChildrenFetched();
+		}
+	}
+
+	private void updateSubTreeIfVersionChanged(CloudPath node, PropfindEntryItemData localData, Optional<PropfindEntryItemData> remoteItemMetadata, CachedNode localChild) {
+		if (!localData.isSameVersion(remoteItemMetadata.get())) {
 			cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
-			if(remoteItemMetadata.get().isCollection()) {
+			if (localData.isCollection()) {
 				updateChildren(node.resolve(localChild.getName()));
 			}
-		}
+		} // else branch does nothing, even if a subtree exists but ETag of the parent didn't change
+	}
 
-		private void addRemoteNodesIfNotYetCached(CloudPath node, Collection<CachedNode> localChildren, List<PropfindEntryItemData> remoteChildren) {
-			for (PropfindEntryItemData remoteChild : remoteChildren) {
-				var localNode = localChildren.stream().filter(local -> local.getName().equals(remoteChild.getName())).findAny();
-				if (localNode.isEmpty()) {
-					cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
-				}
+	private void updateSubTreeIfNoDataCachedButIsFolder(CloudPath node, CachedNode localChild, Optional<PropfindEntryItemData> remoteItemMetadata) {
+		cache.getCachedNode(node.resolve(localChild.getName())).get().update(remoteItemMetadata.get());
+		if (remoteItemMetadata.get().isCollection()) {
+			updateChildren(node.resolve(localChild.getName()));
+		}
+	}
+
+	private void addRemoteNodesIfNotYetCached(CloudPath node, Collection<CachedNode> localChildren, List<PropfindEntryItemData> remoteChildren) {
+		for (PropfindEntryItemData remoteChild : remoteChildren) {
+			var localNode = localChildren.stream().filter(local -> local.getName().equals(remoteChild.getName())).findAny();
+			if (localNode.isEmpty()) {
+				cache.getOrCreateCachedNode(node.resolve(remoteChild.getName())).update(remoteChild);
 			}
 		}
 	}

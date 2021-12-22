@@ -253,5 +253,12 @@ public interface CloudProvider {
 	 * @return true if the implementation can and do cache requests itself
 	 */
 	boolean cachingCapability();
+
+	/**
+	 * Check against the cloud if something remotely changed in relation to the cached data, if caching is not available --> no-op
+	 * @return CompletionStage completing successfully if the update finished
+	 */
+	CompletionStage<Void> pollRemoteChanges();
+
 }
 

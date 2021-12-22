@@ -440,6 +440,10 @@ public class WebDavClient {
 		}
 	}
 
+	void pollRemoteChanges() {
+		cachedPropfindEntryProvider.ifPresent(CachedPropfindEntryProvider::pollRemoteChanges);
+	}
+
 	boolean cachingCapability() {
 		return cachedPropfindEntryProvider.isPresent();
 	}

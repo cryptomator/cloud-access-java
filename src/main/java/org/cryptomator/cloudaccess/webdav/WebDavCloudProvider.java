@@ -80,4 +80,10 @@ public class WebDavCloudProvider implements CloudProvider {
 	public boolean cachingCapability() {
 		return webDavClient.cachingCapability();
 	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return CompletableFuture.runAsync(webDavClient::pollRemoteChanges);
+	}
+
 }

@@ -165,6 +165,11 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.cachingCapability();
 	}
 
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return delegate.pollRemoteChanges();
+	}
+
 	private void evictIncludingDescendants(CloudPath cleartextPath) {
 		for (var path : cachedItemMetadataRequests.asMap().keySet()) {
 			if (path.startsWith(cleartextPath)) {

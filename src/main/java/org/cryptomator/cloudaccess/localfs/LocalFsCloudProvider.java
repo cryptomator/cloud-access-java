@@ -253,4 +253,9 @@ public class LocalFsCloudProvider implements CloudProvider {
 	public boolean cachingCapability() {
 		return true;
 	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return CompletableFuture.completedFuture(null);
+	}
 }
