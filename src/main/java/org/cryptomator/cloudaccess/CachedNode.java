@@ -99,7 +99,7 @@ public class CachedNode {
 
 	/**
 	 * Sets the cached data and drops the dirty bit.
-	 * @param data
+	 * @param data The data to be cached
 	 * @see #markDirty()
 	 */
 	public void update(Cachable<?> data) {
