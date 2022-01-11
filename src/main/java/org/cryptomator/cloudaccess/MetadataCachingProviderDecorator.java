@@ -14,7 +14,6 @@ import org.cryptomator.cloudaccess.api.exceptions.QuotaNotAvailableException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -24,10 +23,10 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
-	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
-	final Cache<Map.Entry<CloudPath, Optional<String>>, CompletionStage<CloudItemList>> cachedItemListRequests;
+	private final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
+	private final Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests;
 
-	final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
+	private final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
 
 	private final CloudProvider delegate;
 
@@ -71,8 +70,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		try {
-			var folderKey = Map.entry(folder, pageToken);
-			return cachedItemListRequests.get(folderKey, () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> evict(folderKey)));
+			var entry = new ItemListEntry(folder, pageToken);
+			return cachedItemListRequests.get(entry, () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> evict(entry)));
 		} catch (ExecutionException e) {
 			return CompletableFuture.failedFuture(e);
 		}
@@ -144,9 +143,9 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 				cachedItemMetadataRequests.invalidate(path);
 			}
 		}
-		for (var path : cachedItemListRequests.asMap().keySet()) {
-			if (path.getKey().startsWith(cleartextPath)) {
-				cachedItemListRequests.invalidate(path);
+		for (var entry : cachedItemListRequests.asMap().keySet()) {
+			if (entry.path.startsWith(cleartextPath)) {
+				cachedItemListRequests.invalidate(entry);
 			}
 		}
 	}
@@ -154,14 +153,17 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	private void evict(CloudPath cleartextPath) {
 		cachedItemMetadataRequests.invalidate(cleartextPath);
 
-		for (var path : cachedItemListRequests.asMap().keySet()) {
-			if (path.getKey().equals(cleartextPath)) {
-				cachedItemListRequests.invalidate(path);
+		for (var entry : cachedItemListRequests.asMap().keySet()) {
+			if (entry.path.equals(cleartextPath)) {
+				cachedItemListRequests.invalidate(entry);
 			}
 		}
 	}
 
-	private void evict(Map.Entry<CloudPath, Optional<String>> folderKey) {
-		cachedItemListRequests.invalidate(folderKey);
+	private void evict(ItemListEntry entry) {
+		cachedItemListRequests.invalidate(entry);
+	}
+
+	private record ItemListEntry(CloudPath path, Optional<String> pageToken) {
 	}
 }
