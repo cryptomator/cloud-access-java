@@ -51,7 +51,7 @@ public class WebDavClientTest {
 
 	@BeforeEach
 	public void setup() throws MalformedURLException {
-		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential);
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, Optional.empty());
 	}
 
 	@ParameterizedTest(name = "absoluteURLFrom(\"{0}\") == {1}")
@@ -82,7 +82,7 @@ public class WebDavClientTest {
 	@Test
 	@DisplayName("get metadata of /Nextcloud Manual.pdf from cache")
 	public void testItemMetadataFromCache() {
-		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, Optional.of(cachedPropfindEntryProvider));
 
 		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any()))
 				.thenReturn(new PropfindEntryItemData.Builder()
@@ -102,7 +102,7 @@ public class WebDavClientTest {
 	@Test
 	@DisplayName("get metadata of /Nextcloud Manual.pdf from server when cache returns null")
 	public void testItemMetadataFromFunctionAsCacheReturnsNull() throws IOException {
-		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, Optional.of(cachedPropfindEntryProvider));
 
 		Mockito.when(cachedPropfindEntryProvider.itemMetadata(ArgumentMatchers.eq(CloudPath.of("/Nextcloud Manual.pdf")), ArgumentMatchers.any(), ArgumentMatchers.any()))
 				.thenReturn(null);
@@ -152,7 +152,7 @@ public class WebDavClientTest {
 	@Test
 	@DisplayName("list / from cache")
 	public void testListFromCache() {
-		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, cachedPropfindEntryProvider);
+		webDavClient = new WebDavClient(webDavCompatibleHttpClient, webDavCredential, Optional.of(cachedPropfindEntryProvider));
 
 		Mockito.when(cachedPropfindEntryProvider.list(ArgumentMatchers.eq(CloudPath.of("/")), ArgumentMatchers.any()))
 				.thenReturn(List.of(new PropfindEntryItemData.Builder()
@@ -372,7 +372,7 @@ public class WebDavClientTest {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
 				.thenReturn(getInterceptedResponse(baseUrl, "authentication-response.xml"));
 
-		webDavClient.tryAuthenticatedRequest();
+		webDavClient.checkAuthenticationUsingLoadPropfindItem();
 	}
 
 	@Test
@@ -381,7 +381,7 @@ public class WebDavClientTest {
 		Mockito.when(webDavCompatibleHttpClient.execute(ArgumentMatchers.any()))
 				.thenReturn(getInterceptedResponse(baseUrl, 401, ""));
 
-		Assertions.assertThrows(UnauthorizedException.class, () -> webDavClient.tryAuthenticatedRequest());
+		Assertions.assertThrows(UnauthorizedException.class, () -> webDavClient.checkAuthenticationUsingLoadPropfindItem());
 	}
 
 	private Response getInterceptedResponse(final URL url, final String testResource) {

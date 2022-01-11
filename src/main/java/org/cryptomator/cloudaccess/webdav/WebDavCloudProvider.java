@@ -19,7 +19,7 @@ public class WebDavCloudProvider implements CloudProvider {
 
 	private WebDavCloudProvider(final WebDavCredential webDavCredential) {
 		var config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
-		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential, config);
+		webDavClient = new WebDavClient(config, webDavCredential);
 	}
 
 	public static WebDavCloudProvider from(final WebDavCredential webDavCredential) throws UnauthorizedException, ServerNotWebdavCompatibleException {

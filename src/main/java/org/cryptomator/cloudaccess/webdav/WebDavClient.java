@@ -42,18 +42,30 @@ public class WebDavClient {
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
+	private final Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider;
 
-	private Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider = Optional.empty();
-
-	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
-		this.httpClient = httpClient;
+	WebDavClient(WebDavProviderConfig config, final WebDavCredential webDavCredential) {
+		this.httpClient = new WebDavCompatibleHttpClient(webDavCredential, config);
 		this.baseUrl = webDavCredential.getBaseUrl();
+
+		checkServerCompatibility();
+
+		var propfindEntryItemData = checkAuthenticationUsingLoadPropfindItem();
+
+		if (propfindEntryItemData.getETag() != null) {
+			Function<CloudPath, PropfindEntryItemData> rootPoller = this::loadPropfindItem;
+			Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater = this::loadPropfindItems;
+			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(rootPoller, cacheUpdater));
+		} else {
+			cachedPropfindEntryProvider = Optional.empty();
+		}
 	}
 
-	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential, final CachedPropfindEntryProvider cachedPropfindEntryProvider) {
+	// used for testing only
+	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential, final Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider) {
 		this.httpClient = httpClient;
 		this.baseUrl = webDavCredential.getBaseUrl();
-		this.cachedPropfindEntryProvider = Optional.of(cachedPropfindEntryProvider);
+		this.cachedPropfindEntryProvider = cachedPropfindEntryProvider;
 	}
 
 	Quota quota(final CloudPath folder) throws CloudProviderException {
@@ -208,7 +220,6 @@ public class WebDavClient {
 					case HttpURLConnection.HTTP_CONFLICT:
 						throw new ParentFolderDoesNotExistException();
 					case HttpURLConnection.HTTP_PRECON_FAILED:
-						// FIXME has now different cases
 						throw new AlreadyExistsException(absoluteURLFrom(to).toExternalForm());
 					case HTTP_INSUFFICIENT_STORAGE:
 						throw new InsufficientStorageException();
@@ -362,10 +373,6 @@ public class WebDavClient {
 				.delete() //
 				.url(absoluteURLFrom(path));
 
-		/*if (cachingSupported()) {
-			deleteRequest.header("If-Match", String.format("\"%s\"", "*"));
-		}*/
-
 		try (final var response = httpClient.execute(deleteRequest)) {
 			if (response.isSuccessful()) {
 				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(path));
@@ -415,18 +422,9 @@ public class WebDavClient {
 		}
 	}
 
-	PropfindEntryItemData tryAuthenticatedRequest() throws UnauthorizedException {
+	PropfindEntryItemData checkAuthenticationUsingLoadPropfindItem() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
 		return loadPropfindItem(CloudPath.of("/"));
-	}
-
-	void canUseCaching(PropfindEntryItemData propfindEntryItemData) throws UnauthorizedException {
-		LOG.trace("canUseCaching");
-		if (propfindEntryItemData.getETag() != null) {
-			Function<CloudPath, PropfindEntryItemData> rootPoller = this::loadPropfindItem;
-			Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater = this::loadPropfindItems;
-			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(rootPoller, cacheUpdater));
-		}
 	}
 
 	// visible for testing
@@ -459,18 +457,4 @@ public class WebDavClient {
 			this.value = value;
 		}
 	}
-
-	static class WebDavAuthenticator {
-
-		static WebDavClient createAuthenticatedWebDavClient(final WebDavCredential webDavCredential, WebDavProviderConfig config) throws ServerNotWebdavCompatibleException, UnauthorizedException {
-			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential, config), webDavCredential);
-
-			webDavClient.checkServerCompatibility();
-			var propfindEntryItemData = webDavClient.tryAuthenticatedRequest();
-			webDavClient.canUseCaching(propfindEntryItemData);
-
-			return webDavClient;
-		}
-	}
-
 }
