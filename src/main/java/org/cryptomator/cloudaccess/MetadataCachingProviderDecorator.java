@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.cryptomator.cloudaccess.api.CloudItemList;
 import org.cryptomator.cloudaccess.api.CloudItemMetadata;
+import org.cryptomator.cloudaccess.api.CloudItemType;
 import org.cryptomator.cloudaccess.api.CloudPath;
 import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
@@ -23,8 +24,9 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
-	private final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
-	private final Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests;
+	// visible for testing
+	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
+	final Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests;
 
 	private final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
 
@@ -38,16 +40,31 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	}
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {
+		// cachedItemMetadataRequests is a request aggregator only if the delegate has caching capabilities, otherwise it is a real cache
+		// cachedItemListRequests is always a request aggregator, as it is too easy to have stale state
+		this(
+				delegate, //
+				cacheEntryMaxAge, //
+				delegate.cachingCapability() ? CacheBuilder.newBuilder().build() : CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build(),
+				CacheBuilder.newBuilder().build()
+		);
+	}
+
+	MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge, Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests, Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests) {
 		this.delegate = delegate;
-		this.cachedItemMetadataRequests = CacheBuilder.newBuilder().build();
-		this.cachedItemListRequests = CacheBuilder.newBuilder().build();
 		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
+		this.cachedItemMetadataRequests = cachedItemMetadataRequests;
+		this.cachedItemListRequests = cachedItemListRequests;
 	}
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		try {
-			return cachedItemMetadataRequests.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> evict(node)));
+			return cachedItemMetadataRequests.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
+				if (delegate.cachingCapability() || throwable != null && !(throwable instanceof NotFoundException)) {
+					evict(node);
+				}
+			}));
 		} catch (ExecutionException e) {
 			return CompletableFuture.failedFuture(e);
 		}
@@ -57,9 +74,9 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<Quota> quota(CloudPath folder) {
 		try {
 			return quotaCache.get(folder, () -> delegate.quota(folder).whenComplete((metadata, throwable) -> {
-				// immediately invalidate cache in case of exceptions (except for NOT FOUND and QUOTA NOT AVAILABLE):
 				if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
 					evict(folder);
+					quotaCache.invalidate(folder);
 				}
 			}));
 		} catch (ExecutionException e) {
@@ -71,7 +88,17 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		try {
 			var entry = new ItemListEntry(folder, pageToken);
-			return cachedItemListRequests.get(entry, () -> delegate.list(folder, pageToken).whenComplete((metadata, throwable) -> evict(entry)));
+			return cachedItemListRequests.get(entry, () -> delegate.list(folder, pageToken).whenComplete((cloudItemList, exception) -> {
+				if (exception instanceof NotFoundException) {
+					evictIncludingDescendants(folder);
+				} else if (delegate.cachingCapability()) {
+					evict(entry);
+				} else if (exception == null) {
+					evictIncludingDescendants(folder);
+					assert cloudItemList != null;
+					cloudItemList.getItems().forEach(metadata -> cachedItemMetadataRequests.put(metadata.getPath(), CompletableFuture.completedFuture(metadata)));
+				}
+			}));
 		} catch (ExecutionException e) {
 			return CompletableFuture.failedFuture(e);
 		}
@@ -100,6 +127,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		return delegate.write(file, replace, data, size, lastModified, progressListener).whenComplete((nullReturn, exception) -> {
 			if (exception != null) {
 				evict(file);
+			} else if (!delegate.cachingCapability()) {
+				cachedItemMetadataRequests.put(file, CompletableFuture.completedFuture(new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, lastModified, Optional.of(size))));
 			}
 		});
 	}
@@ -111,12 +140,24 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<Void> deleteFile(CloudPath file) {
-		return delegate.deleteFile(file);
+		return delegate.deleteFile(file).whenComplete((nullReturn, exception) -> {
+			if (!delegate.cachingCapability()) {
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(file, future);
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<Void> deleteFolder(CloudPath folder) {
-		return delegate.deleteFolder(folder).whenComplete((nullReturn, exception) -> evictIncludingDescendants(folder));
+		return delegate.deleteFolder(folder).whenComplete((nullReturn, exception) -> {
+			if (!delegate.cachingCapability()) {
+				evictIncludingDescendants(folder);
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(folder, future);
+				quotaCache.invalidateAll();
+			}
+		});
 	}
 
 	@Override
@@ -164,6 +205,6 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 		cachedItemListRequests.invalidate(entry);
 	}
 
-	private record ItemListEntry(CloudPath path, Optional<String> pageToken) {
+	record ItemListEntry(CloudPath path, Optional<String> pageToken) {
 	}
 }
