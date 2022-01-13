@@ -175,7 +175,7 @@
                 </executions>
                 <configuration>
                     <quiet>true</quiet>
-                    <release>11</release>
+                    <release>17</release>
                 </configuration>
             </plugin>
             <plugin>
