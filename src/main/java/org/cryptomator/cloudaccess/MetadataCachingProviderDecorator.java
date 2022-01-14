@@ -24,29 +24,45 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
-	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> itemMetadataCache;
-	final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
+	// visible for testing
+	final Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests;
+	final Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests;
+
+	private final Cache<CloudPath, CompletionStage<Quota>> quotaCache;
+
 	private final CloudProvider delegate;
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate) {
-		this(delegate, Duration.ofSeconds( //
-				Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS) //
-		));
+		this(
+				delegate, //
+				Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS))
+		);
 	}
 
 	public MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge) {
+		// cachedItemMetadataRequests is a request aggregator only if the delegate has caching capabilities, otherwise it is a real cache
+		// cachedItemListRequests is always a request aggregator, as it is too easy to have stale state
+		this(
+				delegate, //
+				cacheEntryMaxAge, //
+				delegate.cachingCapability() ? CacheBuilder.newBuilder().build() : CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build(),
+				CacheBuilder.newBuilder().build()
+		);
+	}
+
+	MetadataCachingProviderDecorator(CloudProvider delegate, Duration cacheEntryMaxAge, Cache<CloudPath, CompletionStage<CloudItemMetadata>> cachedItemMetadataRequests, Cache<ItemListEntry, CompletionStage<CloudItemList>> cachedItemListRequests) {
 		this.delegate = delegate;
-		this.itemMetadataCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
 		this.quotaCache = CacheBuilder.newBuilder().expireAfterWrite(cacheEntryMaxAge).build();
+		this.cachedItemMetadataRequests = cachedItemMetadataRequests;
+		this.cachedItemListRequests = cachedItemListRequests;
 	}
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
 		try {
-			return itemMetadataCache.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
-				// immediately invalidate cache in case of exceptions (except for NOT FOUND):
-				if (throwable != null && !(throwable instanceof NotFoundException)) {
-					itemMetadataCache.invalidate(node);
+			return cachedItemMetadataRequests.get(node, () -> delegate.itemMetadata(node).whenComplete((metadata, throwable) -> {
+				if (delegate.cachingCapability() || throwable != null && !(throwable instanceof NotFoundException)) {
+					evictFromItemAndItemListCache(node);
 				}
 			}));
 		} catch (ExecutionException e) {
@@ -58,8 +74,8 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 	public CompletionStage<Quota> quota(CloudPath folder) {
 		try {
 			return quotaCache.get(folder, () -> delegate.quota(folder).whenComplete((metadata, throwable) -> {
-				// immediately invalidate cache in case of exceptions (except for NOT FOUND and QUOTA NOT AVAILABLE):
 				if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
+					evictFromItemAndItemListCache(folder);
 					quotaCache.invalidate(folder);
 				}
 			}));
@@ -70,94 +86,125 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
-		return delegate.list(folder, pageToken) //
-				.whenComplete((cloudItemList, exception) -> {
-					evictIncludingDescendants(folder);
-					if (exception == null) {
-						assert cloudItemList != null;
-						cloudItemList.getItems().forEach(metadata -> itemMetadataCache.put(metadata.getPath(), CompletableFuture.completedFuture(metadata)));
-					}
-				});
+		try {
+			var entry = new ItemListEntry(folder, pageToken);
+			return cachedItemListRequests.get(entry, () -> delegate.list(folder, pageToken).whenComplete((cloudItemList, exception) -> {
+				if (exception instanceof NotFoundException) {
+					evictFromItemAndItemListCacheIncludingDescendants(folder);
+				} else if (delegate.cachingCapability()) {
+					evictFromItemListCache(entry);
+				} else if (exception == null) {
+					evictFromItemAndItemListCacheIncludingDescendants(folder);
+					assert cloudItemList != null;
+					cloudItemList.getItems().forEach(metadata -> cachedItemMetadataRequests.put(metadata.getPath(), CompletableFuture.completedFuture(metadata)));
+				}
+			}));
+		} catch (ExecutionException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, ProgressListener progressListener) {
-		return delegate.read(file, progressListener) //
-				.whenComplete((metadata, exception) -> {
-					if (exception != null) {
-						itemMetadataCache.invalidate(file);
-					}
-				});
+		return delegate.read(file, progressListener).whenComplete((metadata, exception) -> {
+			if (exception != null) {
+				evictFromItemAndItemListCache(file);
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
-		return delegate.read(file, offset, count, progressListener) //
-				.whenComplete((inputStream, exception) -> {
-					if (exception != null) {
-						itemMetadataCache.invalidate(file);
-					}
-				});
+		return delegate.read(file, offset, count, progressListener).whenComplete((inputStream, exception) -> {
+			if (exception != null) {
+				evictFromItemAndItemListCache(file);
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
-		return delegate.write(file, replace, data, size, lastModified, progressListener) //
-				.whenComplete((nullReturn, exception) -> {
-					if (exception == null) {
-						itemMetadataCache.put(file, CompletableFuture.completedFuture(new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, lastModified, Optional.of(size))));
-						quotaCache.invalidateAll();
-					} else {
-						itemMetadataCache.invalidate(file);
-					}
-				});
+		return delegate.write(file, replace, data, size, lastModified, progressListener).whenComplete((nullReturn, exception) -> {
+			if (exception != null) {
+				evictFromItemAndItemListCache(file);
+			} else if (!delegate.cachingCapability()) {
+				cachedItemMetadataRequests.put(file, CompletableFuture.completedFuture(new CloudItemMetadata(file.getFileName().toString(), file, CloudItemType.FILE, lastModified, Optional.of(size))));
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		return delegate.createFolder(folder) //
-				.whenComplete((metadata, exception) -> {
-					itemMetadataCache.invalidate(folder);
-					quotaCache.invalidateAll();
-				});
+		return delegate.createFolder(folder).whenComplete((metadata, exception) -> evictFromItemAndItemListCache(folder));
 	}
 
 	@Override
 	public CompletionStage<Void> deleteFile(CloudPath file) {
-		return delegate.deleteFile(file) //
-				.whenComplete((nullReturn, exception) -> {
-					CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
-					itemMetadataCache.put(file, future);
-					quotaCache.invalidateAll();
-				});
+		return delegate.deleteFile(file).whenComplete((nullReturn, exception) -> {
+			if (!delegate.cachingCapability()) {
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(file, future);
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<Void> deleteFolder(CloudPath folder) {
-		return delegate.deleteFolder(folder) //
-				.whenComplete((nullReturn, exception) -> {
-					evictIncludingDescendants(folder);
-					CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
-					itemMetadataCache.put(folder, future);
-					quotaCache.invalidateAll();
-				});
+		return delegate.deleteFolder(folder).whenComplete((nullReturn, exception) -> {
+			if (!delegate.cachingCapability()) {
+				evictFromItemAndItemListCacheIncludingDescendants(folder);
+				CompletionStage<CloudItemMetadata> future = CompletableFuture.failedFuture(new NotFoundException());
+				cachedItemMetadataRequests.put(folder, future);
+				quotaCache.invalidateAll();
+			}
+		});
 	}
 
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
-		return delegate.move(source, target, replace) //
-				.whenComplete((path, exception) -> {
-					evictIncludingDescendants(source);
-					evictIncludingDescendants(target);
-					quotaCache.invalidateAll();
-				});
+		return delegate.move(source, target, replace).whenComplete((path, exception) -> {
+			evictFromItemAndItemListCacheIncludingDescendants(source);
+			evictFromItemAndItemListCacheIncludingDescendants(target);
+		});
 	}
 
-	private void evictIncludingDescendants(CloudPath cleartextPath) {
-		for (var path : itemMetadataCache.asMap().keySet()) {
+	@Override
+	public boolean cachingCapability() {
+		return delegate.cachingCapability();
+	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return delegate.pollRemoteChanges();
+	}
+
+	private void evictFromItemAndItemListCacheIncludingDescendants(CloudPath cleartextPath) {
+		for (var path : cachedItemMetadataRequests.asMap().keySet()) {
 			if (path.startsWith(cleartextPath)) {
-				itemMetadataCache.invalidate(path);
+				cachedItemMetadataRequests.invalidate(path);
 			}
 		}
+		for (var entry : cachedItemListRequests.asMap().keySet()) {
+			if (entry.path.startsWith(cleartextPath)) {
+				cachedItemListRequests.invalidate(entry);
+			}
+		}
+	}
+
+	private void evictFromItemAndItemListCache(CloudPath cleartextPath) {
+		cachedItemMetadataRequests.invalidate(cleartextPath);
+
+		for (var entry : cachedItemListRequests.asMap().keySet()) {
+			if (entry.path.equals(cleartextPath)) {
+				cachedItemListRequests.invalidate(entry);
+			}
+		}
+	}
+
+	private void evictFromItemListCache(ItemListEntry entry) {
+		cachedItemListRequests.invalidate(entry);
+	}
+
+	record ItemListEntry(CloudPath path, Optional<String> pageToken) {
 	}
 }

@@ -16,11 +16,10 @@ import java.util.concurrent.CompletionStage;
 public class WebDavCloudProvider implements CloudProvider {
 
 	private final WebDavClient webDavClient;
-	private final WebDavProviderConfig config;
 
 	private WebDavCloudProvider(final WebDavCredential webDavCredential) {
-		config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
-		webDavClient = WebDavClient.WebDavAuthenticator.createAuthenticatedWebDavClient(webDavCredential, config);
+		var config = WebDavProviderConfig.createFromSystemPropertiesOrDefaults();
+		webDavClient = new WebDavClient(config, webDavCredential);
 	}
 
 	public static WebDavCloudProvider from(final WebDavCredential webDavCredential) throws UnauthorizedException, ServerNotWebdavCompatibleException {
@@ -75,6 +74,16 @@ public class WebDavCloudProvider implements CloudProvider {
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		return CompletableFuture.supplyAsync(() -> webDavClient.move(source, target, replace));
+	}
+
+	@Override
+	public boolean cachingCapability() {
+		return webDavClient.cachingCapability();
+	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return CompletableFuture.runAsync(webDavClient::pollRemoteChanges);
 	}
 
 }

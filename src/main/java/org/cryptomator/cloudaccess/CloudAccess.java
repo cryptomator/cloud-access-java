@@ -16,7 +16,6 @@ import org.cryptomator.cloudaccess.localfs.LocalFsCloudProvider;
 import org.cryptomator.cloudaccess.vaultformat8.VaultFormat8ProviderDecorator;
 import org.cryptomator.cloudaccess.webdav.WebDavCloudProvider;
 import org.cryptomator.cloudaccess.webdav.WebDavCredential;
-import org.cryptomator.cryptolib.api.Cryptor;
 import org.cryptomator.cryptolib.api.CryptorProvider;
 import org.cryptomator.cryptolib.api.Masterkey;
 

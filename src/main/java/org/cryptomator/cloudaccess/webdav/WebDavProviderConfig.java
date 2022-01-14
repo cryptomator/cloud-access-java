@@ -31,4 +31,5 @@ public class WebDavProviderConfig {
 	int getWriteTimeoutSeconds() {
 		return writeTimeoutSeconds;
 	}
+
 }

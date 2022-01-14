@@ -1,5 +1,6 @@
 package org.cryptomator.cloudaccess.webdav;
 
+import com.google.common.base.Preconditions;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -29,37 +30,42 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class WebDavClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebDavClient.class);
-	private static final Comparator<PropfindEntryItemData> ASCENDING_BY_DEPTH = Comparator.comparingLong(PropfindEntryItemData::getDepth);
-
 	private final WebDavCompatibleHttpClient httpClient;
 	private final URL baseUrl;
 	private final int HTTP_INSUFFICIENT_STORAGE = 507;
+	private final Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider;
 
-	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential) {
-		this.httpClient = httpClient;
+	WebDavClient(WebDavProviderConfig config, final WebDavCredential webDavCredential) {
+		this.httpClient = new WebDavCompatibleHttpClient(webDavCredential, config);
 		this.baseUrl = webDavCredential.getBaseUrl();
+
+		checkServerCompatibility();
+
+		var propfindEntryItemData = checkAuthenticationUsingLoadPropfindItem();
+
+		if (propfindEntryItemData.getETag() != null) {
+			Function<CloudPath, PropfindEntryItemData> rootPoller = this::loadPropfindItem;
+			Function<CloudPath, List<PropfindEntryItemData>> cacheUpdater = this::loadPropfindItems;
+			cachedPropfindEntryProvider = Optional.of(new CachedPropfindEntryProvider(rootPoller, cacheUpdater));
+		} else {
+			cachedPropfindEntryProvider = Optional.empty();
+		}
 	}
 
-	CloudItemMetadata itemMetadata(final CloudPath path) throws CloudProviderException {
-		LOG.trace("itemMetadata {}", path);
-		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
-			checkPropfindExecutionSucceeded(response.code());
-
-			return processGet(getEntriesFromResponse(response), path);
-		} catch (InterruptedIOException e) {
-			throw new CloudTimeoutException(e);
-		} catch (IOException | SAXException e) {
-			throw new CloudProviderException(e);
-		}
+	// used for testing only
+	WebDavClient(final WebDavCompatibleHttpClient httpClient, final WebDavCredential webDavCredential, final Optional<CachedPropfindEntryProvider> cachedPropfindEntryProvider) {
+		this.httpClient = httpClient;
+		this.baseUrl = webDavCredential.getBaseUrl();
+		this.cachedPropfindEntryProvider = cachedPropfindEntryProvider;
 	}
 
 	Quota quota(final CloudPath folder) throws CloudProviderException {
@@ -72,13 +78,13 @@ public class WebDavClient {
 				+ "</d:prop>\n" //
 				+ "</d:propfind>";
 
-		final var builder = new Request.Builder() //
+		final var quotaRequest = new Request.Builder() //
 				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
 				.url(absoluteURLFrom(folder)) //
 				.header("Depth", PropfindDepth.ZERO.value) //
 				.header("Content-Type", "text/xml");
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(quotaRequest)) {
 			checkPropfindExecutionSucceeded(response.code());
 
 			try (final var responseBody = response.body()) {
@@ -91,14 +97,45 @@ public class WebDavClient {
 		}
 	}
 
+	CloudItemMetadata itemMetadata(CloudPath path) throws CloudProviderException {
+		LOG.trace("itemMetadata {}", path);
+		var parentPath = path.getParent() != null ? path.getParent() : CloudPath.of("/");
+		var propfindEntryItemData = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.itemMetadata(path, unused -> loadPropfindItems(parentPath), this::loadPropfindItems))
+				.orElseGet(() -> loadPropfindItem(path));
+		return toCloudItem(propfindEntryItemData, parentPath);
+	}
+
+	private PropfindEntryItemData loadPropfindItem(CloudPath path) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ZERO)) {
+			checkPropfindExecutionSucceeded(response.code());
+			var entries = getEntriesFromResponse(response);
+			Preconditions.checkArgument(entries.size() == 1, "got not exactally one item");
+			return entries.get(0);
+		} catch (InterruptedIOException e) {
+			throw new CloudTimeoutException(e);
+		} catch (IOException | SAXException e) {
+			throw new CloudProviderException(e);
+		}
+	}
+
 	CloudItemList list(final CloudPath folder) throws CloudProviderException {
 		LOG.trace("list {}", folder);
-		try (final var response = executePropfindRequest(folder, PropfindDepth.ONE)) {
+		var propfindEntryItemDataList = cachedPropfindEntryProvider
+				.map(cachedProvider -> cachedProvider.list(folder, this::loadPropfindItems))
+				.orElseGet(() -> {
+					var loaded = loadPropfindItems(folder);
+					// skip parent folder as it is in the result as well
+					loaded.sort(new PropfindEntryItemData.AscendingByDepthComparator());
+					return loaded.stream().skip(1).collect(Collectors.toList());
+				});
+		return new CloudItemList(propfindEntryItemDataList.stream().map(node -> toCloudItem(node, folder)).collect(Collectors.toList()));
+	}
+
+	private List<PropfindEntryItemData> loadPropfindItems(CloudPath path) {
+		try (final var response = executePropfindRequest(path, PropfindDepth.ONE)) {
 			checkPropfindExecutionSucceeded(response.code());
-
-			final var nodes = getEntriesFromResponse(response);
-
-			return processDirList(nodes, folder);
+			return getEntriesFromResponse(response);
 		} catch (InterruptedIOException e) {
 			throw new CloudTimeoutException(e);
 		} catch (IOException | SAXException e) {
@@ -128,16 +165,17 @@ public class WebDavClient {
 				+ "<d:resourcetype />\n" //
 				+ "<d:getcontentlength />\n" //
 				+ "<d:getlastmodified />\n" //
+				+ "<d:getetag />\n" //
 				+ "</d:prop>\n" //
 				+ "</d:propfind>";
 
-		final var builder = new Request.Builder() //
+		final var propfindRequest = new Request.Builder() //
 				.method("PROPFIND", RequestBody.create(body, MediaType.parse(body))) //
 				.url(absoluteURLFrom(path)) //
 				.header("Depth", propfindDepth.value) //
 				.header("Content-Type", "text/xml");
 
-		return httpClient.execute(builder);
+		return httpClient.execute(propfindRequest);
 	}
 
 	private List<PropfindEntryItemData> getEntriesFromResponse(final Response response) throws IOException, SAXException {
@@ -146,39 +184,17 @@ public class WebDavClient {
 		}
 	}
 
-	private CloudItemMetadata processGet(final List<PropfindEntryItemData> entryData, final CloudPath path) {
-		entryData.sort(ASCENDING_BY_DEPTH);
-		return entryData.size() >= 1 ? toCloudItem(entryData.get(0), path) : null;
-	}
-
-	private CloudItemList processDirList(final List<PropfindEntryItemData> entryData, final CloudPath folder) {
-		var result = new CloudItemList(new ArrayList<>());
-
-		if (entryData.isEmpty()) {
-			return result;
-		}
-
-		entryData.sort(ASCENDING_BY_DEPTH);
-		// after sorting the first entry is the parent
-		// because it's depth is 1 smaller than the depth
-		// ot the other entries, thus we skip the first entry
-		for (PropfindEntryItemData childEntry : entryData.subList(1, entryData.size())) {
-			result = result.add(List.of(toCloudItem(childEntry, folder.resolve(childEntry.getName()))));
-		}
-		return result;
-	}
-
-	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath path) {
+	private CloudItemMetadata toCloudItem(final PropfindEntryItemData data, final CloudPath parentPath) {
 		if (data.isCollection()) {
-			return new CloudItemMetadata(data.getName(), path, CloudItemType.FOLDER);
+			return new CloudItemMetadata(data.getName(), parentPath.resolve(data.getName()), CloudItemType.FOLDER);
 		} else {
-			return new CloudItemMetadata(data.getName(), path, CloudItemType.FILE, data.getLastModified(), data.getSize());
+			return new CloudItemMetadata(data.getName(), parentPath.resolve(data.getName()), CloudItemType.FILE, data.getLastModified(), data.getSize());
 		}
 	}
 
 	CloudPath move(final CloudPath from, final CloudPath to, boolean replace) throws CloudProviderException {
 		LOG.trace("move {} to {} (replace: {})", from, to, replace ? "true" : "false");
-		final var builder = new Request.Builder() //
+		final var moveRequest = new Request.Builder() //
 				.method("MOVE", null) //
 				.url(absoluteURLFrom(from)) //
 				.header("Destination", absoluteURLFrom(to).toExternalForm()) //
@@ -186,11 +202,12 @@ public class WebDavClient {
 				.header("Depth", "infinity");
 
 		if (!replace) {
-			builder.header("Overwrite", "F");
+			moveRequest.header("Overwrite", "F");
 		}
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(moveRequest)) {
 			if (response.isSuccessful()) {
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.move(from, to));
 				return to;
 			} else {
 				switch (response.code()) {
@@ -275,14 +292,17 @@ public class WebDavClient {
 		}
 
 		final var countingBody = new ProgressRequestWrapper(InputStreamRequestBody.from(data, size), progressListener);
-		final var requestBuilder = new Request.Builder() //
+		final var writeRequest = new Request.Builder() //
 				.url(absoluteURLFrom(file)) //
 				.put(countingBody);
 
-		lastModified.ifPresent(instant -> requestBuilder.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
+		lastModified.ifPresent(instant -> writeRequest.addHeader("X-OC-Mtime", String.valueOf(instant.getEpochSecond())));
 
-		try (final var response = httpClient.execute(requestBuilder)) {
-			if (!response.isSuccessful()) {
+		try (final var response = httpClient.execute(writeRequest)) {
+			if (response.isSuccessful()) {
+				var eTag = Optional.ofNullable(response.header("ETag"));
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.write(file, size, lastModified, eTag));
+			} else {
 				switch (response.code()) {
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
@@ -316,12 +336,13 @@ public class WebDavClient {
 
 	CloudPath createFolder(final CloudPath path) throws CloudProviderException {
 		LOG.trace("createFolder {}", path);
-		final var builder = new Request.Builder() //
+		final var createFolderRequest = new Request.Builder() //
 				.method("MKCOL", null) //
 				.url(absoluteURLFrom(path));
 
-		try (final var response = httpClient.execute(builder)) {
+		try (final var response = httpClient.execute(createFolderRequest)) {
 			if (response.isSuccessful()) {
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.createFolder(path));
 				return path;
 			} else {
 				switch (response.code()) {
@@ -330,7 +351,7 @@ public class WebDavClient {
 					case HttpURLConnection.HTTP_FORBIDDEN:
 						throw new ForbiddenException();
 					case HttpURLConnection.HTTP_BAD_METHOD:
-						throw new AlreadyExistsException(String.format("Folder %s already exists", path.toString()));
+						throw new AlreadyExistsException(String.format("Folder %s already exists", path));
 					case HttpURLConnection.HTTP_CONFLICT:
 						throw new ParentFolderDoesNotExistException();
 					case HTTP_INSUFFICIENT_STORAGE:
@@ -348,12 +369,14 @@ public class WebDavClient {
 
 	void delete(final CloudPath path) throws CloudProviderException {
 		LOG.trace("delete {}", path);
-		final var builder = new Request.Builder() //
+		final var deleteRequest = new Request.Builder() //
 				.delete() //
 				.url(absoluteURLFrom(path));
 
-		try (final var response = httpClient.execute(builder)) {
-			if (!response.isSuccessful()) {
+		try (final var response = httpClient.execute(deleteRequest)) {
+			if (response.isSuccessful()) {
+				cachedPropfindEntryProvider.ifPresent(cachedProvider -> cachedProvider.delete(path));
+			} else {
 				switch (response.code()) {
 					case HttpURLConnection.HTTP_UNAUTHORIZED:
 						throw new UnauthorizedException();
@@ -399,9 +422,9 @@ public class WebDavClient {
 		}
 	}
 
-	void tryAuthenticatedRequest() throws UnauthorizedException {
+	PropfindEntryItemData checkAuthenticationUsingLoadPropfindItem() throws UnauthorizedException {
 		LOG.trace("tryAuthenticatedRequest");
-		itemMetadata(CloudPath.of("/"));
+		return loadPropfindItem(CloudPath.of("/"));
 	}
 
 	// visible for testing
@@ -415,6 +438,14 @@ public class WebDavClient {
 		}
 	}
 
+	void pollRemoteChanges() {
+		cachedPropfindEntryProvider.ifPresent(CachedPropfindEntryProvider::pollRemoteChanges);
+	}
+
+	boolean cachingCapability() {
+		return cachedPropfindEntryProvider.isPresent();
+	}
+
 	private enum PropfindDepth {
 		ZERO("0"), //
 		ONE("1"), //
@@ -426,17 +457,4 @@ public class WebDavClient {
 			this.value = value;
 		}
 	}
-
-	static class WebDavAuthenticator {
-
-		static WebDavClient createAuthenticatedWebDavClient(final WebDavCredential webDavCredential, WebDavProviderConfig config) throws ServerNotWebdavCompatibleException, UnauthorizedException {
-			final var webDavClient = new WebDavClient(new WebDavCompatibleHttpClient(webDavCredential, config), webDavCredential);
-
-			webDavClient.checkServerCompatibility();
-			webDavClient.tryAuthenticatedRequest();
-
-			return webDavClient;
-		}
-	}
-
 }

@@ -32,7 +32,7 @@ class WebDavCompatibleHttpClient {
 
 	private static OkHttpClient httpClientFor(final WebDavCredential webDavCredential, WebDavProviderConfig config) {
 		final Map<String, CachingAuthenticator> authCache = new ConcurrentHashMap<>();
-		final var builder = new OkHttpClient()
+		return new OkHttpClient()
 				.newBuilder()
 				.connectTimeout(config.getConnectionTimeoutSeconds(), TimeUnit.SECONDS)
 				.readTimeout(config.getReadTimeoutSeconds(), TimeUnit.SECONDS)
@@ -40,8 +40,8 @@ class WebDavCompatibleHttpClient {
 				.followRedirects(false)
 				.addInterceptor(new HttpLoggingInterceptor(LOG::trace))
 				.authenticator(httpAuthenticator(webDavCredential.getUsername(), webDavCredential.getPassword(), authCache))
-				.addInterceptor(new AuthenticationCacheInterceptor(authCache));
-		return builder.build();
+				.addInterceptor(new AuthenticationCacheInterceptor(authCache))
+				.build();
 	}
 
 	private static Authenticator httpAuthenticator(final String username, final String password, final Map<String, CachingAuthenticator> authCache) {

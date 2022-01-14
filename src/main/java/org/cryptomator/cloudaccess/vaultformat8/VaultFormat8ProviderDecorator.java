@@ -1,6 +1,9 @@
 package org.cryptomator.cloudaccess.vaultformat8;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteStreams;
 import com.google.common.math.LongMath;
@@ -26,6 +29,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,7 +49,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	private final CloudPath dataDir;
 	private final Cryptor cryptor;
 	private final DirectoryIdCache dirIdCache;
-	private final FileHeaderCache fileHeaderCache;
+	private final LoadingCache<CloudPath, CompletionStage<FileHeader>> fileHeaderCache;
 	private final VaultFormat8ProviderConfig config;
 
 	public VaultFormat8ProviderDecorator(CloudProvider delegate, CloudPath dataDir, Cryptor cryptor) {
@@ -54,7 +58,9 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		this.cryptor = cryptor;
 		this.config = VaultFormat8ProviderConfig.createFromSystemProperties();
 		this.dirIdCache = new DirectoryIdCache();
-		this.fileHeaderCache = new FileHeaderCache(config.getFileHeaderCacheTimeoutMillis());
+		this.fileHeaderCache = CacheBuilder.newBuilder() //
+				.expireAfterWrite(Duration.ofMillis(config.getFileHeaderCacheTimeoutMillis())) //
+				.build(CacheLoader.from(this::readFileHeader));
 	}
 
 	public void initialize() throws InterruptedException, CloudProviderException {
@@ -115,7 +121,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 
 		// loading of relevant parts from ciphertext file:
 		var futureCiphertextPath = getC9rPath(file);
-		var futureHeader = futureCiphertextPath.thenCompose(ciphertextPath -> fileHeaderCache.get(ciphertextPath, this::readFileHeader));
+		var futureHeader = futureCiphertextPath.thenCompose(ciphertextPath -> fileHeaderCache.getUnchecked(ciphertextPath));
 		var futureCiphertext = futureCiphertextPath.thenCompose(ciphertextPath -> delegate.read(ciphertextPath, firstByte, numBytes, progressListener));
 		var futureCleartextStream = futureHeader.thenCombine(futureCiphertext, (header, ciphertext) -> {
 			var ciphertextChannel = Channels.newChannel(ciphertext);
@@ -127,8 +133,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 		return futureCleartextStream.thenApply(in -> {
 			long skip = offset % cryptor.fileContentCryptor().cleartextChunkSize();
 			var offsetIn = new OffsetInputStream(in, skip);
-			var limitedIn = ByteStreams.limit(offsetIn, count);
-			return limitedIn;
+			return ByteStreams.limit(offsetIn, count);
 		});
 	}
 
@@ -151,7 +156,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
 		return getC9rPath(file).thenCompose(ciphertextPath -> {
-			fileHeaderCache.evict(ciphertextPath);
+			fileHeaderCache.invalidate(ciphertextPath);
 			var src = Channels.newChannel(data);
 			var encryptingChannel = new EncryptingReadableByteChannel(src, cryptor);
 			var encryptedIn = Channels.newInputStream(encryptingChannel);
@@ -179,7 +184,7 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	public CompletionStage<Void> deleteFile(CloudPath file) {
 		return getC9rPath(file) //
 				.thenCompose(ciphertextPath -> {
-					fileHeaderCache.evict(ciphertextPath);
+					fileHeaderCache.invalidate(ciphertextPath);
 					return delegate.deleteFile(ciphertextPath);
 				});
 	}
@@ -208,13 +213,23 @@ public class VaultFormat8ProviderDecorator implements CloudProvider {
 	@Override
 	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
 		return getC9rPath(source).thenCompose(sourceC9rPath -> {
-			fileHeaderCache.evict(sourceC9rPath);
+			fileHeaderCache.invalidate(sourceC9rPath);
 			return getC9rPath(target).thenCompose(targetC9rPath -> delegate.move(sourceC9rPath, targetC9rPath, replace));
 		}).thenApply(targetC9rPath -> {
-			fileHeaderCache.evict(targetC9rPath);
+			fileHeaderCache.invalidate(targetC9rPath);
 			dirIdCache.evict(source);
 			return target;
 		});
+	}
+
+	@Override
+	public boolean cachingCapability() {
+		return delegate.cachingCapability();
+	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return delegate.pollRemoteChanges();
 	}
 
 	private CloudItemList toCleartextItemList(CloudItemList ciphertextItemList, CloudPath cleartextParent, byte[] parentDirId) {

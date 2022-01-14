@@ -36,7 +36,7 @@ public class WebDavCloudProviderTestIT {
 	private final CloudItemMetadata testFilePng = new CloudItemMetadata("Nextcloud.png", CloudPath.of("/Nextcloud.png"), CloudItemType.FILE, Optional.of(TestUtil.toInstant("Thu, 19 Feb 2020 10:24:12 GMT")), Optional.of(37042L));
 	private final CloudItemMetadata testFolderPhotos = new CloudItemMetadata("Photos", CloudPath.of("/Photos"), CloudItemType.FOLDER, Optional.empty(), Optional.empty());
 
-	private final String webDavRequestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n</d:prop>\n</d:propfind>";
+	private final String webDavRequestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:propfind xmlns:d=\"DAV:\">\n<d:prop>\n<d:resourcetype />\n<d:getcontentlength />\n<d:getlastmodified />\n<d:getetag />\n</d:prop>\n</d:propfind>";
 
 	public WebDavCloudProviderTestIT() throws IOException, InterruptedException {
 		server = new MockWebServer();
@@ -64,8 +64,8 @@ public class WebDavCloudProviderTestIT {
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav/Nextcloud%20Manual.pdf", rq.getPath());
+		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 	}
 
@@ -78,7 +78,7 @@ public class WebDavCloudProviderTestIT {
 
 		final var expectedList = List.of(testFolderDocuments, testFileManual, testFileIntro, testFilePng, testFolderPhotos);
 
-		Assertions.assertEquals(nodeList.getItems(), expectedList);
+		Assertions.assertEquals(expectedList, nodeList.getItems());
 		Assertions.assertTrue(nodeList.getNextPageToken().isEmpty());
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
@@ -133,8 +133,8 @@ public class WebDavCloudProviderTestIT {
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 
 		rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
@@ -173,8 +173,8 @@ public class WebDavCloudProviderTestIT {
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 	}
 
@@ -208,8 +208,8 @@ public class WebDavCloudProviderTestIT {
 
 		var rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());
 		Assertions.assertEquals("PROPFIND", rq.getMethod());
-		Assertions.assertEquals("0", rq.getHeader("DEPTH"));
-		Assertions.assertEquals("/cloud/remote.php/webdav/foo.txt", rq.getPath());
+		Assertions.assertEquals("1", rq.getHeader("DEPTH"));
+		Assertions.assertEquals("/cloud/remote.php/webdav", rq.getPath());
 		Assertions.assertEquals(webDavRequestBody, rq.getBody().readUtf8());
 
 		rq = Assertions.assertTimeoutPreemptively(timeout, () -> server.takeRequest());

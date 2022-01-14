@@ -248,4 +248,14 @@ public class LocalFsCloudProvider implements CloudProvider {
 			l.unlock();
 		}
 	}
+
+	@Override
+	public boolean cachingCapability() {
+		return true;
+	}
+
+	@Override
+	public CompletionStage<Void> pollRemoteChanges() {
+		return CompletableFuture.completedFuture(null);
+	}
 }

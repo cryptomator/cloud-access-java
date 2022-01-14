@@ -2,7 +2,7 @@ package org.cryptomator.cloudaccess.vaultformat8;
 
 public class VaultFormat8ProviderConfig {
 
-	private static final int DEFAULT_FILEHEADER_TIMEOUT = 1000;
+	private static final int DEFAULT_FILEHEADER_TIMEOUT = 5000;
 
 	private final int fileHeaderCacheTimeoutMillis;
 
