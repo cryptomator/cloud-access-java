@@ -11,4 +11,5 @@ module org.cryptomator.cloudaccess {
 	requires okhttp.digest;
 	requires okio;
 	requires com.auth0.jwt;
+	requires com.github.benmanes.caffeine;
 }
