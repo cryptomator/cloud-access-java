@@ -18,7 +18,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+/**
+ * Decorates an existing CloudProvider by deduplicating identical itemMetadata and list-requests so that the delegate is called only once until the future is completed.
+ * Furthermore, quota-requests are cached for a duration of default 10 seconds (can be set using <code>org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds</code>).
+ */
 public class MetadataRequestDeduplicationDecorator implements CloudProvider {
+
+	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
 	// visible for testing
 	final AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests;
@@ -28,20 +34,17 @@ public class MetadataRequestDeduplicationDecorator implements CloudProvider {
 	private final CloudProvider delegate;
 
 	public MetadataRequestDeduplicationDecorator(CloudProvider delegate) {
-		this(
-				delegate, //
+		this(delegate, //
 				Caffeine.newBuilder().buildAsync(), //
 				Caffeine.newBuilder().buildAsync(), //
-				Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(10)).buildAsync()
-		);
+				Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(Integer.getInteger("org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds", DEFAULT_CACHE_TIMEOUT_SECONDS))).buildAsync());
 	}
 
 	MetadataRequestDeduplicationDecorator(
 			CloudProvider delegate, //
 			AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests, //
 			AsyncCache<ItemListEntry, CloudItemList> cachedItemListRequests, //
-			AsyncCache<CloudPath, Quota> quotaCache
-	) {
+			AsyncCache<CloudPath, Quota> quotaCache) {
 		this.delegate = delegate;
 		this.quotaCache = quotaCache;
 		this.cachedItemMetadataRequests = cachedItemMetadataRequests;
@@ -50,27 +53,28 @@ public class MetadataRequestDeduplicationDecorator implements CloudProvider {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
-		return cachedItemMetadataRequests.get(node, k -> delegate.itemMetadata(k)
-				.whenComplete((metadata, throwable) -> cachedItemMetadataRequests.synchronous().invalidate(node))
-				.toCompletableFuture().join());
+		return cachedItemMetadataRequests.get(node, k -> delegate.itemMetadata(k) //
+				.whenComplete((metadata, throwable) -> cachedItemMetadataRequests.synchronous().invalidate(node)) //
+				.toCompletableFuture() //
+				.join());
 	}
 
 	@Override
 	public CompletionStage<Quota> quota(CloudPath folder) {
-		return quotaCache.get(folder, k -> delegate.quota(k)
-				.whenComplete((metadata, throwable) -> {
-					if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
-						quotaCache.synchronous().invalidate(folder);
-					}
-				}).toCompletableFuture().join());
+		return quotaCache.get(folder, k -> delegate.quota(k).whenComplete((metadata, throwable) -> {
+			if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
+				quotaCache.synchronous().invalidate(folder);
+			}
+		}).toCompletableFuture().join());
 	}
 
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		var entry = new ItemListEntry(folder, pageToken);
-		return cachedItemListRequests.get(entry, k -> delegate.list(k.path, k.pageToken)
-				.whenComplete((cloudItemList, exception) -> cachedItemListRequests.synchronous().invalidate(entry))
-				.toCompletableFuture().join());
+		return cachedItemListRequests.get(entry, k -> delegate.list(k.path, k.pageToken) //
+				.whenComplete((cloudItemList, exception) -> cachedItemListRequests.synchronous().invalidate(entry)) //
+				.toCompletableFuture() //
+				.join());
 	}
 
 	@Override
@@ -122,13 +126,8 @@ public class MetadataRequestDeduplicationDecorator implements CloudProvider {
 	}
 
 	private synchronized void evictFromItemAndItemListCacheIncludingDescendants(CloudPath cleartextPath) {
-		cachedItemMetadataRequests
-				.synchronous()
-				.invalidateAll(cachedItemMetadataRequests.asMap().keySet().stream().filter(path -> path.startsWith(cleartextPath)).collect(Collectors.toSet()));
-
-		cachedItemListRequests
-				.synchronous()
-				.invalidateAll(cachedItemListRequests.asMap().keySet().stream().filter(entry -> entry.path.startsWith(cleartextPath)).collect(Collectors.toSet()));
+		cachedItemMetadataRequests.synchronous().invalidateAll(cachedItemMetadataRequests.asMap().keySet().stream().filter(path -> path.startsWith(cleartextPath)).collect(Collectors.toSet()));
+		cachedItemListRequests.synchronous().invalidateAll(cachedItemListRequests.asMap().keySet().stream().filter(entry -> entry.path.startsWith(cleartextPath)).collect(Collectors.toSet()));
 	}
 
 	record ItemListEntry(CloudPath path, Optional<String> pageToken) {
