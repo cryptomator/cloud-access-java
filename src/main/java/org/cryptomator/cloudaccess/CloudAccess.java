@@ -13,6 +13,7 @@ import org.cryptomator.cloudaccess.api.exceptions.VaultKeyVerificationFailedExce
 import org.cryptomator.cloudaccess.api.exceptions.VaultVerificationFailedException;
 import org.cryptomator.cloudaccess.api.exceptions.VaultVersionVerificationFailedException;
 import org.cryptomator.cloudaccess.localfs.LocalFsCloudProvider;
+import org.cryptomator.cloudaccess.requestdecorator.CloudProviderDecoratorFactory;
 import org.cryptomator.cloudaccess.vaultformat8.VaultFormat8ProviderDecorator;
 import org.cryptomator.cloudaccess.webdav.WebDavCloudProvider;
 import org.cryptomator.cloudaccess.webdav.WebDavCredential;
@@ -59,9 +60,12 @@ public class CloudAccess {
 
 			verifyVaultFormat8GCMConfig(cloudProvider, pathToVault, rawKey);
 
-			VaultFormat8ProviderDecorator provider = new VaultFormat8ProviderDecorator(cloudProvider, pathToVault.resolve("d"), cryptor);
-			provider.initialize();
-			return new MetadataCachingProviderDecorator(provider);
+			var decoratedCloudProvider = new CloudProviderDecoratorFactory().get(cloudProvider, cloudProvider.cachingCapability());
+
+			VaultFormat8ProviderDecorator vaultFormat8Provider = new VaultFormat8ProviderDecorator(decoratedCloudProvider, pathToVault.resolve("d"), cryptor);
+			vaultFormat8Provider.initialize();
+
+			return vaultFormat8Provider;
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("JVM doesn't supply a CSPRNG", e);
 		} catch (InterruptedException e) {
