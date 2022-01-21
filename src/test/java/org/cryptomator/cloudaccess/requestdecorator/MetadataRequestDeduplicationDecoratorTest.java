@@ -28,9 +28,6 @@ public class MetadataRequestDeduplicationDecoratorTest {
 	private CloudProvider cloudProvider;
 	private MetadataRequestDeduplicationDecorator decorator;
 
-	private AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests;
-	private AsyncCache<MetadataRequestDeduplicationDecorator.ItemListEntry, CloudItemList> cachedItemListRequests;
-
 	private CompletableFuture<CloudItemMetadata> futureItemMetadata1;
 	private CompletableFuture<CloudItemMetadata> futureItemMetadata2;
 	private CompletableFuture<CloudItemList> futureItemList1;
@@ -39,8 +36,8 @@ public class MetadataRequestDeduplicationDecoratorTest {
 	@BeforeEach
 	public void setup() {
 		cloudProvider = Mockito.mock(CloudProvider.class);
-		cachedItemMetadataRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
-		cachedItemListRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
+		AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
+		AsyncCache<MetadataRequestDeduplicationDecorator.ItemListEntry, CloudItemList> cachedItemListRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
 		decorator = new MetadataRequestDeduplicationDecorator(cloudProvider, cachedItemMetadataRequests, cachedItemListRequests);
 
 		futureItemMetadata1 = new CompletableFuture<>();
