@@ -44,13 +44,13 @@ class MetadataRequestDeduplicationDecorator implements CloudProviderDecorator {
 
 	@Override
 	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
-		return cachedItemMetadataRequests.get(node, k -> delegate.itemMetadata(k).toCompletableFuture().join());
+		return cachedItemMetadataRequests.get(node, (key, executor) -> delegate.itemMetadata(key).toCompletableFuture());
 	}
 
 	@Override
 	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
 		var entry = new ItemListEntry(folder, pageToken);
-		return cachedItemListRequests.get(entry, k -> delegate.list(k.path, k.pageToken).toCompletableFuture().join());
+		return cachedItemListRequests.get(entry, (key, executor) -> delegate.list(key.path, key.pageToken).toCompletableFuture());
 	}
 
 	record ItemListEntry(CloudPath path, Optional<String> pageToken) {

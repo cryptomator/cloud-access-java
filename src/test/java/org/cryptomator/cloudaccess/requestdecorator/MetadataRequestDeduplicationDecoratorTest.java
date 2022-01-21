@@ -14,11 +14,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class MetadataRequestDeduplicationDecoratorTest {
 
 	private final CloudPath file1 = CloudPath.of("/foo");
-	private final CloudPath file2 = CloudPath.of("/bar");
+	private final CloudItemMetadata itemMetadata = new CloudItemMetadata(file1.getFileName().toString(), file1, CloudItemType.FILE);
+	private final CloudItemList itemList = new CloudItemList(List.of(itemMetadata));
+	private final Optional<String> pageToken = Optional.empty();
 
 	private CloudProvider cloudProvider;
 	private MetadataRequestDeduplicationDecorator decorator;
@@ -26,41 +31,76 @@ public class MetadataRequestDeduplicationDecoratorTest {
 	private AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests;
 	private AsyncCache<MetadataRequestDeduplicationDecorator.ItemListEntry, CloudItemList> cachedItemListRequests;
 
+	private CompletableFuture<CloudItemMetadata> futureItemMetadata1;
+	private CompletableFuture<CloudItemMetadata> futureItemMetadata2;
+	private CompletableFuture<CloudItemList> futureItemList1;
+	private CompletableFuture<CloudItemList> futureItemList2;
+
 	@BeforeEach
 	public void setup() {
 		cloudProvider = Mockito.mock(CloudProvider.class);
 		cachedItemMetadataRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
 		cachedItemListRequests = Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(0)).buildAsync();
 		decorator = new MetadataRequestDeduplicationDecorator(cloudProvider, cachedItemMetadataRequests, cachedItemListRequests);
+
+		futureItemMetadata1 = new CompletableFuture<>();
+		futureItemMetadata2 = new CompletableFuture<>();
+		futureItemList1 = new CompletableFuture<>();
+		futureItemList2 = new CompletableFuture<>();
 	}
 
 	@Test
-	@DisplayName("Caffeine cache invalidates automatically and load value for key once")
-	public void testCaffeineCacheInvalidatesAutomaticallyAndLoadsValueForKeyOnce() {
-		var itemMetadata = new CloudItemMetadata(file1.getFileName().toString(), file1, CloudItemType.FILE);
-		var itemMetadata2 = new CloudItemMetadata(file2.getFileName().toString(), file2, CloudItemType.FILE);
+	@DisplayName("Same CompletionStage<CloudItemMetadata> is returned as long as the future has not completed for itemMetadata")
+	public void testSameCompletionStageReturnedForItemMetadata() {
+		Mockito.doReturn(futureItemMetadata1, futureItemMetadata2).when(cloudProvider).itemMetadata(file1);
 
-		var completionStage1= cachedItemMetadataRequests.get(file1, k -> {
-			try {
-				Thread.sleep(250);
-			} catch (InterruptedException e) {
-				Assertions.fail("Exception thrown during sleep, retry");
-			}
-			return itemMetadata;
-		});
+		var result1 = decorator.itemMetadata(file1);
+		var result2 = decorator.itemMetadata(file1);
 
-		var completionStage2 = cachedItemMetadataRequests.get(file1, k -> {
-			Assertions.fail("Not allowed to invoke a second time until completionStage1 is finished");
-			return itemMetadata2;
-		});
+		futureItemMetadata1.complete(itemMetadata);
 
-		var result1 = Assertions.assertTimeoutPreemptively(Duration.ofMillis(300), () -> completionStage1.toCompletableFuture().get());
-		var result2 = Assertions.assertTimeoutPreemptively(Duration.ofMillis(300), () -> completionStage2.toCompletableFuture().get());
+		Assertions.assertSame(result1, result2);
+		Mockito.verify(cloudProvider, Mockito.atMostOnce()).itemMetadata(file1);
+	}
 
-		Assertions.assertEquals(result1, itemMetadata);
-		Assertions.assertEquals(result2, itemMetadata);
+	@Test
+	@DisplayName("Different CompletionStage<CloudItemMetadata> is returned after future has completed for itemMetadata")
+	public void testDifferentCompletionStageReturnedForItemMetadata() {
+		Mockito.doReturn(futureItemMetadata1, futureItemMetadata2).when(cloudProvider).itemMetadata(file1);
 
-		Assertions.assertNull(cachedItemMetadataRequests.synchronous().getIfPresent(file1));
+		var result1 = decorator.itemMetadata(file1);
+		futureItemMetadata1.complete(itemMetadata);
+		var result2 = decorator.itemMetadata(file1);
+
+		Assertions.assertNotSame(result1, result2);
+		Mockito.verify(cloudProvider, Mockito.times(2)).itemMetadata(file1);
+	}
+
+	@Test
+	@DisplayName("Same CompletionStage<CloudItemList> is returned as long as the future has not completed for list")
+	public void testSameCompletionStageReturnedForList() {
+		Mockito.doReturn(futureItemList1, futureItemList2).when(cloudProvider).list(file1, pageToken);
+
+		var result1 = decorator.list(file1, pageToken);
+		var result2 = decorator.list(file1, pageToken);
+
+		futureItemList1.complete(itemList);
+
+		Assertions.assertSame(result1, result2);
+		Mockito.verify(cloudProvider, Mockito.atMostOnce()).list(file1, pageToken);
+	}
+
+	@Test
+	@DisplayName("Different CompletionStage<CloudItemList> is returned after future has completed for list")
+	public void testDifferentCompletionStageReturnedForList() {
+		Mockito.doReturn(futureItemList1, futureItemList2).when(cloudProvider).list(file1, pageToken);
+
+		var result1 = decorator.list(file1, pageToken);
+		futureItemList1.complete(itemList);
+		var result2 = decorator.list(file1, pageToken);
+
+		Assertions.assertNotSame(result1, result2);
+		Mockito.verify(cloudProvider, Mockito.times(2)).list(file1, pageToken);
 	}
 
 }
