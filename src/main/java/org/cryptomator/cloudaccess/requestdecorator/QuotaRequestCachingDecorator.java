@@ -14,7 +14,7 @@ import java.util.concurrent.CompletionStage;
 /**
  * Decorates an existing CloudProvider by caching quota-requests for a duration of default 10 seconds (can be set using <code>org.cryptomator.cloudaccess.metadatacachingprovider.timeoutSeconds</code>).
  */
-class QuotaRequestCachingDecorator extends CloudProviderDecorator {
+class QuotaRequestCachingDecorator implements CloudProviderDecorator {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
@@ -31,9 +31,13 @@ class QuotaRequestCachingDecorator extends CloudProviderDecorator {
 	}
 
 	QuotaRequestCachingDecorator(CloudProvider delegate, AsyncCache<CloudPath, Quota> quotaCache) {
-		super(delegate);
 		this.delegate = delegate;
 		this.quotaCache = quotaCache;
+	}
+
+	@Override
+	public CloudProvider delegate() {
+		return delegate;
 	}
 
 	@Override

@@ -15,7 +15,7 @@ import org.mockito.Mockito;
 
 import java.time.Duration;
 
-class MetadataRequestDeduplicationDecoratorTest {
+public class MetadataRequestDeduplicationDecoratorTest {
 
 	private final CloudPath file1 = CloudPath.of("/foo");
 	private final CloudPath file2 = CloudPath.of("/bar");

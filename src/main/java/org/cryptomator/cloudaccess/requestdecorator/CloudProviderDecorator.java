@@ -12,66 +12,62 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-abstract class CloudProviderDecorator implements CloudProvider {
+interface CloudProviderDecorator extends CloudProvider {
 
-	private final CloudProvider delegate;
+	CloudProvider delegate();
 
-	public CloudProviderDecorator(CloudProvider delegate) {
-		this.delegate = delegate;
+	@Override
+	default CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
+		return delegate().itemMetadata(node);
 	}
 
 	@Override
-	public CompletionStage<CloudItemMetadata> itemMetadata(CloudPath node) {
-		return delegate.itemMetadata(node);
+	default CompletionStage<Quota> quota(CloudPath folder) {
+		return delegate().quota(folder);
 	}
 
 	@Override
-	public CompletionStage<Quota> quota(CloudPath folder) {
-		return delegate.quota(folder);
+	default CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
+		return delegate().list(folder, pageToken);
 	}
 
 	@Override
-	public CompletionStage<CloudItemList> list(CloudPath folder, Optional<String> pageToken) {
-		return delegate.list(folder, pageToken);
+	default CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
+		return delegate().read(file, offset, count, progressListener);
 	}
 
 	@Override
-	public CompletionStage<InputStream> read(CloudPath file, long offset, long count, ProgressListener progressListener) {
-		return delegate.read(file, offset, count, progressListener);
+	default CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
+		return delegate().write(file, replace, data, size, lastModified, progressListener);
 	}
 
 	@Override
-	public CompletionStage<Void> write(CloudPath file, boolean replace, InputStream data, long size, Optional<Instant> lastModified, ProgressListener progressListener) {
-		return delegate.write(file, replace, data, size, lastModified, progressListener);
+	default CompletionStage<CloudPath> createFolder(CloudPath folder) {
+		return delegate().createFolder(folder);
 	}
 
 	@Override
-	public CompletionStage<CloudPath> createFolder(CloudPath folder) {
-		return delegate.createFolder(folder);
+	default CompletionStage<Void> deleteFile(CloudPath file) {
+		return delegate().deleteFile(file);
 	}
 
 	@Override
-	public CompletionStage<Void> deleteFile(CloudPath file) {
-		return delegate.deleteFile(file);
+	default CompletionStage<Void> deleteFolder(CloudPath folder) {
+		return delegate().deleteFolder(folder);
 	}
 
 	@Override
-	public CompletionStage<Void> deleteFolder(CloudPath folder) {
-		return delegate.deleteFolder(folder);
+	default CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
+		return delegate().move(source, target, replace);
 	}
 
 	@Override
-	public CompletionStage<CloudPath> move(CloudPath source, CloudPath target, boolean replace) {
-		return delegate.move(source, target, replace);
+	default boolean cachingCapability() {
+		return delegate().cachingCapability();
 	}
 
 	@Override
-	public boolean cachingCapability() {
-		return delegate.cachingCapability();
-	}
-
-	@Override
-	public CompletionStage<Void> pollRemoteChanges() {
-		return delegate.pollRemoteChanges();
+	default CompletionStage<Void> pollRemoteChanges() {
+		return delegate().pollRemoteChanges();
 	}
 }

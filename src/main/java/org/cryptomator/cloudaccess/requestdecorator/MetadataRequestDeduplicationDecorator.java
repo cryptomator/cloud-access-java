@@ -14,8 +14,7 @@ import java.util.concurrent.CompletionStage;
 /**
  * Decorates an existing CloudProvider by deduplicating identical itemMetadata and list-requests so that the delegate is called only once until the future is completed.
  */
-class MetadataRequestDeduplicationDecorator extends CloudProviderDecorator {
-
+class MetadataRequestDeduplicationDecorator implements CloudProviderDecorator {
 
 	// visible for testing
 	final AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests;
@@ -33,10 +32,14 @@ class MetadataRequestDeduplicationDecorator extends CloudProviderDecorator {
 			CloudProvider delegate, //
 			AsyncCache<CloudPath, CloudItemMetadata> cachedItemMetadataRequests, //
 			AsyncCache<ItemListEntry, CloudItemList> cachedItemListRequests) {
-		super(delegate);
 		this.delegate = delegate;
 		this.cachedItemMetadataRequests = cachedItemMetadataRequests;
 		this.cachedItemListRequests = cachedItemListRequests;
+	}
+
+	@Override
+	public CloudProvider delegate() {
+		return delegate;
 	}
 
 	@Override
