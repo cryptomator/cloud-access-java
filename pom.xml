@@ -42,6 +42,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <guava.version>31.0.1-jre</guava.version>
+		<caffeine.version>3.0.5</caffeine.version>
         <jwt.version>3.18.2</jwt.version>
         <cryptolib.version>2.0.2</cryptolib.version>
 
@@ -70,6 +71,11 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>${caffeine.version}</version>
+		</dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>

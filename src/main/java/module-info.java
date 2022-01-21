@@ -2,6 +2,7 @@ module org.cryptomator.cloudaccess {
 	exports org.cryptomator.cloudaccess;
 	exports org.cryptomator.cloudaccess.api;
 	exports org.cryptomator.cloudaccess.api.exceptions;
+	exports org.cryptomator.cloudaccess.requestdecorator;
 
 	requires java.xml;
 	requires com.google.common;
@@ -11,4 +12,5 @@ module org.cryptomator.cloudaccess {
 	requires okhttp.digest;
 	requires okio;
 	requires com.auth0.jwt;
+	requires com.github.benmanes.caffeine;
 }

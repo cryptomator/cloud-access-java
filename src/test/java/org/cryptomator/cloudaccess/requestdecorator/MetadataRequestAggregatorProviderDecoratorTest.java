@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess;
+package org.cryptomator.cloudaccess.requestdecorator;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -10,6 +10,7 @@ import org.cryptomator.cloudaccess.api.CloudProvider;
 import org.cryptomator.cloudaccess.api.ProgressListener;
 import org.cryptomator.cloudaccess.api.exceptions.CloudProviderException;
 import org.cryptomator.cloudaccess.api.exceptions.NotFoundException;
+import org.cryptomator.cloudaccess.requestdecorator.MetadataCachingProviderDecorator;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;

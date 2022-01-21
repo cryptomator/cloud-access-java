@@ -1,4 +1,4 @@
-package org.cryptomator.cloudaccess;
+package org.cryptomator.cloudaccess.requestdecorator;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-public class MetadataCachingProviderDecorator implements CloudProvider {
+class MetadataCachingProviderDecorator implements CloudProvider {
 
 	private final static int DEFAULT_CACHE_TIMEOUT_SECONDS = 10;
 
@@ -93,7 +93,7 @@ public class MetadataCachingProviderDecorator implements CloudProvider {
 					evictFromItemAndItemListCacheIncludingDescendants(folder);
 				} else if (delegate.cachingCapability()) {
 					evictFromItemListCache(entry);
-				} else if (exception == null) {
+				} else if (!delegate.cachingCapability() && exception == null) {
 					evictFromItemAndItemListCacheIncludingDescendants(folder);
 					assert cloudItemList != null;
 					cloudItemList.getItems().forEach(metadata -> cachedItemMetadataRequests.put(metadata.getPath(), CompletableFuture.completedFuture(metadata)));
