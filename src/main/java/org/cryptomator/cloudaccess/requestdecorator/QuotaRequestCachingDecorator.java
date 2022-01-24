@@ -42,10 +42,10 @@ class QuotaRequestCachingDecorator implements CloudProviderDecorator {
 
 	@Override
 	public CompletionStage<Quota> quota(CloudPath folder) {
-		return quotaCache.get(folder, k -> delegate.quota(k).whenComplete((metadata, throwable) -> {
+		return quotaCache.get(folder, (key, executor) -> delegate.quota(key).whenComplete((metadata, throwable) -> {
 			if (throwable != null && !(throwable instanceof NotFoundException) && !(throwable instanceof QuotaNotAvailableException)) {
 				quotaCache.synchronous().invalidate(folder);
 			}
-		}).toCompletableFuture().join());
+		}).toCompletableFuture());
 	}
 }
