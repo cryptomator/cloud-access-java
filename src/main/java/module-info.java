@@ -9,6 +9,7 @@ module org.cryptomator.cloudaccess {
 	requires org.cryptomator.cryptolib;
 	requires org.slf4j;
 	requires okhttp3;
+	requires kotlin.stdlib;
 	requires okhttp.digest;
 	requires okio;
 	requires com.auth0.jwt;

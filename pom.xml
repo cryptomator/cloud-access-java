@@ -41,19 +41,19 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <guava.version>31.0.1-jre</guava.version>
-		<caffeine.version>3.0.5</caffeine.version>
-        <jwt.version>3.18.3</jwt.version>
+        <guava.version>31.1-jre</guava.version>
+        <caffeine.version>3.1.1</caffeine.version>
+        <jwt.version>4.0.0</jwt.version>
         <cryptolib.version>2.0.3</cryptolib.version>
 
-        <okhttp.version>4.9.3</okhttp.version>
-        <okhttp-digest.version>2.6</okhttp-digest.version>
+        <okhttp.version>4.10.0</okhttp.version>
+        <okhttp-digest.version>2.7</okhttp-digest.version>
         <kxml2.version>2.3.0</kxml2.version>
 
-        <slf4j.version>1.7.33</slf4j.version>
+        <slf4j.version>2.0.1</slf4j.version>
 
-		<junit.jupiter.version>5.8.2</junit.jupiter.version>
-		<mockito.version>4.2.0</mockito.version>
+		<junit.jupiter.version>5.9.0</junit.jupiter.version>
+		<mockito.version>4.8.0</mockito.version>
 		<hamcrest.version>2.2</hamcrest.version>
     </properties>
 
@@ -105,11 +105,6 @@
             <artifactId>okhttp-digest</artifactId>
             <version>${okhttp-digest.version}</version>
         </dependency>
-        <dependency> <!-- TMP fix for CVE-2020-29582 in okhttp -->
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib</artifactId>
-            <version>1.4.32</version>
-        </dependency>
 
         <!-- Test -->
         <dependency>
@@ -149,7 +144,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.9.0</version>
                 <configuration>
                     <release>17</release>
 					<source>17</source>
@@ -253,7 +248,7 @@
 				<plugins>
 					<plugin>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
+						<version>3.0.1</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
