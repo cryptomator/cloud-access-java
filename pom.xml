@@ -41,7 +41,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <guava.version>31.1-jre</guava.version>
+        <guava.version>32.0.0-jre</guava.version>
         <caffeine.version>3.1.1</caffeine.version>
         <jwt.version>4.0.0</jwt.version>
         <cryptolib.version>2.0.3</cryptolib.version>
